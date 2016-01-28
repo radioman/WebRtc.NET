@@ -1,0 +1,6 @@
+bin
+obj
+*.user
+.vs
+/WebRtc.NET/Release
+/WebRtc.NET/Debug
