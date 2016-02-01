@@ -11,6 +11,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebRtc.NET.App", "WebRtc.NE
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebRtc.NET.AppLib", "WebRtc.NET.AppLib\WebRtc.NET.AppLib.csproj", "{EBD5BC94-F7B0-418F-86AB-0827D7559D8E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "web", "web", "{E28DDFF2-84C7-4D8A-80E4-01EE800BB323}"
+	ProjectSection(SolutionItems) = preProject
+		web\adapter.js = web\adapter.js
+		web\index.html = web\index.html
+		web\rtc_main.js = web\rtc_main.js
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86

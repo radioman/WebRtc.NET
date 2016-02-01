@@ -178,9 +178,9 @@ namespace WebRtc
 				cd->OnOfferReply(marshal_as<std::string>(type), marshal_as<std::string>(sdp));
 			}
 
-			void OnOfferRequest(String ^ type, String ^ sdp)
+			void OnOfferRequest(String ^ sdp)
 			{
-				cd->OnOfferRequest(marshal_as<std::string>(type), marshal_as<std::string>(sdp));
+				cd->OnOfferRequest(marshal_as<std::string>(sdp));
 			}
 
 			bool AddIceCandidate(String ^ sdp_mid, Int32 sdp_mlineindex, String ^ sdp)

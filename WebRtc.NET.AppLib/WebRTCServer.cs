@@ -10,28 +10,28 @@ namespace WebRtc.NET.AppLib
 
     public class Str
     {
-        public const string Falid = "falid";
+        public const string Failed = "failed";
         public const string Success = "success";
         public const string Exist = "exist";
     }
     public class Command
     {
-        public const string closeClient = "closeClient";
-        public const string setMaster = "setMaster";
-        public const string Conn = "conn";
-        public const string startStream = "startStream";
+        public const string offer = "offer";
+        public const string onicecandidate = "onicecandidate";
     }
 
     class WebRTCServer : IDisposable
     {
-        public IWebSocketConnection Master;
         public ConcurrentDictionary<Guid, IWebSocketConnection> UserList = new ConcurrentDictionary<Guid, IWebSocketConnection>();
         public ConcurrentDictionary<Guid, IWebSocketConnection> Streams = new ConcurrentDictionary<Guid, IWebSocketConnection>();
 
-        private WebSocketServer server;
+        internal WebRtc.NET.ManagedConductor mc;
+
+        WebSocketServer server;
         public WebRTCServer(int port) : this("ws://0.0.0.0:" + port)
-        {
+        {            
         }
+
         public WebRTCServer(string URL)
         {
             server = new WebSocketServer(URL);
@@ -84,16 +84,9 @@ namespace WebRtc.NET.AppLib
                 };
             });
         }
+
         private void OnConnected(IWebSocketConnection context)
         {
-            if (UserList.Count == 0 && Master == null)
-            {
-                // no masters around, become the master!
-                Master = context;
-                context.Send(JsonHelper.GetJsonStr(Command.setMaster, null, Str.Success));
-                return;
-            }
-
             if (UserList.Count < ClientLimit)
             {
                 Debug.WriteLine($"OnConnected: {context.ConnectionInfo.Id}, {context.ConnectionInfo.ClientIpAddress}");
@@ -149,84 +142,49 @@ namespace WebRtc.NET.AppLib
                 IWebSocketConnection ctx;                
                 UserList.TryRemove(context.ConnectionInfo.Id, out ctx);
                 Streams.TryRemove(context.ConnectionInfo.Id, out ctx);
-                if (ctx != null)
-                {
-                    if (Master != null)
-                    {
-                        Master.Send(JsonHelper.GetJsonStr(Command.closeClient, context.ConnectionInfo.Id.ToString(), null));
-                    }
-                }
             }
         }
+
         private void OnReceive(IWebSocketConnection context, string msg)
         {
             Debug.WriteLine($"OnReceive {context.ConnectionInfo.Id}: {msg}");
 
-            if (!msg.Contains("command")) return; 
+            if (!msg.Contains("command") || mc == null) return; 
 
-            if(UserList.ContainsKey(context.ConnectionInfo.Id) || context == Master)
+            if(UserList.ContainsKey(context.ConnectionInfo.Id))
             {
                 JsonData jd = JsonMapper.ToObject(msg);
                 string command = jd["command"].ToString();
 
                 switch (command) 
                 {
-                    case Command.setMaster:
+                    case Command.offer:
                     {
-                        lock (this)
-                        {
-                            if (Master == null) // there can be only one ;}
-                            {
-                                Master = context;
-
-                                IWebSocketConnection ctx;
-                                UserList.TryRemove(Master.ConnectionInfo.Id, out ctx);
-
-                                context.Send(JsonHelper.GetJsonStr(Command.setMaster, null, Str.Success));
-                            }
-                            else
-                            {
-                                context.Send(JsonHelper.GetJsonStr(Command.setMaster, null, Str.Falid));
-                            }
-                        }
-                    }                         
-                    break;
-
-                    case Command.startStream:
-                    {
-                        if (context != Master &&
-                            UserList.Count <= ClientLimit &&
-                            !Streams.ContainsKey(context.ConnectionInfo.Id))
+                        if (UserList.Count <= ClientLimit && !Streams.ContainsKey(context.ConnectionInfo.Id))
                         {
                             Streams[context.ConnectionInfo.Id] = context;
 
-                            JsonData send = JsonHelper.GetJson("conn", "main");
-                            lock (this)
-                            {
-                                send["to"] = Master.ConnectionInfo.Id.ToString();
-                            }
-                            send["from"] = context.ConnectionInfo.Id.ToString();
-                            send["type"] = "start";
-                            context.Send(send.ToJson());
+                            var desc = jd["desc"];
+                            var sdp = desc["sdp"];
+
+                            mc.OnOfferRequest(sdp.ToString());
                         }
                         else
                         {
-                            context.Send(JsonHelper.GetJsonStr(Command.startStream, null, Str.Falid));
+                            context.Send(JsonHelper.GetJsonStr(Command.offer, null, Str.Failed));
                         }
                     }
                     break;
 
-                    case Command.Conn: 
+                    case Command.onicecandidate:
                     {
-                        Guid id = Guid.Parse(jd["to"].ToString());
-                        if (id == Master.ConnectionInfo.Id)
-                        {
-                            Master.Send(msg);
-                        }
-                        else
-                        {
-                            UserList[id].Send(msg);
-                        }
+                        var c = jd["candidate"];
+
+                        var sdpMLineIndex = c["sdpMLineIndex"];
+                        var sdpMid = c["sdpMid"];
+                        var candidate = c["candidate"];
+
+                        mc.AddIceCandidate(sdpMid.ToString(), (int)sdpMLineIndex, candidate.ToString());
                     }
                     break;
                 }
@@ -257,6 +215,7 @@ namespace WebRtc.NET.AppLib
             jd["ret"] = ret;
             return jd;
         }
+
         public static string GetJsonStr(string command, string data, string ret)
         {
             JsonData jd = new JsonData();

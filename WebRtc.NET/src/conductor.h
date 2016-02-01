@@ -21,7 +21,7 @@ public:
 	bool InitializePeerConnection();
 	void CreateOffer();
 	void OnOfferReply(std::string type, std::string sdp);
-	void OnOfferRequest(std::string type, std::string sdp);	
+	void OnOfferRequest(std::string sdp);	
 	bool AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::string sdp);
 
 	bool ProcessMessages(int delay)

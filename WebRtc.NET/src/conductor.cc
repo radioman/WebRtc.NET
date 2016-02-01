@@ -135,10 +135,10 @@ void Conductor::OnOfferReply(std::string type, std::string sdp)
 	peer_connection_->SetRemoteDescription(DummySetSessionDescriptionObserver::Create(), session_description);
 }
 
-void Conductor::OnOfferRequest(std::string type, std::string sdp)
+void Conductor::OnOfferRequest(std::string sdp)
 {
 	webrtc::SdpParseError error;
-	webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription(type, sdp, &error));
+	webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription("offer", sdp, &error));
 	if (!session_description)
 	{
 		LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;

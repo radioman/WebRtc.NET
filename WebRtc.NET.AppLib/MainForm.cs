@@ -14,6 +14,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using LitJson;
 using Microsoft.Win32;
 using TurboJpeg;
 
@@ -96,7 +97,18 @@ namespace WebRtc.NET.AppLib
 
         private void Mc_OnIceCandidate(string sdp)
         {
-            
+            if (webSocketServer != null)
+            {
+                // send ice
+                var c = webSocketServer.Streams.LastOrDefault();
+                if (c.Value.IsAvailable)
+                {
+                    JsonData jd = new JsonData();
+                    jd["command"] = "OnIceCandidate";
+                    jd["sdp"] = sdp;
+                    c.Value.Send(jd.ToJson());
+                }
+            }
         }
 
         private void Mc_OnSuccessAnswer(string sdp)
@@ -104,7 +116,14 @@ namespace WebRtc.NET.AppLib
             if (webSocketServer != null)
             {
                 // send anwer
-                //webSocketServer
+                var c = webSocketServer.Streams.LastOrDefault();
+                if (c.Value.IsAvailable)
+                {
+                    JsonData jd = new JsonData();
+                    jd["command"] = "OnSuccessAnswer";
+                    jd["sdp"] = sdp;
+                    c.Value.Send(jd.ToJson());
+                }
             }
         }
 
@@ -715,6 +734,7 @@ namespace WebRtc.NET.AppLib
             if (checkBoxWebsocket.Checked)
             {
                 webSocketServer = new WebRTCServer((int)numericWebSocket.Value);
+                webSocketServer.mc = mc;
                 numericMaxClients_ValueChanged(null, null);
             }
         }
