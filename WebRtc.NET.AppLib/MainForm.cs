@@ -62,6 +62,8 @@ namespace WebRtc.NET.AppLib
                 using (mc = new ManagedConductor())
                 {
                     mc.OnSuccessAnswer += Mc_OnSuccessAnswer;
+                    mc.OnIceCandidate += Mc_OnIceCandidate;
+                    mc.OnFailure += Mc_OnFailure;
 
                     var r = mc.InitializePeerConnection();
                     if (r)
@@ -87,12 +89,22 @@ namespace WebRtc.NET.AppLib
             exit = true;
         }
 
+        private void Mc_OnFailure(string error)
+        {
+            
+        }
+
+        private void Mc_OnIceCandidate(string sdp)
+        {
+            
+        }
+
         private void Mc_OnSuccessAnswer(string sdp)
         {
             if (webSocketServer != null)
             {
                 // send anwer
-                //webSocketServer.
+                //webSocketServer
             }
         }
 

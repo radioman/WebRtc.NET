@@ -36,15 +36,19 @@ namespace WebRtc
 
 			delegate void _OnErrorCallback();
 			_OnErrorCallback ^ onError;
+			GCHandle ^ onErrorHandle;
 
 			delegate void _OnSuccessCallback(String ^ type, String ^ sdp);
 			_OnSuccessCallback ^ onSuccess;
+			GCHandle ^ onSuccessHandle;
 
 			delegate void _OnFailureCallback(String ^ error);
 			_OnFailureCallback ^ onFailure;
+			GCHandle ^ onFailureHandle;
 
 			delegate void _OnIceCandidateCallback(String ^ sdp);
 			_OnIceCandidateCallback ^ onIceCandidate;
+			GCHandle ^ onIceCandidateHandle;
 
 			void _OnError()
 			{
@@ -81,6 +85,15 @@ namespace WebRtc
 				OnFailure(error);
 			}
 
+			void FreeGCHandle(GCHandle ^% g)
+			{
+				if (g != nullptr)
+				{
+					g->Free();
+					g = nullptr;
+				}
+			}
+
 		public:
 
 			delegate void OnCallbackSdp(String ^ sdp);
@@ -98,24 +111,20 @@ namespace WebRtc
 				cd = new Conductor();
 
 				onError = gcnew _OnErrorCallback(this, &ManagedConductor::_OnError);
-				GCHandle::Alloc(onError);
-				IntPtr p1 = Marshal::GetFunctionPointerForDelegate(onError);
-				cd->onError = static_cast<OnErrorCallbackNative>(p1.ToPointer());
+				onErrorHandle = GCHandle::Alloc(onError);
+				cd->onError = static_cast<OnErrorCallbackNative>(Marshal::GetFunctionPointerForDelegate(onError).ToPointer());
 
 				onSuccess = gcnew _OnSuccessCallback(this, &ManagedConductor::_OnSuccess);
-				GCHandle::Alloc(onSuccess);
-				IntPtr p2 = Marshal::GetFunctionPointerForDelegate(onSuccess);
-				cd->onSuccess = static_cast<OnSuccessCallbackNative>(p2.ToPointer());
+				onSuccessHandle = GCHandle::Alloc(onSuccess);
+				cd->onSuccess = static_cast<OnSuccessCallbackNative>(Marshal::GetFunctionPointerForDelegate(onSuccess).ToPointer());
 
 				onFailure = gcnew _OnFailureCallback(this, &ManagedConductor::_OnFailure);
-				GCHandle::Alloc(onFailure);
-				IntPtr p3 = Marshal::GetFunctionPointerForDelegate(onFailure);
-				cd->onFailure = static_cast<OnFailureCallbackNative>(p3.ToPointer());
+				onFailureHandle = GCHandle::Alloc(onFailure);
+				cd->onFailure = static_cast<OnFailureCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFailure).ToPointer());
 
 				onIceCandidate = gcnew _OnIceCandidateCallback(this, &ManagedConductor::_OnIceCandidate);
-				GCHandle::Alloc(onIceCandidate);
-				IntPtr p4 = Marshal::GetFunctionPointerForDelegate(onIceCandidate);
-				cd->onIceCandidate = static_cast<OnIceCandidateCallbackNative>(p4.ToPointer());
+				onIceCandidateHandle = GCHandle::Alloc(onIceCandidate);
+				cd->onIceCandidate = static_cast<OnIceCandidateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceCandidate).ToPointer());
 			}
 
 			~ManagedConductor()
@@ -124,8 +133,11 @@ namespace WebRtc
 					return;
 
 				// dispose managed data
-				//...
-
+				FreeGCHandle(onErrorHandle);
+				FreeGCHandle(onSuccessHandle);
+				FreeGCHandle(onFailureHandle);
+				FreeGCHandle(onIceCandidateHandle);
+	
 				this->!ManagedConductor(); // call finalizer
 
 				m_isDisposed = true;
