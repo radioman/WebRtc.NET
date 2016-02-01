@@ -4,3 +4,5 @@ obj
 .vs
 /WebRtc.NET/Release
 /WebRtc.NET/Debug
+/WebRtc.NET.sdf
+/WebRtc.NET.VC.opendb

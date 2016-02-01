@@ -43,12 +43,17 @@ namespace WebRtc
 			delegate void _OnFailureCallback(String ^ error);
 			_OnFailureCallback ^ onFailure;
 
-			void OnError()
+			delegate void _OnIceCandidateCallback(String ^ sdp);
+			_OnIceCandidateCallback ^ onIceCandidate;
+
+			void _OnError()
 			{
-				Debug::WriteLine("PEERCONNECTION ERROR");
+				Debug::WriteLine("OnError");
+
+				OnError();
 			}
 
-			void OnSuccess(String ^ type, String ^ sdp)
+			void _OnSuccess(String ^ type, String ^ sdp)
 			{
 				Debug::WriteLine(String::Format("OnSuccess: {0} -> {1}", type, sdp));
 
@@ -62,36 +67,55 @@ namespace WebRtc
 				}
 			}
 
-			void OnFailure(String ^ error)
+			void _OnIceCandidate(String ^ sdp)
+			{
+				Debug::WriteLine(String::Format("OnIceCandidate: {0}", sdp));
+
+				OnIceCandidate(sdp);
+			}
+
+			void _OnFailure(String ^ error)
 			{
 				Debug::WriteLine(String::Format("OnFailure: {0}", error));
+
+				OnFailure(error);
 			}
 
 		public:
 
-			delegate void OnSuccessCallback(String ^ sdp);
-			event OnSuccessCallback ^ OnSuccessOffer;
-			event OnSuccessCallback ^ OnSuccessAnswer;
+			delegate void OnCallbackSdp(String ^ sdp);
+			event OnCallbackSdp ^ OnSuccessOffer;
+			event OnCallbackSdp ^ OnSuccessAnswer;
+			event OnCallbackSdp ^ OnIceCandidate;
+			event Action ^ OnError;
+
+			delegate void OnCallbackError(String ^ error);
+			event OnCallbackError ^ OnFailure;
 
 			ManagedConductor()
 			{
 				m_isDisposed = false;
 				cd = new Conductor();
 
-				onError = gcnew _OnErrorCallback(this, &ManagedConductor::OnError);
+				onError = gcnew _OnErrorCallback(this, &ManagedConductor::_OnError);
 				GCHandle::Alloc(onError);
 				IntPtr p1 = Marshal::GetFunctionPointerForDelegate(onError);
 				cd->onError = static_cast<OnErrorCallbackNative>(p1.ToPointer());
 
-				onSuccess = gcnew _OnSuccessCallback(this, &ManagedConductor::OnSuccess);
+				onSuccess = gcnew _OnSuccessCallback(this, &ManagedConductor::_OnSuccess);
 				GCHandle::Alloc(onSuccess);
 				IntPtr p2 = Marshal::GetFunctionPointerForDelegate(onSuccess);
 				cd->onSuccess = static_cast<OnSuccessCallbackNative>(p2.ToPointer());
 
-				onFailure = gcnew _OnFailureCallback(this, &ManagedConductor::OnFailure);
+				onFailure = gcnew _OnFailureCallback(this, &ManagedConductor::_OnFailure);
 				GCHandle::Alloc(onFailure);
 				IntPtr p3 = Marshal::GetFunctionPointerForDelegate(onFailure);
 				cd->onFailure = static_cast<OnFailureCallbackNative>(p3.ToPointer());
+
+				onIceCandidate = gcnew _OnIceCandidateCallback(this, &ManagedConductor::_OnIceCandidate);
+				GCHandle::Alloc(onIceCandidate);
+				IntPtr p4 = Marshal::GetFunctionPointerForDelegate(onIceCandidate);
+				cd->onIceCandidate = static_cast<OnIceCandidateCallbackNative>(p4.ToPointer());
 			}
 
 			~ManagedConductor()

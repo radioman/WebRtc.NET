@@ -9,6 +9,7 @@
 typedef void (__stdcall *OnErrorCallbackNative)();
 typedef void(__stdcall *OnSuccessCallbackNative)(const char * type, const char * sdp);
 typedef void(__stdcall *OnFailureCallbackNative)(const char * error);
+typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdp);
 
 class Conductor	: public webrtc::PeerConnectionObserver, public webrtc::CreateSessionDescriptionObserver
 {
@@ -36,6 +37,7 @@ public:
 	OnErrorCallbackNative onError;
 	OnSuccessCallbackNative onSuccess;
 	OnFailureCallbackNative onFailure;
+	OnIceCandidateCallbackNative onIceCandidate;
 
 protected:
 

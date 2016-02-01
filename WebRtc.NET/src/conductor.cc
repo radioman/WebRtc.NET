@@ -52,6 +52,7 @@ Conductor::Conductor()
 	onError = NULL;
 	onSuccess = NULL;
 	onFailure = NULL;
+	onIceCandidate = NULL;
 }
 
 Conductor::~Conductor()
@@ -167,14 +168,6 @@ bool Conductor::AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::st
 	return true;
 }
 
-void Conductor::OnError()
-{
-	if (onError != NULL)
-	{
-		onError();
-	}
-}
-
 cricket::VideoCapturer* Conductor::OpenVideoCaptureDevice()
 {
 	rtc::scoped_ptr<cricket::DeviceManagerInterface> dev_manager(cricket::DeviceManagerFactory::Create());
@@ -278,6 +271,11 @@ void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
 		LOG(LS_ERROR) << "Failed to serialize candidate";
 		return;
 	}
+
+	if (onIceCandidate != NULL)
+	{
+		onIceCandidate(sdp.c_str());
+	}
 	//jmessage[kCandidateSdpName] = sdp;
 	//SendMessage(writer.write(jmessage));
 }
@@ -308,5 +306,13 @@ void Conductor::OnFailure(const std::string& error)
 	if (onFailure != NULL)
 	{
 		onFailure(error.c_str());
+	}
+}
+
+void Conductor::OnError()
+{
+	if (onError != NULL)
+	{
+		onError();
 	}
 }
