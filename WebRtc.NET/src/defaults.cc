@@ -130,7 +130,7 @@ namespace cricket
 		}
 		SetCaptureFormat(&capture_format);
 
-		barcode_reference_timestamp_millis_ = static_cast<int64_t>(rtc::Time()) * 1000;
+		barcode_reference_timestamp_millis_ = rtc::TimeNanos();
 		
 		startThread_ = rtc::Thread::Current();
 
@@ -193,6 +193,9 @@ namespace cricket
 			}
 
 		}
+
+		captured_frame_.time_stamp = rtc::TimeNanos();
+
 		frame_generator_->GenerateNextFrame((uint8_t*)captured_frame_.data, GetBarcodeValue());
 	}
 
@@ -203,8 +206,7 @@ namespace cricket
 		{
 			return -1;
 		}
-		int64_t now_millis = static_cast<int64_t>(rtc::Time()) * 1000;
-		return static_cast<int32_t>(now_millis - barcode_reference_timestamp_millis_);
+		return static_cast<int32_t>(captured_frame_.time_stamp - barcode_reference_timestamp_millis_);
 	}
 
 }  // namespace cricket

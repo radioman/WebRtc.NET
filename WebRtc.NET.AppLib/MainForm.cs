@@ -173,7 +173,7 @@ namespace WebRtc.NET.AppLib
             }
 
             webrtc.CancelAsync();
-            while (webrtc.IsBusy && !exit)
+            while (!exit)
             {
                 Thread.Sleep(100);
             }           
