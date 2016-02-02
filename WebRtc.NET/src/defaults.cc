@@ -2,6 +2,8 @@
 #include "defaults.h"
 #include "internals.h"
 
+#include "webrtc/base/bind.h"
+
 namespace cricket
 {
 	///////////////////////////////////////////////////////////////////////
@@ -86,7 +88,8 @@ namespace cricket
 		width_(752),
 		height_(480),
 		frame_index_(0),
-		barcode_interval_(1)
+		barcode_interval_(1),
+		startThread_(NULL)
 	{
 		Init();
 	}
@@ -129,6 +132,8 @@ namespace cricket
 
 		barcode_reference_timestamp_millis_ = static_cast<int64_t>(rtc::Time()) * 1000;
 		
+		startThread_ = rtc::Thread::Current();
+
 		// Create a thread to generate frames.
 		frames_generator_thread = new YuvFramesThread(this);
 		bool ret = frames_generator_thread->Start();
@@ -158,6 +163,8 @@ namespace cricket
 			LOG(LS_INFO) << "Yuv Frame Generator stopped";
 		}
 		SetCaptureFormat(NULL);
+
+		startThread_ = NULL;
 	}
 
 	bool YuvFramesCapturer2::GetPreferredFourccs(std::vector<uint32_t>* fourccs)
@@ -176,7 +183,15 @@ namespace cricket
 		// 1. Signal the previously read frame to downstream.
 		if (!first_frame)
 		{
-			SignalFrameCaptured(this, &captured_frame_);
+			if (startThread_->IsCurrent())
+			{
+				SignalFrameCaptured(this, &captured_frame_);
+			}
+			else
+			{
+				startThread_->Invoke<void>(rtc::Bind(&YuvFramesCapturer2::SignalFrameCapturedOnStartThread, this, &captured_frame_));
+			}
+
 		}
 		frame_generator_->GenerateNextFrame((uint8_t*)captured_frame_.data, GetBarcodeValue());
 	}

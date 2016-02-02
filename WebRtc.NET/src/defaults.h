@@ -55,6 +55,13 @@ namespace cricket
 	private:
 		class YuvFramesThread;  // Forward declaration, defined in .cc.
 
+		rtc::Thread* startThread_;  // Set in Start(), unset in Stop().
+									// Used to signal frame capture on the thread that capturer was started on.
+		void SignalFrameCapturedOnStartThread(const cricket::CapturedFrame* frame)
+		{
+			SignalFrameCaptured(this, frame);
+		}
+
 		cricket::YuvFrameGenerator* frame_generator_;
 		cricket::CapturedFrame captured_frame_;
 		YuvFramesThread* frames_generator_thread;
