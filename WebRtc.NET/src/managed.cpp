@@ -46,7 +46,7 @@ namespace WebRtc
 			_OnFailureCallback ^ onFailure;
 			GCHandle ^ onFailureHandle;
 
-			delegate void _OnIceCandidateCallback(String ^ sdp);
+			delegate void _OnIceCandidateCallback(String ^ sdp_mid, Int32 sdp_mline_index, String ^ sdp);
 			_OnIceCandidateCallback ^ onIceCandidate;
 			GCHandle ^ onIceCandidateHandle;
 
@@ -71,11 +71,11 @@ namespace WebRtc
 				}
 			}
 
-			void _OnIceCandidate(String ^ sdp)
+			void _OnIceCandidate(String ^ sdp_mid, Int32 sdp_mline_index, String ^ sdp)
 			{
 				Debug::WriteLine(String::Format("OnIceCandidate: {0}", sdp));
 
-				OnIceCandidate(sdp);
+				OnIceCandidate(sdp_mid, sdp_mline_index, sdp);
 			}
 
 			void _OnFailure(String ^ error)
@@ -99,7 +99,10 @@ namespace WebRtc
 			delegate void OnCallbackSdp(String ^ sdp);
 			event OnCallbackSdp ^ OnSuccessOffer;
 			event OnCallbackSdp ^ OnSuccessAnswer;
-			event OnCallbackSdp ^ OnIceCandidate;
+
+			delegate void OnCallbackIceCandidate(String ^ sdp_mid, Int32 sdp_mline_index, String ^ sdp);
+			event OnCallbackIceCandidate ^ OnIceCandidate;
+
 			event Action ^ OnError;
 
 			delegate void OnCallbackError(String ^ error);

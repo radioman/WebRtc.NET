@@ -63,9 +63,9 @@ namespace WebRtc.NET.AppLib
                 using (mc = new ManagedConductor())
                 {
                     mc.OnSuccessAnswer += Mc_OnSuccessAnswer;
-                    mc.OnIceCandidate += Mc_OnIceCandidate;
+                    mc.OnIceCandidate += Mc_OnIceCandidate; ;
                     mc.OnFailure += Mc_OnFailure;
-
+                    mc.OnError += Mc_OnError;
                     var r = mc.InitializePeerConnection();
                     if (r)
                     {
@@ -90,12 +90,17 @@ namespace WebRtc.NET.AppLib
             exit = true;
         }
 
-        private void Mc_OnFailure(string error)
+        private void Mc_OnError()
         {
-            
+            Debug.WriteLine("Mc_OnError");  
         }
 
-        private void Mc_OnIceCandidate(string sdp)
+        private void Mc_OnFailure(string error)
+        {
+            Debug.WriteLine($"Mc_OnFailure: {error}");
+        }
+
+        private void Mc_OnIceCandidate(string sdp_mid, int sdp_mline_index, string sdp)
         {
             if (webSocketServer != null)
             {
@@ -105,6 +110,8 @@ namespace WebRtc.NET.AppLib
                 {
                     JsonData jd = new JsonData();
                     jd["command"] = "OnIceCandidate";
+                    jd["sdp_mid"] = sdp_mid;
+                    jd["sdp_mline_index"] = sdp_mline_index;
                     jd["sdp"] = sdp;
                     c.Value.Send(jd.ToJson());
                 }

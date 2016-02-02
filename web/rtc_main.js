@@ -89,6 +89,8 @@ function startStream(streamId) {
         trpc.addStream(localstream);
     }
 
+    var isType = (stat, type) => stat.type == type && !stat.isRemote; // skip RTCP
+
     trpc.onaddstream = function (e) {
         try {
             console.log("remote media connection success!");
@@ -167,8 +169,6 @@ function connect() {
             }
             document.getElementById('btnconnect').disabled = false;
         }
-
-        var isType = (stat, type) => stat.type == type && !stat.isRemote; // skip RTCP
 
         function Conn(jd) {
 
@@ -250,12 +250,10 @@ function connect() {
                 case "OnSuccessAnswer": {
                     if (remotestream)
                     {
-                        var sdp = obj.sdp;
-
-                        console.log("OnSuccessAnswer", sdp);
+                        console.log("OnSuccessAnswer", obj.sdp);
 
                         remotestream.setRemoteDescription(
-                        new RTCSessionDescription(sdp),
+                        new RTCSessionDescription({ type: "answer", sdp: obj.sdp }),
                         function () { },
                         function (errorInformation) {
                             console.log('setRemoteDescription error: ' + errorInformation);
@@ -268,9 +266,9 @@ function connect() {
                 case "OnIceCandidate": {
                     if (remotestream)
                     {
-                        var sdp = obj.sdp;
-                        console.log("OnIceCandidate", sdp);
-                        remotestream.addIceCandidate(new RTCIceCandidate(sdp));
+                        console.log("OnIceCandidate", obj.sdp);
+                        remotestream.addIceCandidate(
+                            new RTCIceCandidate({ sdpMLineIndex: obj.sdp_mline_index, candidate: obj.sdp }));
                     }
                 }
                 break;

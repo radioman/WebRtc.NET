@@ -262,9 +262,6 @@ void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
 {
 	LOG(INFO) << __FUNCTION__ << " " << candidate->sdp_mline_index();
 
-	//jmessage[kCandidateSdpMidName] = candidate->sdp_mid();
-	//jmessage[kCandidateSdpMlineIndexName] = candidate->sdp_mline_index();
-
 	std::string sdp;
 	if (!candidate->ToString(&sdp))
 	{
@@ -274,10 +271,8 @@ void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
 
 	if (onIceCandidate != NULL)
 	{
-		onIceCandidate(sdp.c_str());
+		onIceCandidate(candidate->sdp_mid().c_str(), candidate->sdp_mline_index(), sdp.c_str());
 	}
-	//jmessage[kCandidateSdpName] = sdp;
-	//SendMessage(writer.write(jmessage));
 }
 
 void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc)
@@ -286,12 +281,6 @@ void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc)
 
 	std::string sdp;
 	desc->ToString(&sdp);
-
-	//Json::StyledWriter writer;
-	//Json::Value jmessage;
-	//jmessage[kSessionDescriptionTypeName] = desc->type();
-	//jmessage[kSessionDescriptionSdpName] = sdp;
-	//SendMessage(writer.write(jmessage));
 
 	if (onSuccess != NULL)
 	{
