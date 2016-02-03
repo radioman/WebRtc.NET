@@ -20,8 +20,7 @@ const char kStreamLabel[] = "stream_label";
 #define DTLS_ON  true
 #define DTLS_OFF false
 
-class DummySetSessionDescriptionObserver
-	: public webrtc::SetSessionDescriptionObserver
+class DummySetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver
 {
 public:
 	static DummySetSessionDescriptionObserver* Create()

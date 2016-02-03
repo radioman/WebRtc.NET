@@ -10,8 +10,7 @@ namespace cricket
 	// Definition of private class YuvFramesThread that periodically generates
 	// frames.
 	///////////////////////////////////////////////////////////////////////
-	class YuvFramesCapturer2::YuvFramesThread
-		: public rtc::Thread, public rtc::MessageHandler
+	class YuvFramesCapturer2::YuvFramesThread : public rtc::Thread, public rtc::MessageHandler
 	{
 	public:
 		explicit YuvFramesThread(YuvFramesCapturer2* capturer)
@@ -79,8 +78,6 @@ namespace cricket
 	/////////////////////////////////////////////////////////////////////
 	// Implementation of class YuvFramesCapturer.
 	/////////////////////////////////////////////////////////////////////
-
-	const char* YuvFramesCapturer2::kYuvFrameDeviceName = "YuvFramesGenerator";
 
 	// TODO(shaowei): allow width_ and height_ to be configurable.
 	YuvFramesCapturer2::YuvFramesCapturer2()
@@ -183,6 +180,8 @@ namespace cricket
 		// 1. Signal the previously read frame to downstream.
 		if (!first_frame)
 		{
+			//OnFrameCaptured(this, &captured_frame_);
+
 			if (startThread_->IsCurrent())
 			{
 				SignalFrameCaptured(this, &captured_frame_);
@@ -191,12 +190,12 @@ namespace cricket
 			{
 				startThread_->Invoke<void>(rtc::Bind(&YuvFramesCapturer2::SignalFrameCapturedOnStartThread, this, &captured_frame_));
 			}
-
 		}
-
-		captured_frame_.time_stamp = rtc::TimeNanos();
-
-		frame_generator_->GenerateNextFrame((uint8_t*)captured_frame_.data, GetBarcodeValue());
+		//else
+		{
+			captured_frame_.time_stamp = rtc::TimeNanos();
+			frame_generator_->GenerateNextFrame((uint8_t*)captured_frame_.data, GetBarcodeValue());
+		}
 	}
 
 	int32_t YuvFramesCapturer2::GetBarcodeValue()

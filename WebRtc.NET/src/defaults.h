@@ -23,18 +23,6 @@ namespace cricket
 		//YuvFramesCapturer2(int width, int height);
 		virtual ~YuvFramesCapturer2();
 
-		static const char* kYuvFrameDeviceName;
-		static cricket::Device CreateYuvFramesCapturerDevice()
-		{
-			std::stringstream id;
-			id << kYuvFrameDeviceName;
-			return cricket::Device(id.str(), id.str());
-		}
-		static bool IsYuvFramesCapturerDevice(const cricket::Device& device)
-		{
-			return rtc::starts_with(device.id.c_str(), kYuvFrameDeviceName);
-		}
-
 		void Init();
 		// Override virtual methods of parent class VideoCapturer.
 		virtual cricket::CaptureState Start(const cricket::VideoFormat& capture_format);
