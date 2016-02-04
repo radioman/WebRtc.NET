@@ -45,15 +45,11 @@ void Conductor::DeletePeerConnection()
 		}
 		active_streams_.clear();
 
-		peer_connection_ = nullptr;
-		pc_factory_ = nullptr;
-
-		dev_manager->Terminate();	
-		*(dev_manager.use()) = nullptr; // disable autodestruct of this
-
-		dev_manager = nullptr;
-		capturer = nullptr;
+		peer_connection_ = nullptr;	
 	}
+
+	pc_factory_ = nullptr;
+	capturer = nullptr;
 }
 
 bool Conductor::InitializePeerConnection()
@@ -157,11 +153,6 @@ bool Conductor::AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::st
 
 // ...
 
-cricket::VideoCapturer * Conductor::Create(const cricket::Device& device)
-{
-	return new YuvFramesCapturer2(*this);
-}
-
 void Conductor::OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize)
 {
 	if (onFillBuffer)
@@ -170,34 +161,40 @@ void Conductor::OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize)
 	}
 }
 
-cricket::VideoCapturer * Conductor::OpenVideoCaptureDevice()
+bool Conductor::OpenVideoCaptureDevice()
 {
-	if (!dev_manager)
+	if (!capturer)
 	{
-		rtc::scoped_ptr<cricket::DeviceManagerInterface> d(cricket::DeviceManagerFactory::Create());
-		
-		dev_manager.reset(d.get());
-		*(d.use()) = nullptr; // disable local autodestruct
-
+		rtc::scoped_ptr<cricket::DeviceManagerInterface> dev_manager(cricket::DeviceManagerFactory::Create());
 		if (!dev_manager->Init())
 		{
 			LOG(LS_ERROR) << "Can't create device manager";
-			return nullptr;
-		}		
-		dev_manager->SetVideoDeviceCapturerFactory(this);
-	}
+			return false;
+		}
 
-	if (!capturer)
-	{
-		cricket::Device dummyDevice;
-		dummyDevice.name = "custom dummy device";
-		capturer = dev_manager->CreateVideoCapturer(dummyDevice);
+		std::vector<cricket::Device> devs;
+		if (!dev_manager->GetVideoCaptureDevices(&devs))
+		{
+			LOG(LS_ERROR) << "Can't enumerate video devices";
+			return false;
+		}
+
+		for (auto dev : devs)
+		{
+			capturer = dev_manager->CreateVideoCapturer(dev);
+			if (capturer != nullptr)
+				return true;
+		}
+
 		if (capturer == nullptr)
 		{
 			LOG(LS_ERROR) << "Capturer is NULL!";
+			return false;
 		}
 	}
-	return capturer;
+
+	LOG(LS_ERROR) << "Capturer != NULL!";
+	return false;
 }
 
 void Conductor::AddStreams()
@@ -208,8 +205,12 @@ void Conductor::AddStreams()
 	//webrtc::AudioTrackInterface * audio_track = peer_connection_factory_->CreateAudioTrack(
 	//		kAudioLabel, peer_connection_factory_->CreateAudioSource(NULL));
 
-	cricket::VideoCapturer * c = OpenVideoCaptureDevice();
-	auto v = pc_factory_->CreateVideoSource(c, NULL);
+	if (!capturer)
+	{
+		capturer = new YuvFramesCapturer2(*this);
+	}
+
+	auto v = pc_factory_->CreateVideoSource(capturer, NULL);
 	auto video_track =	pc_factory_->CreateVideoTrack(kVideoLabel, v);
 	//main_wnd_->StartLocalRenderer(video_track);
 

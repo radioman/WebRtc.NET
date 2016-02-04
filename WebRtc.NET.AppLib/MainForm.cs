@@ -171,6 +171,9 @@ namespace WebRtc.NET.AppLib
                     mc.OnError += Mc_OnError;
                     mc.OnFillBuffer += OnFillBuffer;
 
+                    //var cd = mc.OpenVideoCaptureDevice();
+                    //Debug.WriteLine($"OpenVideoCaptureDevice: {cd}");
+
                     var r = mc.InitializePeerConnection();
                     if (r)
                     {

@@ -193,6 +193,11 @@ namespace WebRtc
 				cd->Quit();
 			}
 
+			bool OpenVideoCaptureDevice()
+			{
+				return cd->OpenVideoCaptureDevice();
+			}
+
 			void OnOfferReply(String ^ type, String ^ sdp)
 			{
 				cd->OnOfferReply(marshal_as<std::string>(type), marshal_as<std::string>(sdp));

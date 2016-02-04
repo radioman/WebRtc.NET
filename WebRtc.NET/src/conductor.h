@@ -14,8 +14,7 @@ typedef void(__stdcall *OnFillBufferCallbackNative)(uint8_t * frame_buffer, uint
 
 class Conductor	: public webrtc::PeerConnectionObserver,
 	              public webrtc::CreateSessionDescriptionObserver,
-	              public webrtc::SetSessionDescriptionObserver,
-	              public cricket::VideoDeviceCapturerFactory
+	              public webrtc::SetSessionDescriptionObserver
 {
 public:
 
@@ -38,6 +37,7 @@ public:
 		rtc::Thread::Current()->Quit();
 	}
 
+	bool OpenVideoCaptureDevice();
 	void OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize);
 
 	OnErrorCallbackNative onError;
@@ -47,9 +47,6 @@ public:
 	OnFillBufferCallbackNative onFillBuffer;	
 
 protected:
-
-	// VideoDeviceCapturerFactory
-	virtual cricket::VideoCapturer * Create(const cricket::Device& device);
 
 	// SetSessionDescriptionObserver
 	virtual void webrtc::SetSessionDescriptionObserver::OnSuccess()
@@ -98,10 +95,8 @@ private:
 
 	bool CreatePeerConnection(bool dtls);
 	void DeletePeerConnection();
-	void AddStreams();
-	cricket::VideoCapturer* OpenVideoCaptureDevice();
+	void AddStreams();	
 
-	rtc::scoped_ptr<cricket::DeviceManagerInterface> dev_manager;
 	cricket::VideoCapturer * capturer;
 
 	rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
