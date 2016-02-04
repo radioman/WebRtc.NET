@@ -170,86 +170,12 @@ function connect() {
             document.getElementById('btnconnect').disabled = false;
         }
 
-        function Conn(jd) {
-
-            /////////////////////////
-            // // Initiating side code
-            /////////////////////////
-            if (jd.ret == "main") {
-                if (jd.type == "start") {
-
-
-                } else if (jd.type == "answer") {
-
-                } else if (jd.type == "ice_data") {
-
-                }
-                /////////////////////////
-                // // Receive-side code
-                /////////////////////////
-            } else if (jd.ret == "msg") {
-                if (jd.type == "offer") {
-                    console.log("accept connection: " + ", from:" + jd.from + ", to:" + jd.to);
-
-                    var trpc = dpc[jd.from] = new RTCPeerConnection(servers);
-
-                    if (localstream) {
-                        trpc.addStream(localstream);
-                    }
-                    trpc.onicecandidate = function (event) {
-                        if (event.candidate) {
-                            var obj = JSON.stringify({
-                                "command": "conn",
-                                "type": "ice_data",
-                                "to": jd.from,
-                                "from": jd.to,
-                                "ret": "main",
-                                "data": JSON.stringify(event.candidate)
-                            });
-                            send(obj);
-                        }
-                    };
-
-                    trpc.setRemoteDescription(
-                            new RTCSessionDescription(JSON.parse(jd.data)),
-                            function () {
-                                trpc.createAnswer(function (desc) {
-                                    trpc.setLocalDescription(desc, function () {
-                                        var obj = JSON.stringify({
-                                            "command": "conn",
-                                            "type": "answer",
-                                            "to": jd.from,
-                                            "from": jd.to,
-                                            "ret": "main",
-                                            "data": JSON.stringify(desc)
-                                        });
-                                        send(obj);
-                                    },
-                                    function (errorInformation) {
-                                        console.log('setLocalDescription error: ' + errorInformation)
-                                    });
-                                },
-                                function (error) { console.log(error); });
-                            },
-                            function (errorInformation) { console.log('setRemoteDescription error: ' + errorInformation) });
-                } else if (jd.type == "ice_data") {
-                    console.log("client_candidate", jd.data);
-                    dpc[jd.from].addIceCandidate(
-                            new RTCIceCandidate(JSON.parse(jd.data))
-                        );
-                }
-            }
-        }
-
-        Socket.onmessage = function (Message)
-        {
+        Socket.onmessage = function (Message) {
             var obj = JSON.parse(Message.data);
             var command = obj.command;
-            switch (command)
-            {
+            switch (command) {
                 case "OnSuccessAnswer": {
-                    if (remotestream)
-                    {
+                    if (remotestream) {
                         console.log("OnSuccessAnswer", obj.sdp);
 
                         remotestream.setRemoteDescription(
@@ -259,19 +185,18 @@ function connect() {
                             console.log('setRemoteDescription error: ' + errorInformation);
                             Socket.close();
                         });
-                    }                
+                    }
                 }
-                break;
+                    break;
 
                 case "OnIceCandidate": {
-                    if (remotestream)
-                    {
+                    if (remotestream) {
                         console.log("OnIceCandidate", obj.sdp);
                         remotestream.addIceCandidate(
                             new RTCIceCandidate({ sdpMLineIndex: obj.sdp_mline_index, candidate: obj.sdp }));
                     }
                 }
-                break;
+                    break;
 
                 default: {
                     console.log(Message.data);
