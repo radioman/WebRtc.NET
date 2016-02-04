@@ -10,6 +10,7 @@ typedef void (__stdcall *OnErrorCallbackNative)();
 typedef void(__stdcall *OnSuccessCallbackNative)(const char * type, const char * sdp);
 typedef void(__stdcall *OnFailureCallbackNative)(const char * error);
 typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdp_mid, int sdp_mline_index, const char * sdp);
+typedef void(__stdcall *OnFillBufferCallbackNative)(uint8_t * frame_buffer, uint32_t yuvSize);
 
 class Conductor	: public webrtc::PeerConnectionObserver,
 	              public webrtc::CreateSessionDescriptionObserver,
@@ -37,10 +38,13 @@ public:
 		rtc::Thread::Current()->Quit();
 	}
 
+	void OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize);
+
 	OnErrorCallbackNative onError;
 	OnSuccessCallbackNative onSuccess;
 	OnFailureCallbackNative onFailure;
 	OnIceCandidateCallbackNative onIceCandidate;
+	OnFillBufferCallbackNative onFillBuffer;	
 
 protected:
 

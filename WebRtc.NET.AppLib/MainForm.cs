@@ -53,87 +53,6 @@ namespace WebRtc.NET.AppLib
             webrtc.RunWorkerAsync();
         }
 
-        volatile bool exit;
-        private void WebRtc_DoWork(object sender, DoWorkEventArgs e)
-        {
-            try
-            {
-                WebRtc.NET.ManagedConductor.InitializeSSL();
-
-                using (mc = new ManagedConductor())
-                {
-                    mc.OnSuccessAnswer += Mc_OnSuccessAnswer;
-                    mc.OnIceCandidate += Mc_OnIceCandidate; ;
-                    mc.OnFailure += Mc_OnFailure;
-                    mc.OnError += Mc_OnError;
-                    var r = mc.InitializePeerConnection();
-                    if (r)
-                    {
-                        var bg = sender as BackgroundWorker;
-                        while (!bg.CancellationPending && mc.ProcessMessages(1000))
-                        {
-                            Debug.Write(".");
-                        }
-                        mc.Quit();
-                    }
-                    else
-                    {
-                        Debug.WriteLine("InitializePeerConnection failed");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"DoWork: {ex}");
-            }
-            WebRtc.NET.ManagedConductor.CleanupSSL();
-            exit = true;
-        }
-
-        private void Mc_OnError()
-        {
-            Debug.WriteLine("Mc_OnError");  
-        }
-
-        private void Mc_OnFailure(string error)
-        {
-            Debug.WriteLine($"Mc_OnFailure: {error}");
-        }
-
-        private void Mc_OnIceCandidate(string sdp_mid, int sdp_mline_index, string sdp)
-        {
-            if (webSocketServer != null)
-            {
-                // send ice
-                var c = webSocketServer.Streams.LastOrDefault();
-                if (c.Value.IsAvailable)
-                {
-                    JsonData jd = new JsonData();
-                    jd["command"] = "OnIceCandidate";
-                    jd["sdp_mid"] = sdp_mid;
-                    jd["sdp_mline_index"] = sdp_mline_index;
-                    jd["sdp"] = sdp;
-                    c.Value.Send(jd.ToJson());
-                }
-            }
-        }
-
-        private void Mc_OnSuccessAnswer(string sdp)
-        {
-            if (webSocketServer != null)
-            {
-                // send anwer
-                var c = webSocketServer.Streams.LastOrDefault();
-                if (c.Value.IsAvailable)
-                {
-                    JsonData jd = new JsonData();
-                    jd["command"] = "OnSuccessAnswer";
-                    jd["sdp"] = sdp;
-                    c.Value.Send(jd.ToJson());
-                }
-            }
-        }
-
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             foreach (var c in GetStreams())
@@ -144,7 +63,7 @@ namespace WebRtc.NET.AppLib
                     while (c.Worker.IsBusy)
                     {
                         Application.DoEvents();
-                        Thread.Sleep(100);                        
+                        Thread.Sleep(100);
                     }
                 }
 
@@ -173,10 +92,11 @@ namespace WebRtc.NET.AppLib
             }
 
             webrtc.CancelAsync();
-            while (!exit)
+            while (webrtc.IsBusy)
             {
+                Application.DoEvents();
                 Thread.Sleep(100);
-            }           
+            }
         }
 
         const string config = @"SOFTWARE\WebRtc.NET\App";
@@ -237,16 +157,83 @@ namespace WebRtc.NET.AppLib
             }
         }
 
-        private static void SetChromePriority()
+        unsafe void WebRtc_DoWork(object sender, DoWorkEventArgs e)
         {
-            var c = Process.GetProcessesByName("chrome");
+            try
             {
-                foreach (var cp in c)
+                WebRtc.NET.ManagedConductor.InitializeSSL();
+
+                using (mc = new ManagedConductor())
                 {
-                    using (cp)
+                    mc.OnSuccessAnswer += Mc_OnSuccessAnswer;
+                    mc.OnIceCandidate += Mc_OnIceCandidate; ;
+                    mc.OnFailure += Mc_OnFailure;
+                    mc.OnError += Mc_OnError;
+                    mc.OnFillBuffer += OnFillBuffer;
+
+                    var r = mc.InitializePeerConnection();
+                    if (r)
                     {
-                        cp.PriorityClass = ProcessPriorityClass.Idle;
+                        var bg = sender as BackgroundWorker;
+                        while (!bg.CancellationPending && mc.ProcessMessages(1000))
+                        {
+                            Debug.Write(".");
+                        }
+                        mc.Quit();
                     }
+                    else
+                    {
+                        Debug.WriteLine("InitializePeerConnection failed");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DoWork: {ex}");
+            }
+            WebRtc.NET.ManagedConductor.CleanupSSL();
+        }
+
+        private void Mc_OnError()
+        {
+            Debug.WriteLine("Mc_OnError");  
+        }
+
+        private void Mc_OnFailure(string error)
+        {
+            Debug.WriteLine($"Mc_OnFailure: {error}");
+        }
+
+        private void Mc_OnIceCandidate(string sdp_mid, int sdp_mline_index, string sdp)
+        {
+            if (webSocketServer != null)
+            {
+                // send ice
+                var c = webSocketServer.Streams.LastOrDefault();
+                if (c.Value.IsAvailable)
+                {
+                    JsonData jd = new JsonData();
+                    jd["command"] = "OnIceCandidate";
+                    jd["sdp_mid"] = sdp_mid;
+                    jd["sdp_mline_index"] = sdp_mline_index;
+                    jd["sdp"] = sdp;
+                    c.Value.Send(jd.ToJson());
+                }
+            }
+        }
+
+        private void Mc_OnSuccessAnswer(string sdp)
+        {
+            if (webSocketServer != null)
+            {
+                // send anwer
+                var c = webSocketServer.Streams.LastOrDefault();
+                if (c.Value.IsAvailable)
+                {
+                    JsonData jd = new JsonData();
+                    jd["command"] = "OnSuccessAnswer";
+                    jd["sdp"] = sdp;
+                    c.Value.Send(jd.ToJson());
                 }
             }
         }
@@ -261,7 +248,7 @@ namespace WebRtc.NET.AppLib
         readonly Rectangle boundsItem = new Rectangle(0, 0, 752, 480);
 
         readonly TurboJpegEncoder encoder = TurboJpegEncoder.CreateEncoder();
-        public unsafe void OnFillBuffer(byte* yuv, long yuvSize)
+        public unsafe void OnFillBuffer(byte * yuv, long yuvSize)
         {
             lock (img)
             {
@@ -274,7 +261,7 @@ namespace WebRtc.NET.AppLib
                     img.UnlockBits(data);
                 }
             }
-            Thread.Sleep(200);
+            //Thread.Sleep(200);
         }
 
         void GetCameraFrames_DoWork(object sender, DoWorkEventArgs e)
@@ -391,9 +378,9 @@ namespace WebRtc.NET.AppLib
             Debug.WriteLine($"stoped cam[{cam.Id}] stream: {cam.Ip}");
         }
 
-        int fwidth = 752;
+        //int fwidth = 752;
         int fheight = 480;
-        //int fwidth = 640;
+        int fwidth = 640;
 
         int ProcessJpegFrame(byte[] buff, int size, CamStream c)
         {
@@ -744,11 +731,6 @@ namespace WebRtc.NET.AppLib
                 webSocketServer.mc = mc;
                 numericMaxClients_ValueChanged(null, null);
             }
-        }
-
-        private void button2_Click(object sender, EventArgs e)
-        {
-            mc.CreateOffer();
         }
     }
 }

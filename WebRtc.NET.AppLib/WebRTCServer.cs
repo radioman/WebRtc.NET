@@ -169,10 +169,6 @@ namespace WebRtc.NET.AppLib
 
                             mc.OnOfferRequest(sdp.ToString());
                         }
-                        else
-                        {
-                            context.Send(JsonHelper.GetJsonStr(Command.offer, null, Str.Failed));
-                        }
                     }
                     break;
 
@@ -203,26 +199,6 @@ namespace WebRtc.NET.AppLib
                 UserList.Clear();
             }
             catch { }
-        }
-    }
-
-    public class JsonHelper
-    {
-        public static JsonData GetJson(string command, string ret)
-        {
-            JsonData jd = new JsonData();
-            jd["command"] = command;
-            jd["ret"] = ret;
-            return jd;
-        }
-
-        public static string GetJsonStr(string command, string data, string ret)
-        {
-            JsonData jd = new JsonData();
-            jd["command"] = command;
-            jd["data"] = data;
-            jd["ret"] = ret;
-            return jd.ToJson();
         }
     }
 }

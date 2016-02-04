@@ -159,7 +159,15 @@ bool Conductor::AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::st
 
 cricket::VideoCapturer * Conductor::Create(const cricket::Device& device)
 {
-	return new YuvFramesCapturer2();
+	return new YuvFramesCapturer2(*this);
+}
+
+void Conductor::OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize)
+{
+	if (onFillBuffer)
+	{
+		onFillBuffer(frame_buffer, yuvSize);
+	}
 }
 
 cricket::VideoCapturer * Conductor::OpenVideoCaptureDevice()

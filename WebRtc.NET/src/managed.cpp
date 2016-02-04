@@ -34,6 +34,10 @@ namespace WebRtc
 			bool m_isDisposed;
 			Conductor * cd;
 
+			delegate void _OnFillBufferCallback(uint8_t * frame_buffer, uint32_t yuvSize);
+			_OnFillBufferCallback ^ onFillBuffer;
+			GCHandle ^ onFillBufferHandle;
+
 			delegate void _OnErrorCallback();
 			_OnErrorCallback ^ onError;
 			GCHandle ^ onErrorHandle;
@@ -94,6 +98,11 @@ namespace WebRtc
 				}
 			}
 
+			void _OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize)
+			{
+				OnFillBuffer(frame_buffer, yuvSize);
+			}
+
 		public:
 
 			delegate void OnCallbackSdp(String ^ sdp);
@@ -108,10 +117,17 @@ namespace WebRtc
 			delegate void OnCallbackError(String ^ error);
 			event OnCallbackError ^ OnFailure;
 
+			delegate void OnCallbackFillBuffer(System::Byte * frame_buffer, System::Int64 yuvSize);
+			event OnCallbackFillBuffer ^ OnFillBuffer;
+
 			ManagedConductor()
 			{
 				m_isDisposed = false;
 				cd = new Conductor();
+
+				onFillBuffer = gcnew _OnFillBufferCallback(this, &ManagedConductor::_OnFillBuffer);
+				onFillBufferHandle = GCHandle::Alloc(onFillBuffer);
+				cd->onFillBuffer = static_cast<OnFillBufferCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFillBuffer).ToPointer());
 
 				onError = gcnew _OnErrorCallback(this, &ManagedConductor::_OnError);
 				onErrorHandle = GCHandle::Alloc(onError);
@@ -140,6 +156,7 @@ namespace WebRtc
 				FreeGCHandle(onSuccessHandle);
 				FreeGCHandle(onFailureHandle);
 				FreeGCHandle(onIceCandidateHandle);
+				FreeGCHandle(onFillBufferHandle);
 	
 				this->!ManagedConductor(); // call finalizer
 

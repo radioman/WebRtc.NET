@@ -6,14 +6,17 @@
 #include "talk/media/base/videocapturer.h"
 #include "talk/media/base/yuvframegenerator.h"
 
+class Conductor;
+
 class YuvFramesCapturer2 : public cricket::VideoCapturer
 {
 public:
-	YuvFramesCapturer2();
+	YuvFramesCapturer2(Conductor & c);
 	//YuvFramesCapturer2(int width, int height);
 	virtual ~YuvFramesCapturer2();
 
 	void Init();
+
 	// Override virtual methods of parent class VideoCapturer.
 	virtual cricket::CaptureState Start(const cricket::VideoFormat& capture_format);
 	virtual void Stop();
@@ -39,6 +42,8 @@ private:
 	{
 		SignalFrameCaptured(this, frame);
 	}
+
+	Conductor * con;
 
 	cricket::YuvFrameGenerator* frame_generator_;
 	cricket::CapturedFrame captured_frame_;

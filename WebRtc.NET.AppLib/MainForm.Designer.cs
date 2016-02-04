@@ -37,7 +37,6 @@
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.buttonInit = new System.Windows.Forms.Button();
             this.textBoxId = new System.Windows.Forms.TextBox();
             this.buttonSave = new System.Windows.Forms.Button();
             this.buttonAdd = new System.Windows.Forms.Button();
@@ -153,7 +152,6 @@
             // 
             this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.groupBox1.Controls.Add(this.buttonInit);
             this.groupBox1.Controls.Add(this.textBoxId);
             this.groupBox1.Controls.Add(this.buttonSave);
             this.groupBox1.Controls.Add(this.buttonAdd);
@@ -172,16 +170,6 @@
             this.groupBox1.TabIndex = 8;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Cameras";
-            // 
-            // buttonInit
-            // 
-            this.buttonInit.Location = new System.Drawing.Point(243, 158);
-            this.buttonInit.Name = "buttonInit";
-            this.buttonInit.Size = new System.Drawing.Size(75, 23);
-            this.buttonInit.TabIndex = 18;
-            this.buttonInit.Text = "CreateOffer";
-            this.buttonInit.UseVisualStyleBackColor = true;
-            this.buttonInit.Click += new System.EventHandler(this.button2_Click);
             // 
             // textBoxId
             // 
@@ -345,6 +333,5 @@
         private System.Windows.Forms.Button buttonSave;
         private System.Windows.Forms.TextBox textBoxId;
         private System.Windows.Forms.CheckBox checkBoxWebsocket;
-        private System.Windows.Forms.Button buttonInit;
     }
 }

@@ -1,6 +1,7 @@
 
 #include "defaults.h"
 #include "internals.h"
+#include "conductor.h"
 
 #include "webrtc/base/bind.h"
 
@@ -78,13 +79,14 @@ private:
 /////////////////////////////////////////////////////////////////////
 
 // TODO(shaowei): allow width_ and height_ to be configurable.
-YuvFramesCapturer2::YuvFramesCapturer2()
+YuvFramesCapturer2::YuvFramesCapturer2(Conductor & c)
 	: frames_generator_thread(NULL),
 	width_(752),
 	height_(480),
 	frame_index_(0),
 	barcode_interval_(1),
-	startThread_(NULL)
+	startThread_(NULL),
+	con(&c)
 {
 	Init();
 }
@@ -114,6 +116,9 @@ void YuvFramesCapturer2::Init()
 	std::vector<cricket::VideoFormat> supported;
 	supported.push_back(format);
 	SetSupportedFormats(supported);
+
+	set_enable_video_adapter(false);
+	set_square_pixel_aspect_ratio(false);
 }
 
 cricket::CaptureState YuvFramesCapturer2::Start(const cricket::VideoFormat& capture_format)
@@ -192,7 +197,10 @@ void YuvFramesCapturer2::ReadFrame(bool first_frame)
 	//else
 	{
 		captured_frame_.time_stamp = rtc::TimeNanos();
-		frame_generator_->GenerateNextFrame((uint8_t*)captured_frame_.data, GetBarcodeValue());
+		//frame_generator_->GenerateNextFrame((uint8_t*)captured_frame_.data, GetBarcodeValue());
+		{
+			con->OnFillBuffer((uint8_t*)captured_frame_.data, captured_frame_.data_size);
+		}
 	}
 }
 
