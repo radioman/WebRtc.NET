@@ -20,54 +20,29 @@ const char kStreamLabel[] = "stream_label";
 #define DTLS_ON  true
 #define DTLS_OFF false
 
-class DummySetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver
-{
-public:
-	static DummySetSessionDescriptionObserver* Create()
-	{
-		return
-			new rtc::RefCountedObject<DummySetSessionDescriptionObserver>();
-	}
-	virtual void OnSuccess()
-	{
-		LOG(INFO) << __FUNCTION__;
-	}
-	virtual void OnFailure(const std::string& error)
-	{
-		LOG(INFO) << __FUNCTION__ << " " << error;
-	}
-
-protected:
-	DummySetSessionDescriptionObserver()
-	{
-	}
-	~DummySetSessionDescriptionObserver()
-	{
-	}
-};
-
 Conductor::Conductor()
 {
 	onError = NULL;
 	onSuccess = NULL;
 	onFailure = NULL;
 	onIceCandidate = NULL;
+	capturer = NULL;
+	dev_manager = NULL;
 }
 
 Conductor::~Conductor()
 {
 	DeletePeerConnection();
-	ASSERT(peer_connection_.get() == NULL);
+	ASSERT(peer_connection_ == NULL);
 }
 
 bool Conductor::InitializePeerConnection()
 {
-	ASSERT(peer_connection_factory_.get() == NULL);
-	ASSERT(peer_connection_.get() == NULL);
+	ASSERT(pc_factory_ == NULL);
+	ASSERT(peer_connection_ == NULL);
 
-	peer_connection_factory_ = webrtc::CreatePeerConnectionFactory();
-
-	if (!peer_connection_factory_.get())
+	pc_factory_ = webrtc::CreatePeerConnectionFactory();
+	if (!pc_factory_)
 	{
 		DeletePeerConnection();
 		return false;
@@ -79,13 +54,13 @@ bool Conductor::InitializePeerConnection()
 		return false;
 	}
 	AddStreams();
-	return peer_connection_.get() != NULL;
+	return peer_connection_ != NULL;
 }
 
 bool Conductor::CreatePeerConnection(bool dtls)
 {
-	ASSERT(peer_connection_factory_.get() != NULL);
-	ASSERT(peer_connection_.get() == NULL);
+	ASSERT(pc_factory_ != NULL);
+	ASSERT(peer_connection_ == NULL);
 
 	webrtc::PeerConnectionInterface::RTCConfiguration config;
 
@@ -106,15 +81,20 @@ bool Conductor::CreatePeerConnection(bool dtls)
 	constraints.SetMandatoryReceiveAudio(false);
 	constraints.AddMandatory(webrtc::MediaConstraintsInterface::kVoiceActivityDetection, "false");
 
-	peer_connection_ = peer_connection_factory_->CreatePeerConnection(config, &constraints, NULL, NULL, this);
-	return peer_connection_.get() != NULL;
+	peer_connection_ = pc_factory_->CreatePeerConnection(config, &constraints, NULL, NULL, this);
+	return peer_connection_ != NULL;
 }
 
 void Conductor::DeletePeerConnection()
 {
 	peer_connection_ = NULL;
 	active_streams_.clear();
-	peer_connection_factory_ = NULL;
+	pc_factory_ = NULL;
+
+	dev_manager = NULL;
+
+	delete capturer;
+	capturer = NULL;
 }
 
 void Conductor::CreateOffer()
@@ -131,7 +111,7 @@ void Conductor::OnOfferReply(std::string type, std::string sdp)
 		LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
 		return;
 	}
-	peer_connection_->SetRemoteDescription(DummySetSessionDescriptionObserver::Create(), session_description);
+	peer_connection_->SetRemoteDescription(this, session_description);
 }
 
 void Conductor::OnOfferRequest(std::string sdp)
@@ -143,7 +123,7 @@ void Conductor::OnOfferRequest(std::string sdp)
 		LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
 		return;
 	}
-	peer_connection_->SetRemoteDescription(DummySetSessionDescriptionObserver::Create(), session_description);
+	peer_connection_->SetRemoteDescription(this, session_description);
 	peer_connection_->CreateAnswer(this, NULL);
 }
 
@@ -167,29 +147,36 @@ bool Conductor::AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::st
 	return true;
 }
 
-cricket::VideoCapturer* Conductor::OpenVideoCaptureDevice()
+// ...
+
+cricket::VideoCapturer * Conductor::Create(const cricket::Device& device)
 {
-	rtc::scoped_ptr<cricket::DeviceManagerInterface> dev_manager(cricket::DeviceManagerFactory::Create());
-	if (!dev_manager->Init())
+	return new YuvFramesCapturer2();
+}
+
+cricket::VideoCapturer * Conductor::OpenVideoCaptureDevice()
+{
+	if (!dev_manager.get())
 	{
-		LOG(LS_ERROR) << "Can't create device manager";
-		return NULL;
+		dev_manager.reset(cricket::DeviceManagerFactory::Create());
+		if (!dev_manager->Init())
+		{
+			LOG(LS_ERROR) << "Can't create device manager";
+			return NULL;
+		}
+		dev_manager->SetVideoDeviceCapturerFactory(this);
 	}
 
-	//Inject our video capturer
-	cricket::DeviceManager* device_manager = static_cast<cricket::DeviceManager*>(dev_manager.get());
-	device_manager->SetVideoDeviceCapturerFactory(new cricket::VideoCapturerFactoryCustom());
-
-	cricket::VideoCapturer* capturer = NULL;
-
-	cricket::Device dummyDevice;
-	dummyDevice.name = "custom dummy device";
-	capturer = dev_manager->CreateVideoCapturer(dummyDevice);
-	if (capturer == NULL)
+	if (!capturer)
 	{
-		LOG(LS_ERROR) << "Capturer is NULL!";
+		cricket::Device dummyDevice;
+		dummyDevice.name = "custom dummy device";
+		capturer = dev_manager->CreateVideoCapturer(dummyDevice);
+		if (capturer == NULL)
+		{
+			LOG(LS_ERROR) << "Capturer is NULL!";
+		}
 	}
-
 	return capturer;
 }
 
@@ -198,18 +185,15 @@ void Conductor::AddStreams()
 	if (active_streams_.find(kStreamLabel) != active_streams_.end())
 		return;  // Already added.
 
-	//rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
-	//	peer_connection_factory_->CreateAudioTrack(
-	//		kAudioLabel, peer_connection_factory_->CreateAudioSource(NULL)));
+	//webrtc::AudioTrackInterface * audio_track = peer_connection_factory_->CreateAudioTrack(
+	//		kAudioLabel, peer_connection_factory_->CreateAudioSource(NULL));
 
-	rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track(
-		peer_connection_factory_->CreateVideoTrack(
-			kVideoLabel,
-			peer_connection_factory_->CreateVideoSource(OpenVideoCaptureDevice(), NULL)));
+	cricket::VideoCapturer * c = OpenVideoCaptureDevice();
+	webrtc::VideoSourceInterface * v = pc_factory_->CreateVideoSource(c, NULL);
+	webrtc::VideoTrackInterface * video_track =	pc_factory_->CreateVideoTrack(kVideoLabel, v);
 	//main_wnd_->StartLocalRenderer(video_track);
 
-	rtc::scoped_refptr<webrtc::MediaStreamInterface> stream =
-		peer_connection_factory_->CreateLocalMediaStream(kStreamLabel);
+	webrtc::MediaStreamInterface * stream = pc_factory_->CreateLocalMediaStream(kStreamLabel);
 
 	//stream->AddTrack(audio_track);
 	stream->AddTrack(video_track);
@@ -276,7 +260,7 @@ void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
 
 void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc)
 {
-	peer_connection_->SetLocalDescription(DummySetSessionDescriptionObserver::Create(), desc);
+	peer_connection_->SetLocalDescription(this, desc);
 
 	std::string sdp;
 	desc->ToString(&sdp);

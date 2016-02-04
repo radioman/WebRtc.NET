@@ -1,87 +1,58 @@
 
-#ifndef WEBRTC_EXAMPLES_PEERCONNECTION_CLIENT_DEFAULTS_H_
-#define WEBRTC_EXAMPLES_PEERCONNECTION_CLIENT_DEFAULTS_H_
+#ifndef WEBRTC_NET_DEFAULTS_H_
+#define WEBRTC_NET_DEFAULTS_H_
 #pragma once
 
 #include "talk/media/base/videocapturer.h"
 #include "talk/media/base/yuvframegenerator.h"
 
-// ---------------------------------------------------------------------
-
-namespace rtc
+class YuvFramesCapturer2 : public cricket::VideoCapturer
 {
-	class FileStream;
-}
+public:
+	YuvFramesCapturer2();
+	//YuvFramesCapturer2(int width, int height);
+	virtual ~YuvFramesCapturer2();
 
-namespace cricket
-{
-	// Simulated video capturer that periodically reads frames from a file.
-	class YuvFramesCapturer2 : public cricket::VideoCapturer
+	void Init();
+	// Override virtual methods of parent class VideoCapturer.
+	virtual cricket::CaptureState Start(const cricket::VideoFormat& capture_format);
+	virtual void Stop();
+	virtual bool IsRunning();
+	virtual bool IsScreencast() const
 	{
-	public:
-		YuvFramesCapturer2();
-		//YuvFramesCapturer2(int width, int height);
-		virtual ~YuvFramesCapturer2();
+		return false;
+	}
 
-		void Init();
-		// Override virtual methods of parent class VideoCapturer.
-		virtual cricket::CaptureState Start(const cricket::VideoFormat& capture_format);
-		virtual void Stop();
-		virtual bool IsRunning();
-		virtual bool IsScreencast() const
-		{
-			return false;
-		}
+protected:
+	// Override virtual methods of parent class VideoCapturer.
+	virtual bool GetPreferredFourccs(std::vector<uint32_t>* fourccs);
 
-	protected:
-		// Override virtual methods of parent class VideoCapturer.
-		virtual bool GetPreferredFourccs(std::vector<uint32_t>* fourccs);
+	// Read a frame and determine how long to wait for the next frame.
+	void ReadFrame(bool first_frame);
 
-		// Read a frame and determine how long to wait for the next frame.
-		void ReadFrame(bool first_frame);
+private:
+	class YuvFramesThread;  // Forward declaration, defined in .cc.
 
-	private:
-		class YuvFramesThread;  // Forward declaration, defined in .cc.
-
-		rtc::Thread* startThread_;  // Set in Start(), unset in Stop().
-									// Used to signal frame capture on the thread that capturer was started on.
-		void SignalFrameCapturedOnStartThread(const cricket::CapturedFrame* frame)
-		{
-			SignalFrameCaptured(this, frame);
-		}
-
-		cricket::YuvFrameGenerator* frame_generator_;
-		cricket::CapturedFrame captured_frame_;
-		YuvFramesThread* frames_generator_thread;
-		int width_;
-		int height_;
-		uint32_t frame_data_size_;
-		uint32_t frame_index_;
-
-		int64_t barcode_reference_timestamp_millis_;
-		int32_t barcode_interval_;
-		int32_t GetBarcodeValue();
-
-		RTC_DISALLOW_COPY_AND_ASSIGN(YuvFramesCapturer2);
-	};
-
-	class VideoCapturerFactoryCustom : public cricket::VideoDeviceCapturerFactory
+	rtc::Thread* startThread_;  // Set in Start(), unset in Stop().
+								// Used to signal frame capture on the thread that capturer was started on.
+	void SignalFrameCapturedOnStartThread(const cricket::CapturedFrame* frame)
 	{
-	public:
-		VideoCapturerFactoryCustom()
-		{
-		}
-		virtual ~VideoCapturerFactoryCustom()
-		{
-		}
+		SignalFrameCaptured(this, frame);
+	}
 
-		virtual cricket::VideoCapturer* Create(const cricket::Device& device)
-		{
-			// XXX: WebRTC uses device name to instantiate the capture, which is always 0.
-			return new YuvFramesCapturer2();
-		}
-	};
+	cricket::YuvFrameGenerator* frame_generator_;
+	cricket::CapturedFrame captured_frame_;
+	YuvFramesThread* frames_generator_thread;
+	int width_;
+	int height_;
+	uint32_t frame_data_size_;
+	uint32_t frame_index_;
 
-} // namespace videocapture
+	int64_t barcode_reference_timestamp_millis_;
+	int32_t barcode_interval_;
+	int32_t GetBarcodeValue();
 
-#endif  // WEBRTC_EXAMPLES_PEERCONNECTION_CLIENT_DEFAULTS_H_
+	RTC_DISALLOW_COPY_AND_ASSIGN(YuvFramesCapturer2);
+};
+
+#endif  // WEBRTC_NET_DEFAULTS_H_

@@ -1,6 +1,6 @@
 
-#ifndef WEBRTC_EXAMPLES_PEERCONNECTION_CLIENT_CONDUCTOR_H_
-#define WEBRTC_EXAMPLES_PEERCONNECTION_CLIENT_CONDUCTOR_H_
+#ifndef WEBRTC_NET_CONDUCTOR_H_
+#define WEBRTC_NET_CONDUCTOR_H_
 #pragma once
 
 #include "talk/app/webrtc/mediastreaminterface.h"
@@ -11,7 +11,10 @@ typedef void(__stdcall *OnSuccessCallbackNative)(const char * type, const char *
 typedef void(__stdcall *OnFailureCallbackNative)(const char * error);
 typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdp_mid, int sdp_mline_index, const char * sdp);
 
-class Conductor	: public webrtc::PeerConnectionObserver, public webrtc::CreateSessionDescriptionObserver
+class Conductor	: public webrtc::PeerConnectionObserver,
+	              public webrtc::CreateSessionDescriptionObserver,
+	              public webrtc::SetSessionDescriptionObserver,
+	              public cricket::VideoDeviceCapturerFactory
 {
 public:
 
@@ -41,8 +44,17 @@ public:
 
 protected:
 
+	// VideoDeviceCapturerFactory
+	virtual cricket::VideoCapturer * Create(const cricket::Device& device);
+
+	// SetSessionDescriptionObserver
+	virtual void webrtc::SetSessionDescriptionObserver::OnSuccess()
+	{
+		LOG(INFO) << __FUNCTION__;
+	}
+
 	// CreateSessionDescriptionObserver implementation.
-	virtual void OnSuccess(webrtc::SessionDescriptionInterface* desc);
+	virtual void webrtc::CreateSessionDescriptionObserver::OnSuccess(webrtc::SessionDescriptionInterface* desc);
 	virtual void OnFailure(const std::string& error);
 
 	//
@@ -71,7 +83,7 @@ protected:
 
 	int AddRef() const
 	{
-		return 1;
+		return 0;
 	};
 	int Release() const
 	{
@@ -85,9 +97,12 @@ private:
 	void AddStreams();
 	cricket::VideoCapturer* OpenVideoCaptureDevice();
 
+	rtc::scoped_ptr<cricket::DeviceManagerInterface> dev_manager;
+	cricket::VideoCapturer * capturer;
+
 	rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
-	rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> peer_connection_factory_;
+	rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
 	std::map<std::string, rtc::scoped_refptr<webrtc::MediaStreamInterface> > active_streams_;
 };
 
-#endif  // WEBRTC_EXAMPLES_PEERCONNECTION_CLIENT_CONDUCTOR_H_
+#endif  // WEBRTC_NET_CONDUCTOR_H_
