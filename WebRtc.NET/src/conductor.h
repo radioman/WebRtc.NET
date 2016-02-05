@@ -93,6 +93,7 @@ private:
 	void AddStreams();	
 
 	cricket::VideoCapturer * capturer;
+	rtc::Thread * worker_thread_;
 
 	rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
 	rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;

@@ -5,7 +5,12 @@
 #include "talk/app/webrtc/videosourceinterface.h"
 #include "talk/app/webrtc/test/fakeconstraints.h"
 
- // Names used for a IceCandidate JSON object.
+#include "webrtc/video_encoder.h"
+#include "webrtc/modules/video_coding/codecs/vp8/simulcast_encoder_adapter.h"
+#include "talk/media/webrtc/webrtcvideoencoderfactory.h"
+#include "webrtc/modules/video_coding/codecs/vp8/include/vp8.h"
+
+// Names used for a IceCandidate JSON object.
 const char kCandidateSdpMidName[] = "sdpMid";
 const char kCandidateSdpMlineIndexName[] = "sdpMLineIndex";
 const char kCandidateSdpName[] = "candidate";
@@ -17,8 +22,92 @@ const char kSessionDescriptionSdpName[] = "sdp";
 const char kVideoLabel[] = "video_label";
 const char kStreamLabel[] = "stream_label";
 
-#define DTLS_ON  true
-#define DTLS_OFF false
+// Wrap cricket::WebRtcVideoEncoderFactory as a webrtc::VideoEncoderFactory.
+class EncoderFactoryAdapter : public webrtc::VideoEncoderFactory
+{
+public:
+	EncoderFactoryAdapter()
+	{
+	}
+
+	virtual ~EncoderFactoryAdapter()
+	{
+	}
+
+	// Implement webrtc::VideoEncoderFactory.
+	webrtc::VideoEncoder* Create() override
+	{
+		return webrtc::VP8Encoder::Create();
+	}
+
+	void Destroy(webrtc::VideoEncoder* encoder) override
+	{
+		//encoder->Release();
+	}
+
+private:
+
+};
+
+// An encoder factory that wraps Create requests for simulcastable codec types
+// with a webrtc::SimulcastEncoderAdapter. Non simulcastable codec type
+// requests are just passed through to the contained encoder factory.
+class WebRtcSimulcastEncoderFactory : public cricket::WebRtcVideoEncoderFactory
+{
+public:
+	WebRtcSimulcastEncoderFactory()
+	{
+		VideoCodec c(webrtc::kVideoCodecVP8, "VP8", 752, 640, 10);
+		codecs_.push_back(c);
+	}
+
+	webrtc::VideoEncoder* CreateVideoEncoder(webrtc::VideoCodecType type) override
+	{
+		// If it's a codec type we can simulcast, create a wrapped encoder.
+		if (type == webrtc::kVideoCodecVP8)
+		{
+			return new webrtc::SimulcastEncoderAdapter(new EncoderFactoryAdapter());
+		}
+		return NULL;
+	}
+
+	const std::vector<VideoCodec>& codecs() const override
+	{
+		return codecs_;
+	}
+
+	bool EncoderTypeHasInternalSource(webrtc::VideoCodecType type) const override
+	{
+		return false;
+	}
+
+	void DestroyVideoEncoder(webrtc::VideoEncoder* encoder) override
+	{
+		// Check first to see if the encoder wasn't wrapped in a
+		// SimulcastEncoderAdapter. In that case, ask the factory to destroy it.
+		if (std::remove(non_simulcast_encoders_.begin(),
+						non_simulcast_encoders_.end(),
+						encoder) != non_simulcast_encoders_.end())
+		{
+			//factory_->DestroyVideoEncoder(encoder);
+			return;
+		}
+
+		// Otherwise, SimulcastEncoderAdapter can be deleted directly, and will call
+		// DestroyVideoEncoder on the factory for individual encoder instances.
+		delete encoder;
+	}
+
+private:
+
+	std::vector<VideoCodec> codecs_;
+
+	// A list of encoders that were created without being wrapped in a
+	// SimulcastEncoderAdapter.
+	std::vector<webrtc::VideoEncoder*> non_simulcast_encoders_;
+};
+
+//----------------------------------------------------------
 
 Conductor::Conductor()
 {
@@ -27,11 +116,13 @@ Conductor::Conductor()
 	onFailure = nullptr;
 	onIceCandidate = nullptr;
 	capturer = nullptr;
+	worker_thread_ = nullptr;
 }
 
 Conductor::~Conductor()
 {
 	DeletePeerConnection();
+
 	ASSERT(peer_connection_ == nullptr);
 }
 
@@ -41,13 +132,14 @@ void Conductor::DeletePeerConnection()
 	{
 		for (auto it = active_streams_.begin(); it != active_streams_.end(); ++it)
 		{
-			peer_connection_->RemoveStream(it->second);			
+			peer_connection_->RemoveStream(it->second);
 		}
 		active_streams_.clear();
 
-		peer_connection_ = nullptr;	
+		peer_connection_ = nullptr;
 	}
 
+	worker_thread_ = nullptr;
 	pc_factory_ = nullptr;
 	capturer = nullptr;
 }
@@ -57,14 +149,32 @@ bool Conductor::InitializePeerConnection()
 	ASSERT(pc_factory_ == nullptr);
 	ASSERT(peer_connection_ == nullptr);
 
-	pc_factory_ = webrtc::CreatePeerConnectionFactory();
+	worker_thread_ = new rtc::Thread();
+	worker_thread_->Start();
+
+	WebRtcSimulcastEncoderFactory * f = new WebRtcSimulcastEncoderFactory();
+
+	pc_factory_ = webrtc::CreatePeerConnectionFactory(
+		worker_thread_,
+		rtc::ThreadManager::Instance()->CurrentThread(),
+		NULL,
+		f,
+		NULL);
+
 	if (!pc_factory_)
 	{
 		DeletePeerConnection();
 		return false;
 	}
 
-	if (!CreatePeerConnection(DTLS_ON))
+	webrtc::PeerConnectionFactoryInterface::Options opt;
+	{
+		//opt.disable_encryption = true;
+		opt.disable_sctp_data_channels = true;
+		pc_factory_->SetOptions(opt);
+	}
+
+	if (!CreatePeerConnection(true))
 	{
 		DeletePeerConnection();
 		return false;
@@ -211,7 +321,8 @@ void Conductor::AddStreams()
 	}
 
 	auto v = pc_factory_->CreateVideoSource(capturer, NULL);
-	auto video_track =	pc_factory_->CreateVideoTrack(kVideoLabel, v);
+
+	auto video_track = pc_factory_->CreateVideoTrack(kVideoLabel, v);
 	//main_wnd_->StartLocalRenderer(video_track);
 
 	auto stream = pc_factory_->CreateLocalMediaStream(kStreamLabel);
@@ -223,7 +334,7 @@ void Conductor::AddStreams()
 		{
 			LOG(LS_ERROR) << "Adding stream to PeerConnection failed";
 		}
-		typedef std::pair<std::string,	rtc::scoped_refptr<webrtc::MediaStreamInterface> >	MediaStreamPair;
+		typedef std::pair<std::string, rtc::scoped_refptr<webrtc::MediaStreamInterface> >	MediaStreamPair;
 		active_streams_.insert(MediaStreamPair(stream->label(), stream));
 	}
 }
