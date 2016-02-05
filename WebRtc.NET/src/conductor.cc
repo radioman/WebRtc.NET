@@ -22,91 +22,79 @@ const char kSessionDescriptionSdpName[] = "sdp";
 const char kVideoLabel[] = "video_label";
 const char kStreamLabel[] = "stream_label";
 
-// Wrap cricket::WebRtcVideoEncoderFactory as a webrtc::VideoEncoderFactory.
-class EncoderFactoryAdapter : public webrtc::VideoEncoderFactory
+namespace
 {
-public:
-	EncoderFactoryAdapter()
+	// Wrap cricket::WebRtcVideoEncoderFactory as a webrtc::VideoEncoderFactory.
+	class EncoderFactoryAdapter : public webrtc::VideoEncoderFactory
 	{
-	}
-
-	virtual ~EncoderFactoryAdapter()
-	{
-	}
-
-	// Implement webrtc::VideoEncoderFactory.
-	webrtc::VideoEncoder* Create() override
-	{
-		return webrtc::VP8Encoder::Create();
-	}
-
-	void Destroy(webrtc::VideoEncoder* encoder) override
-	{
-		//encoder->Release();
-	}
-
-private:
-
-};
-
-// An encoder factory that wraps Create requests for simulcastable codec types
-// with a webrtc::SimulcastEncoderAdapter. Non simulcastable codec type
-// requests are just passed through to the contained encoder factory.
-class WebRtcSimulcastEncoderFactory : public cricket::WebRtcVideoEncoderFactory
-{
-public:
-	WebRtcSimulcastEncoderFactory()
-	{
-		VideoCodec c(webrtc::kVideoCodecVP8, "VP8", 752, 640, 10);
-		codecs_.push_back(c);
-	}
-
-	webrtc::VideoEncoder* CreateVideoEncoder(webrtc::VideoCodecType type) override
-	{
-		// If it's a codec type we can simulcast, create a wrapped encoder.
-		if (type == webrtc::kVideoCodecVP8)
+	public:
+		EncoderFactoryAdapter()
 		{
-			return new webrtc::SimulcastEncoderAdapter(new EncoderFactoryAdapter());
-		}
-		return NULL;
-	}
-
-	const std::vector<VideoCodec>& codecs() const override
-	{
-		return codecs_;
-	}
-
-	bool EncoderTypeHasInternalSource(webrtc::VideoCodecType type) const override
-	{
-		return false;
-	}
-
-	void DestroyVideoEncoder(webrtc::VideoEncoder* encoder) override
-	{
-		// Check first to see if the encoder wasn't wrapped in a
-		// SimulcastEncoderAdapter. In that case, ask the factory to destroy it.
-		if (std::remove(non_simulcast_encoders_.begin(),
-						non_simulcast_encoders_.end(),
-						encoder) != non_simulcast_encoders_.end())
-		{
-			//factory_->DestroyVideoEncoder(encoder);
-			return;
 		}
 
-		// Otherwise, SimulcastEncoderAdapter can be deleted directly, and will call
-		// DestroyVideoEncoder on the factory for individual encoder instances.
-		delete encoder;
-	}
+		virtual ~EncoderFactoryAdapter()
+		{
+		}
 
-private:
+		// Implement webrtc::VideoEncoderFactory.
+		webrtc::VideoEncoder* Create() override
+		{
+			return webrtc::VP8Encoder::Create();
+		}
 
-	std::vector<VideoCodec> codecs_;
+		void Destroy(webrtc::VideoEncoder* encoder) override
+		{
+			delete encoder;
+		}
 
-	// A list of encoders that were created without being wrapped in a
-	// SimulcastEncoderAdapter.
-	std::vector<webrtc::VideoEncoder*> non_simulcast_encoders_;
-};
+	private:
 
+	};
+
+	// An encoder factory that wraps Create requests for simulcastable codec types
+	// with a webrtc::SimulcastEncoderAdapter. Non simulcastable codec type
+	// requests are just passed through to the contained encoder factory.
+	class WebRtcSimulcastEncoderFactory : public cricket::WebRtcVideoEncoderFactory
+	{
+	public:
+		WebRtcSimulcastEncoderFactory()
+		{
+			VideoCodec c(webrtc::kVideoCodecVP8, "VP8", 752, 640, 10);
+			codecs_.push_back(c);
+		}
+
+		webrtc::VideoEncoder* CreateVideoEncoder(webrtc::VideoCodecType type) override
+		{
+			// If it's a codec type we can simulcast, create a wrapped encoder.
+			if (type == webrtc::kVideoCodecVP8)
+			{
+				return new webrtc::SimulcastEncoderAdapter(new EncoderFactoryAdapter());
+			}
+			return NULL;
+		}
+
+		const std::vector<VideoCodec>& codecs() const override
+		{
+			return codecs_;
+		}
+
+		bool EncoderTypeHasInternalSource(webrtc::VideoCodecType type) const override
+		{
+			return false;
+		}
+
+		void DestroyVideoEncoder(webrtc::VideoEncoder* encoder) override
+		{
+			// Otherwise, SimulcastEncoderAdapter can be deleted directly, and will call
+			// DestroyVideoEncoder on the factory for individual encoder instances.
+			delete encoder;
+		}
+
+	private:
+
+		std::vector<VideoCodec> codecs_;
+	};
+}
 //----------------------------------------------------------
 
 Conductor::Conductor()
@@ -152,13 +140,11 @@ bool Conductor::InitializePeerConnection()
 	worker_thread_ = new rtc::Thread();
 	worker_thread_->Start();
 
-	WebRtcSimulcastEncoderFactory * f = new WebRtcSimulcastEncoderFactory();
-
 	pc_factory_ = webrtc::CreatePeerConnectionFactory(
 		worker_thread_,
 		rtc::ThreadManager::Instance()->CurrentThread(),
 		NULL,
-		f,
+		new WebRtcSimulcastEncoderFactory(),
 		NULL);
 
 	if (!pc_factory_)
