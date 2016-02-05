@@ -182,7 +182,7 @@ namespace WebRtc.NET.AppLib
                         {
                             Debug.Write(".");
                         }
-                        mc.Quit();
+                        mc.ProcessMessages(1000);
                     }
                     else
                     {

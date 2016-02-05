@@ -32,11 +32,6 @@ public:
 		return rtc::Thread::Current()->ProcessMessages(delay);
 	}
 
-	void Quit()
-	{
-		rtc::Thread::Current()->Quit();
-	}
-
 	bool OpenVideoCaptureDevice();
 	void OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize);
 

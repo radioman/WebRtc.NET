@@ -188,11 +188,6 @@ namespace WebRtc
 				return cd->ProcessMessages(delay);
 			}
 
-			void Quit()
-			{
-				cd->Quit();
-			}
-
 			bool OpenVideoCaptureDevice()
 			{
 				return cd->OpenVideoCaptureDevice();
