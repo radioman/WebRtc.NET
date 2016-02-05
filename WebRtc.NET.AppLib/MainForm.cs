@@ -436,6 +436,7 @@ namespace WebRtc.NET.AppLib
         }
 
         static readonly Font f = new Font("Tahoma", 14);
+        static readonly Font fBig = new Font("Tahoma", 36);
         static readonly StringFormat sfTopLeft = new StringFormat()
         {
             Alignment = StringAlignment.Near,
@@ -458,69 +459,68 @@ namespace WebRtc.NET.AppLib
         // 2 3
         void DrawFrame(CamStream c, Graphics g)
         {
+            int x = 0;
+            int y = 0;
+
+            if (c != null)
             {
+                switch (c.Id)
                 {
-                    int x = 0;
-                    int y = 0;
+                    case 0:
+                    x = 0;
+                    y = 0;
+                    break;
 
-                    switch (c.Id)
+                    case 1:
+                    x = 1;
+                    y = 0;
+                    break;
+
+                    case 2:
+                    x = 0;
+                    y = 1;
+                    break;
+
+                    case 3:
+                    x = 1;
+                    y = 1;
+                    break;
+                }
+            }
+
+            var maximumWidth = boundsItem.Width;
+            var maximumHeight = boundsItem.Height;
+
+            var newImageWidth = maximumWidth;
+            var newImageHeight = maximumHeight;
+
+            var image = c.rgbBits;
+            
+            var ratioX = maximumWidth / (double)image.Width;
+            var ratioY = maximumHeight / (double)image.Height;
+            var ratio = ratioX < ratioY ? ratioX : ratioY;
+            newImageHeight = (int)(image.Height * ratio);
+            newImageWidth = (int)(image.Width * ratio);
+            {
+                int div = 1;
+
+                Point pv = new Point(
+                    (int)((maximumWidth - (image.Width * ratio)) / div),
+                    (int)((maximumHeight - (image.Height * ratio)) / div));
+
+                //pv.Offset(x * maximumWidth, y * maximumHeight);
+
+                g.DrawImage(image, pv.X, pv.Y, newImageWidth, newImageHeight);
+
+                var rc = RectangleF.FromLTRB(0, 0, newImageWidth, newImageHeight);
+                rc.Offset(pv);
+                g.DrawString(c.Ip, f, Brushes.LimeGreen, rc, sfTopLeft);
+
+                //if (c.Id == 1)
+                {
+                    lock(this)
                     {
-                        case 0:
-                        x = 0;
-                        y = 0;
-                        break;
-
-                        case 1:
-                        x = 1;
-                        y = 0;
-                        break;
-
-                        case 2:
-                        x = 0;
-                        y = 1;
-                        break;
-
-                        case 3:
-                        x = 1;
-                        y = 1;
-                        break;
-                    }
-
-                    var image = c.rgbBits;
-
-                    var maximumWidth = boundsItem.Width;
-                    var maximumHeight = boundsItem.Height;
-
-                    var newImageWidth = maximumWidth;
-                    var newImageHeight = maximumHeight;
-
-                    var ratioX = maximumWidth / (double)image.Width;
-                    var ratioY = maximumHeight / (double)image.Height;
-                    var ratio = ratioX < ratioY ? ratioX : ratioY;
-                    newImageHeight = (int)(image.Height * ratio);
-                    newImageWidth = (int)(image.Width * ratio);
-                    {
-                        int div = 1;
-
-                        Point pv = new Point(
-                            (int)((maximumWidth - (image.Width * ratio)) / div),
-                            (int)((maximumHeight - (image.Height * ratio)) / div));
-
-                        //pv.Offset(x * maximumWidth, y * maximumHeight);
-
-                        g.DrawImage(image, pv.X, pv.Y, newImageWidth, newImageHeight);
-
-                        var rc = RectangleF.FromLTRB(0, 0, newImageWidth, newImageHeight);
-                        rc.Offset(pv);
-                        g.DrawString(c.Ip, f, Brushes.LimeGreen, rc, sfTopLeft);
-
-                        //if (c.Id == 1)
-                        {
-                            lock(this)
-                            {
-                                g.DrawString($"{DateTime.Now.ToLongTimeString()}", f, Brushes.LimeGreen, rc, sfTopRight);
-                            }
-                        }
+                        g.DrawString($"{DateTime.Now.ToLongTimeString()}", f, Brushes.LimeGreen, rc, sfTopRight);
                     }
                 }
             }
@@ -602,8 +602,7 @@ namespace WebRtc.NET.AppLib
         }
 
         internal bool SetEncode = true;
-        internal bool SetRandom = false;
-        internal bool SetView = false;
+        internal bool SetView = true;
 
         private void checkBoxEncode_CheckedChanged(object sender, EventArgs e)
         {
@@ -621,6 +620,7 @@ namespace WebRtc.NET.AppLib
         }
 
         DateTime last = DateTime.MinValue;
+
         private void timerUpdate_Tick(object sender, EventArgs e)
         {
             if (webSocketServer != null)
@@ -733,7 +733,71 @@ namespace WebRtc.NET.AppLib
                 webSocketServer = new WebRTCServer((int)numericWebSocket.Value);
                 webSocketServer.mc = mc;
                 numericMaxClients_ValueChanged(null, null);
+
+                if (checkBoxDemo.Checked)
+                {
+                    checkBoxDemo_CheckedChanged(null, null);
+                }
             }
+        }
+
+        private System.Windows.Forms.Timer timerDemo;
+
+        private void timerDemo_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                if (SetView)
+                {
+                    lock (imgView)
+                    {
+                        using (var g = Graphics.FromImage(imgView))
+                        {
+                            g.Clear(Color.DarkBlue);
+
+                            var rc = RectangleF.FromLTRB(0, 0, img.Width, img.Height);
+                            g.DrawString(string.Format("{0}", DateTime.Now.ToString("hh:mm:ss.fff")), fBig, Brushes.LimeGreen, rc, sfTopRight);
+                        }
+
+                        if (pictureBox1.Image == null)
+                        {
+                            pictureBox1.Image = imgView;
+                        }
+                        {
+                            pictureBox1.Invalidate();
+                        }
+                    }
+                }
+
+                if (SetEncode)
+                {
+                    lock (img)
+                    {
+                        using (var g = Graphics.FromImage(img))
+                        {
+                            g.Clear(Color.DarkBlue);
+
+                            var rc = RectangleF.FromLTRB(0, 0, img.Width, img.Height);
+                            g.DrawString(string.Format("{0}", DateTime.Now.ToString("hh:mm:ss.fff")), fBig, Brushes.LimeGreen, rc, sfTopRight);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("timerDemo_Tick: " + ex);
+            }
+        }
+
+        private void checkBoxDemo_CheckedChanged(object sender, EventArgs e)
+        {
+            if (timerDemo == null)
+            {
+                timerDemo = new System.Windows.Forms.Timer();
+                timerDemo.Interval = 100;
+                timerDemo.Tick += new System.EventHandler(this.timerDemo_Tick);
+            }
+            timerDemo.Enabled = checkBoxDemo.Checked;            
         }
     }
 }

@@ -37,6 +37,7 @@
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.checkBoxDemo = new System.Windows.Forms.CheckBox();
             this.textBoxId = new System.Windows.Forms.TextBox();
             this.buttonSave = new System.Windows.Forms.Button();
             this.buttonAdd = new System.Windows.Forms.Button();
@@ -74,7 +75,7 @@
             this.pictureBox1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pictureBox1.Location = new System.Drawing.Point(3, 3);
             this.pictureBox1.Name = "pictureBox1";
-            this.pictureBox1.Size = new System.Drawing.Size(550, 179);
+            this.pictureBox1.Size = new System.Drawing.Size(550, 327);
             this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBox1.TabIndex = 1;
             this.pictureBox1.TabStop = false;
@@ -82,6 +83,8 @@
             // checkBoxView
             // 
             this.checkBoxView.AutoSize = true;
+            this.checkBoxView.Checked = true;
+            this.checkBoxView.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxView.Location = new System.Drawing.Point(243, 48);
             this.checkBoxView.Name = "checkBoxView";
             this.checkBoxView.Size = new System.Drawing.Size(48, 17);
@@ -94,7 +97,7 @@
             // 
             this.buttonStop.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.buttonStop.Enabled = false;
-            this.buttonStop.Location = new System.Drawing.Point(482, 161);
+            this.buttonStop.Location = new System.Drawing.Point(483, 48);
             this.buttonStop.Name = "buttonStop";
             this.buttonStop.Size = new System.Drawing.Size(75, 23);
             this.buttonStop.TabIndex = 3;
@@ -107,9 +110,10 @@
             this.checkBoxEncode.AutoSize = true;
             this.checkBoxEncode.Checked = true;
             this.checkBoxEncode.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxEncode.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(186)));
             this.checkBoxEncode.Location = new System.Drawing.Point(297, 48);
             this.checkBoxEncode.Name = "checkBoxEncode";
-            this.checkBoxEncode.Size = new System.Drawing.Size(62, 17);
+            this.checkBoxEncode.Size = new System.Drawing.Size(68, 17);
             this.checkBoxEncode.TabIndex = 4;
             this.checkBoxEncode.Text = "encode";
             this.checkBoxEncode.UseVisualStyleBackColor = true;
@@ -134,7 +138,7 @@
             this.tabControl1.Location = new System.Drawing.Point(12, 208);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(564, 211);
+            this.tabControl1.Size = new System.Drawing.Size(564, 359);
             this.tabControl1.TabIndex = 7;
             // 
             // tabPage1
@@ -143,7 +147,7 @@
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage1.Size = new System.Drawing.Size(556, 185);
+            this.tabPage1.Size = new System.Drawing.Size(556, 333);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Video";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -152,6 +156,7 @@
             // 
             this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.groupBox1.Controls.Add(this.checkBoxDemo);
             this.groupBox1.Controls.Add(this.textBoxId);
             this.groupBox1.Controls.Add(this.buttonSave);
             this.groupBox1.Controls.Add(this.buttonAdd);
@@ -170,6 +175,20 @@
             this.groupBox1.TabIndex = 8;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Cameras";
+            // 
+            // checkBoxDemo
+            // 
+            this.checkBoxDemo.AutoSize = true;
+            this.checkBoxDemo.Checked = true;
+            this.checkBoxDemo.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxDemo.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(186)));
+            this.checkBoxDemo.Location = new System.Drawing.Point(365, 48);
+            this.checkBoxDemo.Name = "checkBoxDemo";
+            this.checkBoxDemo.Size = new System.Drawing.Size(88, 17);
+            this.checkBoxDemo.TabIndex = 18;
+            this.checkBoxDemo.Text = "virtual cam";
+            this.checkBoxDemo.UseVisualStyleBackColor = true;
+            this.checkBoxDemo.CheckedChanged += new System.EventHandler(this.checkBoxDemo_CheckedChanged);
             // 
             // textBoxId
             // 
@@ -228,7 +247,7 @@
             this.groupBox3.Controls.Add(this.numericWebSocket);
             this.groupBox3.Location = new System.Drawing.Point(243, 75);
             this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Size = new System.Drawing.Size(121, 49);
+            this.groupBox3.Size = new System.Drawing.Size(129, 49);
             this.groupBox3.TabIndex = 11;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "WebSocket";
@@ -236,11 +255,12 @@
             // checkBoxWebsocket
             // 
             this.checkBoxWebsocket.AutoSize = true;
+            this.checkBoxWebsocket.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(186)));
             this.checkBoxWebsocket.Location = new System.Drawing.Point(75, 20);
             this.checkBoxWebsocket.Name = "checkBoxWebsocket";
-            this.checkBoxWebsocket.Size = new System.Drawing.Size(41, 17);
+            this.checkBoxWebsocket.Size = new System.Drawing.Size(57, 17);
             this.checkBoxWebsocket.TabIndex = 18;
-            this.checkBoxWebsocket.Text = "run";
+            this.checkBoxWebsocket.Text = "RUN!";
             this.checkBoxWebsocket.UseVisualStyleBackColor = true;
             this.checkBoxWebsocket.CheckedChanged += new System.EventHandler(this.checkBoxWebsocket_CheckedChanged);
             // 
@@ -269,7 +289,7 @@
             // groupBox2
             // 
             this.groupBox2.Controls.Add(this.numericMaxClients);
-            this.groupBox2.Location = new System.Drawing.Point(370, 75);
+            this.groupBox2.Location = new System.Drawing.Point(243, 130);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Size = new System.Drawing.Size(80, 49);
             this.groupBox2.TabIndex = 10;
@@ -293,7 +313,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(588, 431);
+            this.ClientSize = new System.Drawing.Size(588, 579);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.tabControl1);
             this.Name = "MainForm";
@@ -333,5 +353,6 @@
         private System.Windows.Forms.Button buttonSave;
         private System.Windows.Forms.TextBox textBoxId;
         private System.Windows.Forms.CheckBox checkBoxWebsocket;
+        private System.Windows.Forms.CheckBox checkBoxDemo;
     }
 }
