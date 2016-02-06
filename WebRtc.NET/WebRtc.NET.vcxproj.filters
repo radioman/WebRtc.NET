@@ -19,6 +19,9 @@
     <Filter Include="Header Files\src">
       <UniqueIdentifier>{2d8f0fc9-d125-449b-a0a0-103d2815d93d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\src\internals">
+      <UniqueIdentifier>{48379b9e-12bc-4938-bfbb-2ace3b99771d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -58,6 +61,9 @@
     </ClCompile>
     <ClCompile Include="src\TJpeg.cpp">
       <Filter>Source Files\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\internals\vp8_impl.cc">
+      <Filter>Source Files\src\internals</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

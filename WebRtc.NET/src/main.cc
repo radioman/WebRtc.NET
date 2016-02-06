@@ -115,7 +115,8 @@
 #pragma comment(lib,"webrtc_opus.lib")
 #pragma comment(lib,"webrtc_utility.lib")
 #pragma comment(lib,"webrtc_video_coding.lib")
-#pragma comment(lib,"webrtc_vp8.lib")
+//#pragma comment(lib,"webrtc_vp8.lib")
+#pragma comment(lib,"webrtc_vp8_no_impl.lib") // for hacking vp8_impl.cc
 #pragma comment(lib,"webrtc_vp9.lib")
 
 #include "stdafx.h"
