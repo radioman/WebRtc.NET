@@ -3,8 +3,8 @@
 #define WEBRTC_NET_CONDUCTOR_H_
 #pragma once
 
-#include "talk/app/webrtc/mediastreaminterface.h"
-#include "talk/app/webrtc/peerconnectioninterface.h"
+#include "webrtc/api/mediastreaminterface.h"
+#include "webrtc/api/peerconnectioninterface.h"
 
 typedef void (__stdcall *OnErrorCallbackNative)();
 typedef void(__stdcall *OnSuccessCallbackNative)(const char * type, const char * sdp);
@@ -57,6 +57,21 @@ protected:
 	// PeerConnectionObserver implementation.
 	//
 	virtual void OnError();
+
+	virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState state)
+	{
+		LOG(INFO) << __FUNCTION__ << " " << state;
+	}
+
+	virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state)
+	{
+		LOG(INFO) << __FUNCTION__ << " " << state;
+	}
+
+	virtual void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState state)
+	{
+		LOG(INFO) << __FUNCTION__ << " " << state;
+	}
 
 	virtual void OnStateChange(webrtc::PeerConnectionObserver::StateType state_changed)
 	{
