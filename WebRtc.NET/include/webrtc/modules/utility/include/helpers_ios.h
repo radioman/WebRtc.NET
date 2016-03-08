@@ -37,11 +37,12 @@ std::string GetAudioSessionCategory();
 // Returns the current name of the operating system.
 std::string GetSystemName();
 
-// Returns the current version of the operating system.
-std::string GetSystemVersion();
+// Returns the current version of the operating system as a string.
+std::string GetSystemVersionAsString();
 
-// Returns the version of the operating system as a floating point value.
-float GetSystemVersionAsFloat();
+// Returns the version of the operating system in double representation.
+// Uses a cached value of the system version.
+double GetSystemVersion();
 
 // Returns the device type.
 // Examples: ”iPhone” and ”iPod touch”.
@@ -50,6 +51,23 @@ std::string GetDeviceType();
 // Returns a more detailed device name.
 // Examples: "iPhone 5s (GSM)" and "iPhone 6 Plus".
 std::string GetDeviceName();
+
+// Returns the name of the process. Does not uniquely identify the process.
+std::string GetProcessName();
+
+// Returns the identifier of the process (often called process ID).
+int GetProcessID();
+
+// Returns a string containing the version of the operating system on which the
+// process is executing. The string is string is human readable, localized, and
+// is appropriate for displaying to the user.
+std::string GetOSVersionString();
+
+// Returns the number of processing cores available on the device.
+int GetProcessorCount();
+
+// Indicates whether Low Power Mode is enabled on the iOS device.
+bool GetLowPowerModeEnabled();
 
 }  // namespace ios
 }  // namespace webrtc

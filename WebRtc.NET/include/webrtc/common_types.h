@@ -11,6 +11,7 @@
 #ifndef WEBRTC_COMMON_TYPES_H_
 #define WEBRTC_COMMON_TYPES_H_
 
+#include <assert.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -37,7 +38,7 @@
 #define NULL 0
 #endif
 
-#define RTP_PAYLOAD_NAME_SIZE 32
+#define RTP_PAYLOAD_NAME_SIZE 32u
 
 #if defined(WEBRTC_WIN) || defined(WIN32)
 // Compares two strings without regard to case.
@@ -207,6 +208,20 @@ struct RtcpPacketTypeCounter {
        (other.first_packet_time_ms < first_packet_time_ms ||
         first_packet_time_ms == -1)) {
       // Use oldest time.
+      first_packet_time_ms = other.first_packet_time_ms;
+    }
+  }
+
+  void Subtract(const RtcpPacketTypeCounter& other) {
+    nack_packets -= other.nack_packets;
+    fir_packets -= other.fir_packets;
+    pli_packets -= other.pli_packets;
+    nack_requests -= other.nack_requests;
+    unique_nack_requests -= other.unique_nack_requests;
+    if (other.first_packet_time_ms != -1 &&
+        (other.first_packet_time_ms > first_packet_time_ms ||
+         first_packet_time_ms == -1)) {
+      // Use youngest time.
       first_packet_time_ms = other.first_packet_time_ms;
     }
   }
@@ -777,6 +792,17 @@ struct RtpPacketCounter {
     packets += other.packets;
   }
 
+  void Subtract(const RtpPacketCounter& other) {
+    assert(header_bytes >= other.header_bytes);
+    header_bytes -= other.header_bytes;
+    assert(payload_bytes >= other.payload_bytes);
+    payload_bytes -= other.payload_bytes;
+    assert(padding_bytes >= other.padding_bytes);
+    padding_bytes -= other.padding_bytes;
+    assert(packets >= other.packets);
+    packets -= other.packets;
+  }
+
   void AddPacket(size_t packet_length, const RTPHeader& header) {
     ++packets;
     header_bytes += header.headerLength;
@@ -807,6 +833,18 @@ struct StreamDataCounters {
        (other.first_packet_time_ms < first_packet_time_ms ||
         first_packet_time_ms == -1)) {
       // Use oldest time.
+      first_packet_time_ms = other.first_packet_time_ms;
+    }
+  }
+
+  void Subtract(const StreamDataCounters& other) {
+    transmitted.Subtract(other.transmitted);
+    retransmitted.Subtract(other.retransmitted);
+    fec.Subtract(other.fec);
+    if (other.first_packet_time_ms != -1 &&
+        (other.first_packet_time_ms > first_packet_time_ms ||
+         first_packet_time_ms == -1)) {
+      // Use youngest time.
       first_packet_time_ms = other.first_packet_time_ms;
     }
   }

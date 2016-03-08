@@ -21,20 +21,20 @@
 #define WEBRTC_P2P_BASE_P2PTRANSPORTCHANNEL_H_
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 #include "webrtc/p2p/base/candidate.h"
 #include "webrtc/p2p/base/p2ptransport.h"
 #include "webrtc/p2p/base/portallocator.h"
 #include "webrtc/p2p/base/portinterface.h"
-#include "webrtc/p2p/base/transport.h"
 #include "webrtc/p2p/base/transportchannelimpl.h"
 #include "webrtc/base/asyncpacketsocket.h"
 #include "webrtc/base/sigslot.h"
 
 namespace cricket {
 
-extern const uint32_t WEAK_PING_DELAY;
+extern const int WEAK_PING_INTERVAL;
 
 struct IceParameters {
   std::string ufrag;
@@ -67,12 +67,16 @@ class P2PTransportChannel : public TransportChannelImpl,
  public:
   P2PTransportChannel(const std::string& transport_name,
                       int component,
+                      PortAllocator* allocator);
+  // TODO(mikescarlett): Deprecated. Remove when Chromium's
+  // IceTransportChannel does not depend on this.
+  P2PTransportChannel(const std::string& transport_name,
+                      int component,
                       P2PTransport* transport,
                       PortAllocator* allocator);
   virtual ~P2PTransportChannel();
 
   // From TransportChannelImpl:
-  Transport* GetTransport() override { return transport_; }
   TransportChannelState GetState() const override;
   void SetIceRole(IceRole role) override;
   IceRole GetIceRole() const override { return ice_role_; }
@@ -88,9 +92,12 @@ class P2PTransportChannel : public TransportChannelImpl,
     return gathering_state_;
   }
   void AddRemoteCandidate(const Candidate& candidate) override;
-  // Sets the receiving timeout and gather_continually.
-  // This also sets the check_receiving_delay proportionally.
+  // Sets the parameters in IceConfig. We do not set them blindly. Instead, we
+  // only update the parameter if it is considered set in |config|. For example,
+  // a negative value of receiving_timeout will be considered "not set" and we
+  // will not use it to update the respective parameter in |config_|.
   void SetIceConfig(const IceConfig& config) override;
+  const IceConfig& config() const;
 
   // From TransportChannel:
   int SendPacket(const char* data,
@@ -161,14 +168,15 @@ class P2PTransportChannel : public TransportChannelImpl,
     return false;
   }
 
-  int receiving_timeout() const { return receiving_timeout_; }
-  int check_receiving_delay() const { return check_receiving_delay_; }
+  int receiving_timeout() const { return config_.receiving_timeout; }
+  int check_receiving_interval() const { return check_receiving_interval_; }
 
   // Helper method used only in unittest.
   rtc::DiffServCodePoint DefaultDscpValue() const;
 
   // Public for unit tests.
   Connection* FindNextPingableConnection();
+  void MarkConnectionPinged(Connection* conn);
 
   // Public for unit tests.
   const std::vector<Connection*>& connections() const { return connections_; }
@@ -227,6 +235,7 @@ class P2PTransportChannel : public TransportChannelImpl,
                         const std::string& remote_username,
                         bool port_muxed);
   void OnPortDestroyed(PortInterface* port);
+  void OnPortNetworkInactive(PortInterface* port);
   void OnRoleConflict(PortInterface* port);
 
   void OnConnectionStateChange(Connection* connection);
@@ -246,6 +255,18 @@ class P2PTransportChannel : public TransportChannelImpl,
   Connection* best_nominated_connection() const;
   bool IsBackupConnection(Connection* conn) const;
 
+  Connection* FindConnectionToPing(uint32_t now);
+  Connection* FindOldestConnectionNeedingTriggeredCheck(uint32_t now);
+  // Between |conn1| and |conn2|, this function returns the one which should
+  // be pinged first.
+  Connection* SelectMostPingableConnection(Connection* conn1,
+                                           Connection* conn2);
+  // Select the connection which is Relay/Relay. If both of them are,
+  // UDP relay protocol takes precedence.
+  Connection* MostLikelyToWork(Connection* conn1, Connection* conn2);
+  // Compare the last_ping_sent time and return the one least recently pinged.
+  Connection* LeastRecentlyPinged(Connection* conn1, Connection* conn2);
+
   // Returns the latest remote ICE parameters or nullptr if there are no remote
   // ICE parameters yet.
   IceParameters* remote_ice() {
@@ -264,15 +285,24 @@ class P2PTransportChannel : public TransportChannelImpl,
                : static_cast<uint32_t>(remote_ice_parameters_.size() - 1);
   }
 
-  P2PTransport* transport_;
   PortAllocator* allocator_;
   rtc::Thread* worker_thread_;
   bool incoming_only_;
   int error_;
   std::vector<PortAllocatorSession*> allocator_sessions_;
   std::vector<PortInterface *> ports_;
+
+  // |connections_| is a sorted list with the first one always be the
+  // |best_connection_| when it's not nullptr. The combination of
+  // |pinged_connections_| and |unpinged_connections_| has the same
+  // connections as |connections_|. These 2 sets maintain whether a
+  // connection should be pinged next or not.
   std::vector<Connection *> connections_;
+  std::set<Connection*> pinged_connections_;
+  std::set<Connection*> unpinged_connections_;
+
   Connection* best_connection_;
+
   // Connection selected by the controlling agent. This should be used only
   // at controlled side when protocol type is RFC5245.
   Connection* pending_best_connection_;
@@ -289,13 +319,11 @@ class P2PTransportChannel : public TransportChannelImpl,
   uint64_t tiebreaker_;
   IceGatheringState gathering_state_;
 
-  int check_receiving_delay_;
-  int receiving_timeout_;
-  int backup_connection_ping_interval_;
+  int check_receiving_interval_;
   uint32_t last_ping_sent_ms_ = 0;
-  bool gather_continually_ = false;
-  int weak_ping_delay_ = WEAK_PING_DELAY;
+  int weak_ping_interval_ = WEAK_PING_INTERVAL;
   TransportChannelState state_ = TransportChannelState::STATE_INIT;
+  IceConfig config_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(P2PTransportChannel);
 };

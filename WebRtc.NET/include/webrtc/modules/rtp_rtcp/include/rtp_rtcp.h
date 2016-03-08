@@ -12,6 +12,7 @@
 #define WEBRTC_MODULES_RTP_RTCP_INCLUDE_RTP_RTCP_H_
 
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -25,6 +26,8 @@ class RemoteBitrateEstimator;
 class RtpReceiver;
 class Transport;
 class RtcEventLog;
+
+RTPExtensionType StringToRtpExtensionType(const std::string& extension);
 
 namespace rtcp {
 class TransportFeedback;
@@ -165,6 +168,9 @@ class RtpRtcp : public Module {
     virtual int32_t RegisterSendPayload(
         const VideoCodec& videoCodec) = 0;
 
+    virtual void RegisterVideoSendPayload(int payload_type,
+                                          const char* payload_name) = 0;
+
     /*
     *   Unregister a send payload
     *
@@ -248,10 +254,6 @@ class RtpRtcp : public Module {
     // doesn't enable RTX, only the payload type is set.
     virtual void SetRtxSendPayloadType(int payload_type,
                                        int associated_payload_type) = 0;
-
-    // Gets the payload type pair of (RTX, associated) to use when sending RTX
-    // packets.
-    virtual std::pair<int, int> RtxSendPayloadType() const = 0;
 
     /*
     *   sends kRtcpByeCode when going from true to false

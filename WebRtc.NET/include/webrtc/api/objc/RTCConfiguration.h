@@ -12,6 +12,8 @@
 
 @class RTCIceServer;
 
+// TODO(hjon): Update nullability types. See http://crbug/webrtc/5592
+
 /**
  * Represents the ice transport policy. This exposes the same states in C++,
  * which include one more state than what exists in the W3C spec.
@@ -42,12 +44,19 @@ typedef NS_ENUM(NSInteger, RTCTcpCandidatePolicy) {
   RTCTcpCandidatePolicyDisabled
 };
 
+/** Represents the encryption key type. */
+typedef NS_ENUM(NSInteger, RTCEncryptionKeyType) {
+  RTCEncryptionKeyTypeRSA,
+  RTCEncryptionKeyTypeECDSA,
+};
+
 NS_ASSUME_NONNULL_BEGIN
 
 @interface RTCConfiguration : NSObject
 
 /** An array of Ice Servers available to be used by ICE. */
-@property(nonatomic, copy) NSArray<RTCIceServer *> *iceServers;
+@property(nonatomic, copy, nonnull) NSArray *iceServers;
+// @property(nonatomic, copy) NSArray<RTCIceServer *> *iceServers;
 
 /** Which candidates the ICE agent is allowed to use. The W3C calls it
  * |iceTransportPolicy|, while in C++ it is called |type|. */
@@ -63,17 +72,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, assign) int iceConnectionReceivingTimeout;
 @property(nonatomic, assign) int iceBackupCandidatePairPingInterval;
 
-- (instancetype)init NS_DESIGNATED_INITIALIZER;
+/** Key type used to generate SSL identity. Default is ECDSA. */
+@property(nonatomic, assign) RTCEncryptionKeyType keyType;
 
-- (instancetype)initWithIceServers:
-    (nullable NSArray<RTCIceServer *> *)iceServers
-                iceTransportPolicy:(RTCIceTransportPolicy)iceTransportPolicy
-                      bundlePolicy:(RTCBundlePolicy)bundlePolicy
-                     rtcpMuxPolicy:(RTCRtcpMuxPolicy)rtcpMuxPolicy
-                tcpCandidatePolicy:(RTCTcpCandidatePolicy)tcpCandidatePolicy
-       audioJitterBufferMaxPackets:(int)audioJitterBufferMaxPackets
-     iceConnectionReceivingTimeout:(int)iceConnectionReceivingTimeout
-iceBackupCandidatePairPingInterval:(int)iceBackupCandidatePairPingInterval;
+- (nonnull instancetype)init NS_DESIGNATED_INITIALIZER;
 
 @end
 

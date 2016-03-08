@@ -11,6 +11,7 @@
 #ifndef WEBRTC_VIDEO_DECODER_H_
 #define WEBRTC_VIDEO_DECODER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -73,7 +74,6 @@ class VideoDecoder {
       DecodedImageCallback* callback) = 0;
 
   virtual int32_t Release() = 0;
-  virtual int32_t Reset() = 0;
 
   // Returns true if the decoder prefer to decode frames late.
   // That is, it can not decode infinite number of frames before the decoded
@@ -104,7 +104,6 @@ class VideoDecoderSoftwareFallbackWrapper : public webrtc::VideoDecoder {
       DecodedImageCallback* callback) override;
 
   int32_t Release() override;
-  int32_t Reset() override;
   bool PrefersLateDecoding() const override;
 
   const char* ImplementationName() const override;
@@ -118,8 +117,31 @@ class VideoDecoderSoftwareFallbackWrapper : public webrtc::VideoDecoder {
   VideoCodec codec_settings_;
   int32_t number_of_cores_;
   std::string fallback_implementation_name_;
-  rtc::scoped_ptr<VideoDecoder> fallback_decoder_;
+  std::unique_ptr<VideoDecoder> fallback_decoder_;
   DecodedImageCallback* callback_;
+};
+
+// Video decoder class to be used for unknown codecs. Doesn't support decoding
+// but logs messages to LS_ERROR.
+class NullVideoDecoder : public VideoDecoder {
+ public:
+  NullVideoDecoder();
+
+  int32_t InitDecode(const VideoCodec* codec_settings,
+                     int32_t number_of_cores) override;
+
+  int32_t Decode(const EncodedImage& input_image,
+                 bool missing_frames,
+                 const RTPFragmentationHeader* fragmentation,
+                 const CodecSpecificInfo* codec_specific_info,
+                 int64_t render_time_ms) override;
+
+  int32_t RegisterDecodeCompleteCallback(
+      DecodedImageCallback* callback) override;
+
+  int32_t Release() override;
+
+  const char* ImplementationName() const override;
 };
 
 }  // namespace webrtc

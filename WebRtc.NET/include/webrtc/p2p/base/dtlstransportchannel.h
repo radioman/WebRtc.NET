@@ -34,7 +34,7 @@ class StreamInterfaceChannel : public rtc::StreamInterface {
 
   // Implementations of StreamInterface
   rtc::StreamState GetState() const override { return state_; }
-  void Close() override { state_ = rtc::SS_CLOSED; }
+  void Close() override;
   rtc::StreamResult Read(void* buffer,
                          size_t buffer_len,
                          size_t* read,
@@ -82,10 +82,8 @@ class StreamInterfaceChannel : public rtc::StreamInterface {
 class DtlsTransportChannelWrapper : public TransportChannelImpl {
  public:
   // The parameters here are:
-  // transport -- the DtlsTransport that created us
   // channel -- the TransportChannel we are wrapping
-  DtlsTransportChannelWrapper(Transport* transport,
-                              TransportChannelImpl* channel);
+  explicit DtlsTransportChannelWrapper(TransportChannelImpl* channel);
   ~DtlsTransportChannelWrapper() override;
 
   void SetIceRole(IceRole role) override { channel_->SetIceRole(role); }
@@ -159,8 +157,6 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
   }
 
   // TransportChannelImpl calls.
-  Transport* GetTransport() override { return transport_; }
-
   TransportChannelState GetState() const override {
     return channel_->GetState();
   }
@@ -218,9 +214,8 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
   void OnConnectionRemoved(TransportChannelImpl* channel);
   void Reconnect();
 
-  Transport* transport_;  // The transport_ that created us.
   rtc::Thread* worker_thread_;  // Everything should occur on this thread.
-  // Underlying channel, owned by transport_.
+  // Underlying channel, not owned by this class.
   TransportChannelImpl* const channel_;
   rtc::scoped_ptr<rtc::SSLStreamAdapter> dtls_;  // The DTLS stream
   StreamInterfaceChannel* downward_;  // Wrapper for channel_, owned by dtls_.

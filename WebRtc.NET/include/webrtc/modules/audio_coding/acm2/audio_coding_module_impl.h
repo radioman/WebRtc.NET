@@ -11,12 +11,12 @@
 #ifndef WEBRTC_MODULES_AUDIO_CODING_ACM2_AUDIO_CODING_MODULE_IMPL_H_
 #define WEBRTC_MODULES_AUDIO_CODING_ACM2_AUDIO_CODING_MODULE_IMPL_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "webrtc/base/buffer.h"
 #include "webrtc/base/criticalsection.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/common_types.h"
 #include "webrtc/engine_configurations.h"
@@ -29,6 +29,8 @@ namespace webrtc {
 class AudioCodingImpl;
 
 namespace acm2 {
+
+struct EncoderFactory;
 
 class AudioCodingModuleImpl final : public AudioCodingModule {
  public:
@@ -249,16 +251,12 @@ class AudioCodingModuleImpl final : public AudioCodingModule {
   AcmReceiver receiver_;  // AcmReceiver has it's own internal lock.
   ChangeLogger bitrate_logger_ GUARDED_BY(acm_crit_sect_);
 
-  struct EncoderFactory {
-    CodecManager codec_manager;
-    RentACodec rent_a_codec;
-  };
-  rtc::scoped_ptr<EncoderFactory> encoder_factory_ GUARDED_BY(acm_crit_sect_);
+  std::unique_ptr<EncoderFactory> encoder_factory_ GUARDED_BY(acm_crit_sect_);
 
   // Current encoder stack, either obtained from
   // encoder_factory_->rent_a_codec.RentEncoderStack or provided by a call to
   // RegisterEncoder.
-  AudioEncoder* encoder_stack_ GUARDED_BY(acm_crit_sect_);
+  std::unique_ptr<AudioEncoder> encoder_stack_ GUARDED_BY(acm_crit_sect_);
 
   // This is to keep track of CN instances where we can send DTMFs.
   uint8_t previous_pltype_ GUARDED_BY(acm_crit_sect_);
@@ -269,7 +267,7 @@ class AudioCodingModuleImpl final : public AudioCodingModule {
   // IMPORTANT: this variable is only used in IncomingPayload(), therefore,
   // no lock acquired when interacting with this variable. If it is going to
   // be used in other methods, locks need to be taken.
-  rtc::scoped_ptr<WebRtcRTPHeader> aux_rtp_header_;
+  std::unique_ptr<WebRtcRTPHeader> aux_rtp_header_;
 
   bool receiver_initialized_ GUARDED_BY(acm_crit_sect_);
 

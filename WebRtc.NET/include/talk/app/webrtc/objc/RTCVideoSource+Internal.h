@@ -27,11 +27,11 @@
 
 #import "RTCVideoSource.h"
 
-#include "talk/app/webrtc/videosourceinterface.h"
+#include "webrtc/api/videosourceinterface.h"
 
 @interface RTCVideoSource (Internal)
 
-@property(nonatomic, assign, readonly)
-    rtc::scoped_refptr<webrtc::VideoSourceInterface>videoSource;
+@property(nonatomic, assign, readonly) rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>
+    videoSource;
 
 @end

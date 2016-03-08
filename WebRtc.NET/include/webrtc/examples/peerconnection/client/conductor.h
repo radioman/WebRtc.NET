@@ -17,8 +17,8 @@
 #include <set>
 #include <string>
 
-#include "talk/app/webrtc/mediastreaminterface.h"
-#include "talk/app/webrtc/peerconnectioninterface.h"
+#include "webrtc/api/mediastreaminterface.h"
+#include "webrtc/api/peerconnectioninterface.h"
 #include "webrtc/examples/peerconnection/client/main_wnd.h"
 #include "webrtc/examples/peerconnection/client/peer_connection_client.h"
 #include "webrtc/base/scoped_ptr.h"
@@ -64,14 +64,19 @@ class Conductor
   //
   // PeerConnectionObserver implementation.
   //
-  virtual void OnStateChange(
-      webrtc::PeerConnectionObserver::StateType state_changed) {}
-  virtual void OnAddStream(webrtc::MediaStreamInterface* stream);
-  virtual void OnRemoveStream(webrtc::MediaStreamInterface* stream);
-  virtual void OnDataChannel(webrtc::DataChannelInterface* channel) {}
-  virtual void OnRenegotiationNeeded() {}
-  virtual void OnIceChange() {}
-  virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate);
+
+  void OnSignalingChange(
+      webrtc::PeerConnectionInterface::SignalingState new_state) override{};
+  void OnAddStream(webrtc::MediaStreamInterface* stream) override;
+  void OnRemoveStream(webrtc::MediaStreamInterface* stream) override;
+  void OnDataChannel(webrtc::DataChannelInterface* channel) override {}
+  void OnRenegotiationNeeded() override {}
+  void OnIceConnectionChange(
+      webrtc::PeerConnectionInterface::IceConnectionState new_state) override{};
+  void OnIceGatheringChange(
+      webrtc::PeerConnectionInterface::IceGatheringState new_state) override{};
+  void OnIceCandidate(const webrtc::IceCandidateInterface* candidate) override;
+  void OnIceConnectionReceivingChange(bool receiving) override {}
 
   //
   // PeerConnectionClientObserver implementation.

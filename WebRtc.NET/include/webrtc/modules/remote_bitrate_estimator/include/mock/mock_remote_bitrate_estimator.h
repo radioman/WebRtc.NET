@@ -18,22 +18,26 @@
 
 namespace webrtc {
 
+class MockRemoteBitrateObserver : public RemoteBitrateObserver {
+ public:
+  MOCK_METHOD2(OnReceiveBitrateChanged,
+               void(const std::vector<uint32_t>& ssrcs, uint32_t bitrate));
+};
+
 class MockRemoteBitrateEstimator : public RemoteBitrateEstimator {
  public:
   MOCK_METHOD1(IncomingPacketFeedbackVector,
                void(const std::vector<PacketInfo>&));
   MOCK_METHOD4(IncomingPacket, void(int64_t, size_t, const RTPHeader&, bool));
-  MOCK_METHOD1(RemoveStream, void(unsigned int));
-  MOCK_CONST_METHOD2(LatestEstimate,
-                     bool(std::vector<unsigned int>*, unsigned int*));
-  MOCK_CONST_METHOD1(GetStats, bool(ReceiveBandwidthEstimatorStats*));
+  MOCK_METHOD1(RemoveStream, void(uint32_t));
+  MOCK_CONST_METHOD2(LatestEstimate, bool(std::vector<uint32_t>*, uint32_t*));
 
   // From CallStatsObserver;
   MOCK_METHOD2(OnRttUpdate, void(int64_t, int64_t));
 
   // From Module.
   MOCK_METHOD0(TimeUntilNextProcess, int64_t());
-  MOCK_METHOD0(Process, int32_t());
+  MOCK_METHOD0(Process, void());
   MOCK_METHOD1(SetMinBitrate, void(int));
 };
 

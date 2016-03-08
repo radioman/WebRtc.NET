@@ -11,11 +11,11 @@
 #ifndef WEBRTC_VOICE_ENGINE_CHANNEL_MANAGER_H
 #define WEBRTC_VOICE_ENGINE_CHANNEL_MANAGER_H
 
+#include <memory>
 #include <vector>
 
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/base/criticalsection.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/call/rtc_event_log.h"
 #include "webrtc/system_wrappers/include/atomic32.h"
 #include "webrtc/typedefs.h"
@@ -62,7 +62,7 @@ class ChannelOwner {
   // deleted when no references to them are held.
   struct ChannelRef {
     ChannelRef(Channel* channel);
-    const rtc::scoped_ptr<Channel> channel;
+    const std::unique_ptr<Channel> channel;
     Atomic32 ref_count;
   };
 
@@ -123,11 +123,11 @@ class ChannelManager {
 
   Atomic32 last_channel_id_;
 
-  mutable rtc::CriticalSection lock_;
+  rtc::CriticalSection lock_;
   std::vector<ChannelOwner> channels_;
 
   const Config& config_;
-  rtc::scoped_ptr<RtcEventLog> event_log_;
+  std::unique_ptr<RtcEventLog> event_log_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(ChannelManager);
 };

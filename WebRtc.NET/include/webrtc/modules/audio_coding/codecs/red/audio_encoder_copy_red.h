@@ -11,10 +11,10 @@
 #ifndef WEBRTC_MODULES_AUDIO_CODING_CODECS_RED_AUDIO_ENCODER_COPY_RED_H_
 #define WEBRTC_MODULES_AUDIO_CODING_CODECS_RED_AUDIO_ENCODER_COPY_RED_H_
 
+#include <memory>
 #include <vector>
 
 #include "webrtc/base/buffer.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/audio_coding/codecs/audio_encoder.h"
 
 namespace webrtc {
@@ -26,13 +26,14 @@ namespace webrtc {
 class AudioEncoderCopyRed final : public AudioEncoder {
  public:
   struct Config {
-   public:
+    Config();
+    Config(Config&&);
+    ~Config();
     int payload_type;
-    AudioEncoder* speech_encoder;
+    std::unique_ptr<AudioEncoder> speech_encoder;
   };
 
-  // Caller keeps ownership of the AudioEncoder object.
-  explicit AudioEncoderCopyRed(const Config& config);
+  explicit AudioEncoderCopyRed(Config&& config);
 
   ~AudioEncoderCopyRed() override;
 
@@ -43,10 +44,6 @@ class AudioEncoderCopyRed final : public AudioEncoder {
   size_t Num10MsFramesInNextPacket() const override;
   size_t Max10MsFramesInAPacket() const override;
   int GetTargetBitrate() const override;
-  EncodedInfo EncodeInternal(uint32_t rtp_timestamp,
-                             rtc::ArrayView<const int16_t> audio,
-                             size_t max_encoded_bytes,
-                             uint8_t* encoded) override;
   void Reset() override;
   bool SetFec(bool enable) override;
   bool SetDtx(bool enable) override;
@@ -55,8 +52,13 @@ class AudioEncoderCopyRed final : public AudioEncoder {
   void SetProjectedPacketLossRate(double fraction) override;
   void SetTargetBitrate(int target_bps) override;
 
+protected:
+  EncodedInfo EncodeImpl(uint32_t rtp_timestamp,
+                         rtc::ArrayView<const int16_t> audio,
+                         rtc::Buffer* encoded) override;
+
  private:
-  AudioEncoder* speech_encoder_;
+  std::unique_ptr<AudioEncoder> speech_encoder_;
   int red_payload_type_;
   rtc::Buffer secondary_encoded_;
   EncodedInfoLeaf secondary_info_;

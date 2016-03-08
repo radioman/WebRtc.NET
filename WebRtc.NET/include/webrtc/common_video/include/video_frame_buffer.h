@@ -11,9 +11,12 @@
 #ifndef WEBRTC_COMMON_VIDEO_INCLUDE_VIDEO_FRAME_BUFFER_H_
 #define WEBRTC_COMMON_VIDEO_INCLUDE_VIDEO_FRAME_BUFFER_H_
 
+#include <stdint.h>
+
+#include <memory>
+
 #include "webrtc/base/callback.h"
 #include "webrtc/base/refcount.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/scoped_ref_ptr.h"
 #include "webrtc/system_wrappers/include/aligned_malloc.h"
 
@@ -66,6 +69,7 @@ class I420Buffer : public VideoFrameBuffer {
  public:
   I420Buffer(int width, int height);
   I420Buffer(int width, int height, int stride_y, int stride_u, int stride_v);
+  void InitializeData();
 
   int width() const override;
   int height() const override;
@@ -86,7 +90,7 @@ class I420Buffer : public VideoFrameBuffer {
   const int stride_y_;
   const int stride_u_;
   const int stride_v_;
-  const rtc::scoped_ptr<uint8_t, AlignedFreeDeleter> data_;
+  const std::unique_ptr<uint8_t, AlignedFreeDeleter> data_;
 };
 
 // Base class for native-handle buffer is a wrapper around a |native_handle|.

@@ -11,9 +11,9 @@
 #ifndef WEBRTC_VIDEO_VIDEO_RECEIVE_STREAM_H_
 #define WEBRTC_VIDEO_VIDEO_RECEIVE_STREAM_H_
 
+#include <memory>
 #include <vector>
 
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/call.h"
 #include "webrtc/call/transport_adapter.h"
 #include "webrtc/common_video/include/incoming_video_stream.h"
@@ -31,7 +31,9 @@ namespace webrtc {
 
 class CallStats;
 class CongestionController;
+class ProcessThread;
 class VoiceEngine;
+class VieRemb;
 
 namespace internal {
 
@@ -45,7 +47,8 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
                      const VideoReceiveStream::Config& config,
                      webrtc::VoiceEngine* voice_engine,
                      ProcessThread* process_thread,
-                     CallStats* call_stats);
+                     CallStats* call_stats,
+                     VieRemb* remb);
   ~VideoReceiveStream() override;
 
   // webrtc::ReceiveStream implementation.
@@ -77,17 +80,28 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
   void SetSyncChannel(VoiceEngine* voice_engine, int audio_channel_id);
 
  private:
+  static bool DecodeThreadFunction(void* ptr);
+  void Decode();
+
   TransportAdapter transport_adapter_;
   EncodedFrameCallbackAdapter encoded_frame_proxy_;
   const VideoReceiveStream::Config config_;
+  ProcessThread* const process_thread_;
   Clock* const clock_;
+
+  rtc::PlatformThread decode_thread_;
 
   CongestionController* const congestion_controller_;
   CallStats* const call_stats_;
+  VieRemb* const remb_;
 
-  rtc::scoped_ptr<IncomingVideoStream> incoming_video_stream_;
-  rtc::scoped_ptr<ReceiveStatisticsProxy> stats_proxy_;
-  rtc::scoped_ptr<ViEChannel> vie_channel_;
+  std::unique_ptr<VideoCodingModule> vcm_;
+  IncomingVideoStream incoming_video_stream_;
+  ReceiveStatisticsProxy stats_proxy_;
+  ViEChannel vie_channel_;
+  ViEReceiver* const vie_receiver_;
+  ViESyncModule vie_sync_;
+  RtpRtcp* const rtp_rtcp_;
 };
 }  // namespace internal
 }  // namespace webrtc

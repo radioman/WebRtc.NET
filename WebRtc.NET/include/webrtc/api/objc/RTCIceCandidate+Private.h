@@ -10,7 +10,7 @@
 
 #import "RTCIceCandidate.h"
 
-#include "talk/app/webrtc/jsep.h"
+#include "webrtc/api/jsep.h"
 #include "webrtc/base/scoped_ptr.h"
 
 NS_ASSUME_NONNULL_BEGIN
@@ -29,7 +29,7 @@ NS_ASSUME_NONNULL_BEGIN
  * ownership is taken of the native candidate.
  */
 - (instancetype)initWithNativeCandidate:
-    (webrtc::IceCandidateInterface *)candidate;
+    (const webrtc::IceCandidateInterface *)candidate;
 
 @end
 

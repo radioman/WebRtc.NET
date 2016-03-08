@@ -25,9 +25,9 @@
 #include "webrtc/modules/audio_processing/beamformer/array_util.h"
 #include "webrtc/typedefs.h"
 
-struct AecCore;
-
 namespace webrtc {
+
+struct AecCore;
 
 class AudioFrame;
 
@@ -66,6 +66,17 @@ struct ExtendedFilter {
   ExtendedFilter() : enabled(false) {}
   explicit ExtendedFilter(bool enabled) : enabled(enabled) {}
   static const ConfigOptionID identifier = ConfigOptionID::kExtendedFilter;
+  bool enabled;
+};
+
+// Enables the next generation AEC functionality. This feature replaces the
+// standard methods for echo removal in the AEC. This configuration only applies
+// to EchoCancellation and not EchoControlMobile. It can be set in the
+// constructor or using AudioProcessing::SetExtraOptions().
+struct EchoCanceller3 {
+  EchoCanceller3() : enabled(false) {}
+  explicit EchoCanceller3(bool enabled) : enabled(enabled) {}
+  static const ConfigOptionID identifier = ConfigOptionID::kEchoCanceller3;
   bool enabled;
 };
 
@@ -914,6 +925,9 @@ class NoiseSuppression {
   // averaged over output channels. This is not supported in fixed point, for
   // which |kUnsupportedFunctionError| is returned.
   virtual float speech_probability() const = 0;
+
+  // Returns the noise estimate per frequency bin averaged over all channels.
+  virtual std::vector<float> NoiseEstimate() = 0;
 
  protected:
   virtual ~NoiseSuppression() {}

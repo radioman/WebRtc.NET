@@ -11,16 +11,17 @@
 #ifndef WEBRTC_MODULES_AUDIO_CODING_CODECS_CNG_AUDIO_ENCODER_CNG_H_
 #define WEBRTC_MODULES_AUDIO_CODING_CODECS_CNG_AUDIO_ENCODER_CNG_H_
 
+#include <memory>
 #include <vector>
 
-#include "webrtc/base/scoped_ptr.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/common_audio/vad/include/vad.h"
 #include "webrtc/modules/audio_coding/codecs/audio_encoder.h"
 #include "webrtc/modules/audio_coding/codecs/cng/webrtc_cng.h"
 
 namespace webrtc {
 
-// Deleter for use with scoped_ptr.
+// Deleter for use with unique_ptr.
 struct CngInstDeleter {
   void operator()(CNG_enc_inst* ptr) const { WebRtcCng_FreeEnc(ptr); }
 };
@@ -30,12 +31,14 @@ class Vad;
 class AudioEncoderCng final : public AudioEncoder {
  public:
   struct Config {
+    Config();
+    Config(Config&&);
+    ~Config();
     bool IsOk() const;
 
     size_t num_channels = 1;
     int payload_type = 13;
-    // Caller keeps ownership of the AudioEncoder object.
-    AudioEncoder* speech_encoder = nullptr;
+    std::unique_ptr<AudioEncoder> speech_encoder;
     Vad::Aggressiveness vad_mode = Vad::kVadNormal;
     int sid_frame_interval_ms = 100;
     int num_cng_coefficients = 8;
@@ -46,7 +49,7 @@ class AudioEncoderCng final : public AudioEncoder {
     Vad* vad = nullptr;
   };
 
-  explicit AudioEncoderCng(const Config& config);
+  explicit AudioEncoderCng(Config&& config);
   ~AudioEncoderCng() override;
 
   size_t MaxEncodedBytes() const override;
@@ -56,10 +59,9 @@ class AudioEncoderCng final : public AudioEncoder {
   size_t Num10MsFramesInNextPacket() const override;
   size_t Max10MsFramesInAPacket() const override;
   int GetTargetBitrate() const override;
-  EncodedInfo EncodeInternal(uint32_t rtp_timestamp,
-                             rtc::ArrayView<const int16_t> audio,
-                             size_t max_encoded_bytes,
-                             uint8_t* encoded) override;
+  EncodedInfo EncodeImpl(uint32_t rtp_timestamp,
+                         rtc::ArrayView<const int16_t> audio,
+                         rtc::Buffer* encoded) override;
   void Reset() override;
   bool SetFec(bool enable) override;
   bool SetDtx(bool enable) override;
@@ -70,22 +72,20 @@ class AudioEncoderCng final : public AudioEncoder {
 
  private:
   EncodedInfo EncodePassive(size_t frames_to_encode,
-                            size_t max_encoded_bytes,
-                            uint8_t* encoded);
+                            rtc::Buffer* encoded);
   EncodedInfo EncodeActive(size_t frames_to_encode,
-                           size_t max_encoded_bytes,
-                           uint8_t* encoded);
+                           rtc::Buffer* encoded);
   size_t SamplesPer10msFrame() const;
 
-  AudioEncoder* speech_encoder_;
+  std::unique_ptr<AudioEncoder> speech_encoder_;
   const int cng_payload_type_;
   const int num_cng_coefficients_;
   const int sid_frame_interval_ms_;
   std::vector<int16_t> speech_buffer_;
   std::vector<uint32_t> rtp_timestamps_;
   bool last_frame_active_;
-  rtc::scoped_ptr<Vad> vad_;
-  rtc::scoped_ptr<CNG_enc_inst, CngInstDeleter> cng_inst_;
+  std::unique_ptr<Vad> vad_;
+  std::unique_ptr<CNG_enc_inst, CngInstDeleter> cng_inst_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(AudioEncoderCng);
 };

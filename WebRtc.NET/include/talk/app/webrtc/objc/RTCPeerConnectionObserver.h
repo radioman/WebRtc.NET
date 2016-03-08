@@ -25,7 +25,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "talk/app/webrtc/peerconnectioninterface.h"
+#include "webrtc/api/peerconnectioninterface.h"
 
 #import "RTCPeerConnection.h"
 #import "RTCPeerConnectionDelegate.h"
@@ -67,9 +67,6 @@ class RTCPeerConnectionObserver : public PeerConnectionObserver {
 
   // New Ice candidate have been found.
   void OnIceCandidate(const IceCandidateInterface* candidate) override;
-
-  // Called when the first RTP packet is received.
-  void OnFirstMediaPacketReceived() override;
 
  private:
   __weak RTCPeerConnection* _peerConnection;
