@@ -75,8 +75,6 @@ class VideoCodingModule : public Module {
 
   static VideoCodingModule* Create(Clock* clock, EventFactory* event_factory);
 
-  static void Destroy(VideoCodingModule* module);
-
   // Get supported codec settings using codec type
   //
   // Input:
@@ -383,12 +381,6 @@ class VideoCodingModule : public Module {
   // Registers a callback which conveys the size of the render buffer.
   virtual int RegisterRenderBufferSizeCallback(
       VCMRenderBufferSizeCallback* callback) = 0;
-
-  // Reset the decoder state to the initial state.
-  //
-  // Return value      : VCM_OK, on success.
-  //                     < 0,    on error.
-  virtual int32_t ResetDecoder() = 0;
 
   // API to get the codec which is currently used for decoding by the module.
   //

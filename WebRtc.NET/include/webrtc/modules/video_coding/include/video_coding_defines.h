@@ -11,6 +11,8 @@
 #ifndef WEBRTC_MODULES_VIDEO_CODING_INCLUDE_VIDEO_CODING_DEFINES_H_
 #define WEBRTC_MODULES_VIDEO_CODING_INCLUDE_VIDEO_CODING_DEFINES_H_
 
+#include <vector>
+
 #include "webrtc/modules/include/module_common_types.h"
 #include "webrtc/typedefs.h"
 #include "webrtc/video_frame.h"
@@ -59,7 +61,7 @@ class VCMPacketizationCallback {
  public:
   virtual int32_t SendData(uint8_t payloadType,
                            const EncodedImage& encoded_image,
-                           const RTPFragmentationHeader& fragmentationHeader,
+                           const RTPFragmentationHeader* fragmentationHeader,
                            const RTPVideoHeader* rtpVideoHdr) = 0;
 
   virtual void OnEncoderImplementationName(const char* implementation_name) {}
@@ -160,6 +162,8 @@ class VCMFrameTypeCallback {
 // Callback class used for telling the user about which packet sequence numbers
 // are currently
 // missing and need to be resent.
+// TODO(philipel): Deprecate VCMPacketRequestCallback
+//                 and use NackSender instead.
 class VCMPacketRequestCallback {
  public:
   virtual int32_t ResendPackets(const uint16_t* sequenceNumbers,
@@ -167,6 +171,22 @@ class VCMPacketRequestCallback {
 
  protected:
   virtual ~VCMPacketRequestCallback() {}
+};
+
+class NackSender {
+ public:
+  virtual void SendNack(const std::vector<uint16_t>& sequence_numbers) = 0;
+
+ protected:
+  virtual ~NackSender() {}
+};
+
+class KeyFrameRequestSender {
+ public:
+  virtual void RequestKeyFrame() = 0;
+
+ protected:
+  virtual ~KeyFrameRequestSender() {}
 };
 
 // Callback used to inform the user of the the desired resolution

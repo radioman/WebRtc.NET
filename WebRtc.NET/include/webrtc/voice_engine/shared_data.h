@@ -11,8 +11,9 @@
 #ifndef WEBRTC_VOICE_ENGINE_SHARED_DATA_H
 #define WEBRTC_VOICE_ENGINE_SHARED_DATA_H
 
+#include <memory>
+
 #include "webrtc/base/criticalsection.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/audio_device/include/audio_device.h"
 #include "webrtc/modules/audio_processing/include/audio_processing.h"
 #include "webrtc/modules/utility/include/process_thread.h"
@@ -63,14 +64,14 @@ public:
 
 protected:
     const uint32_t _instanceId;
-    mutable rtc::CriticalSection _apiCritPtr;
+    rtc::CriticalSection _apiCritPtr;
     ChannelManager _channelManager;
     Statistics _engineStatistics;
     AudioDeviceModule* _audioDevicePtr;
     OutputMixer* _outputMixerPtr;
     TransmitMixer* _transmitMixerPtr;
-    rtc::scoped_ptr<AudioProcessing> audioproc_;
-    rtc::scoped_ptr<ProcessThread> _moduleProcessThreadPtr;
+    std::unique_ptr<AudioProcessing> audioproc_;
+    std::unique_ptr<ProcessThread> _moduleProcessThreadPtr;
 
     AudioDeviceModule::AudioLayer _audioDeviceLayer;
 

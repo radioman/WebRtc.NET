@@ -15,12 +15,14 @@
 #include <vector>
 
 #include "webrtc/call.h"
-#include "webrtc/call/transport_adapter.h"
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
-#include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "webrtc/video/encoded_frame_callback_adapter.h"
+#include "webrtc/video/encoder_state_feedback.h"
+#include "webrtc/video/payload_router.h"
 #include "webrtc/video/send_statistics_proxy.h"
 #include "webrtc/video/video_capture_input.h"
+#include "webrtc/video/vie_channel.h"
+#include "webrtc/video/vie_encoder.h"
 #include "webrtc/video_receive_stream.h"
 #include "webrtc/video_send_stream.h"
 
@@ -29,10 +31,11 @@ namespace webrtc {
 class BitrateAllocator;
 class CallStats;
 class CongestionController;
-class EncoderStateFeedback;
 class ProcessThread;
+class RtpRtcp;
 class ViEChannel;
 class ViEEncoder;
+class VieRemb;
 
 namespace internal {
 
@@ -43,6 +46,7 @@ class VideoSendStream : public webrtc::VideoSendStream,
                   ProcessThread* module_process_thread,
                   CallStats* call_stats,
                   CongestionController* congestion_controller,
+                  VieRemb* remb,
                   BitrateAllocator* bitrate_allocator,
                   const VideoSendStream::Config& config,
                   const VideoEncoderConfig& encoder_config,
@@ -58,7 +62,7 @@ class VideoSendStream : public webrtc::VideoSendStream,
 
   // webrtc::VideoSendStream implementation.
   VideoCaptureInput* Input() override;
-  bool ReconfigureVideoEncoder(const VideoEncoderConfig& config) override;
+  void ReconfigureVideoEncoder(const VideoEncoderConfig& config) override;
   Stats GetStats() override;
 
   // webrtc::CpuOveruseObserver implementation.
@@ -68,33 +72,40 @@ class VideoSendStream : public webrtc::VideoSendStream,
   typedef std::map<uint32_t, RtpState> RtpStateMap;
   RtpStateMap GetRtpStates() const;
 
-  int64_t GetRtt() const;
   int GetPaddingNeededBps() const;
 
  private:
-  bool SetSendCodec(VideoCodec video_codec);
+  static bool EncoderThreadFunction(void* obj);
+  void EncoderProcess();
+
   void ConfigureSsrcs();
 
   SendStatisticsProxy stats_proxy_;
-  TransportAdapter transport_adapter_;
   EncodedFrameCallbackAdapter encoded_frame_proxy_;
   const VideoSendStream::Config config_;
-  VideoEncoderConfig encoder_config_;
   std::map<uint32_t, RtpState> suspended_ssrcs_;
 
   ProcessThread* const module_process_thread_;
   CallStats* const call_stats_;
   CongestionController* const congestion_controller_;
+  VieRemb* const remb_;
 
-  rtc::scoped_ptr<VideoCaptureInput> input_;
-  rtc::scoped_ptr<ViEChannel> vie_channel_;
-  rtc::scoped_ptr<ViEEncoder> vie_encoder_;
-  rtc::scoped_ptr<EncoderStateFeedback> encoder_feedback_;
+  rtc::PlatformThread encoder_thread_;
+  rtc::Event encoder_wakeup_event_;
+  volatile int stop_encoder_thread_;
 
-  // Used as a workaround to indicate that we should be using the configured
-  // start bitrate initially, instead of the one reported by VideoEngine (which
-  // defaults to too high).
-  bool use_config_bitrate_;
+  OveruseFrameDetector overuse_detector_;
+  PayloadRouter payload_router_;
+  EncoderStateFeedback encoder_feedback_;
+  ViEChannel vie_channel_;
+  ViEReceiver* const vie_receiver_;
+  ViEEncoder vie_encoder_;
+  VideoCodingModule* const vcm_;
+  // TODO(pbos): Move RtpRtcp ownership to VideoSendStream.
+  // RtpRtcp modules, currently owned by ViEChannel but ownership should
+  // eventually move here.
+  const std::vector<RtpRtcp*> rtp_rtcp_modules_;
+  VideoCaptureInput input_;
 };
 }  // namespace internal
 }  // namespace webrtc

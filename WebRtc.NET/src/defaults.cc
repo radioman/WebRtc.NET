@@ -118,7 +118,7 @@ void YuvFramesCapturer2::Init()
 	SetSupportedFormats(supported);
 
 	set_enable_video_adapter(false);
-	set_square_pixel_aspect_ratio(false);
+	//set_square_pixel_aspect_ratio(false);
 }
 
 cricket::CaptureState YuvFramesCapturer2::Start(const cricket::VideoFormat& capture_format)

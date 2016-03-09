@@ -3,8 +3,9 @@
 #define WEBRTC_NET_DEFAULTS_H_
 #pragma once
 
-#include "talk/media/base/videocapturer.h"
-#include "talk/media/base/yuvframegenerator.h"
+
+#include "webrtc/media/base/videocapturer.h"
+#include "webrtc/media/base/yuvframegenerator.h"
 
 class Conductor;
 

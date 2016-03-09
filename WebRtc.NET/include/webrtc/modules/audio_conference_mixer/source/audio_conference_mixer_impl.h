@@ -64,7 +64,7 @@ public:
 
     // Module functions
     int64_t TimeUntilNextProcess() override;
-    int32_t Process() override;
+    void Process() override;
 
     // AudioConferenceMixer functions
     int32_t RegisterMixedStreamCallback(
@@ -115,10 +115,6 @@ private:
 
     // Clears audioFrameList and reclaims all memory associated with it.
     void ClearAudioFrameList(AudioFrameList* audioFrameList) const;
-
-    // Update the list of MixerParticipants who have a positive VAD. mixList
-    // should be a list of AudioFrames
-    void UpdateVADPositiveParticipants(AudioFrameList* mixList) const;
 
     // This function returns true if it finds the MixerParticipant in the
     // specified list of MixerParticipants.

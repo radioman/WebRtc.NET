@@ -74,6 +74,8 @@ class MockRtpRtcp : public RtpRtcp {
       int32_t(const CodecInst& voiceCodec));
   MOCK_METHOD1(RegisterSendPayload,
       int32_t(const VideoCodec& videoCodec));
+  MOCK_METHOD2(RegisterVideoSendPayload,
+               void(int payload_type, const char* payload_name));
   MOCK_METHOD1(DeRegisterSendPayload,
       int32_t(const int8_t payloadType));
   MOCK_METHOD2(RegisterSendRtpHeaderExtension,
@@ -249,7 +251,7 @@ class MockRtpRtcp : public RtpRtcp {
   MOCK_METHOD0(TimeUntilNextProcess,
         int64_t());
   MOCK_METHOD0(Process,
-        int32_t());
+        void());
   MOCK_METHOD1(RegisterSendFrameCountObserver,
       void(FrameCountObserver*));
   MOCK_CONST_METHOD0(GetSendFrameCountObserver,

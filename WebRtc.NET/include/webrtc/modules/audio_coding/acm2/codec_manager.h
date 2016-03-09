@@ -15,7 +15,6 @@
 
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/base/optional.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/thread_checker.h"
 #include "webrtc/modules/audio_coding/acm2/rent_a_codec.h"
 #include "webrtc/modules/audio_coding/include/audio_coding_module_typedefs.h"
@@ -42,6 +41,9 @@ class CodecManager final {
   const CodecInst* GetCodecInst() const {
     return send_codec_inst_ ? &*send_codec_inst_ : nullptr;
   }
+
+  void UnsetCodecInst() { send_codec_inst_ = rtc::Optional<CodecInst>(); }
+
   const RentACodec::StackParameters* GetStackParams() const {
     return &codec_stack_params_;
   }

@@ -2,12 +2,12 @@
 #include "defaults.h"
 #include "conductor.h"
 
-#include "talk/app/webrtc/videosourceinterface.h"
-#include "talk/app/webrtc/test/fakeconstraints.h"
+#include "webrtc/api/videosourceinterface.h"
+#include "webrtc/api/test/fakeconstraints.h"
 
 #include "webrtc/video_encoder.h"
 #include "webrtc/modules/video_coding/codecs/vp8/simulcast_encoder_adapter.h"
-#include "talk/media/webrtc/webrtcvideoencoderfactory.h"
+#include "webrtc/media/engine/webrtcvideoencoderfactory.h"
 #include "webrtc/modules/video_coding/codecs/vp8/include/vp8.h"
 
 // Names used for a IceCandidate JSON object.

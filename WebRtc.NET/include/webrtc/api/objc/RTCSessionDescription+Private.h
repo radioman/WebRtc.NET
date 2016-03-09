@@ -10,7 +10,7 @@
 
 #import "RTCSessionDescription.h"
 
-#include "talk/app/webrtc/jsep.h"
+#include "webrtc/api/jsep.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -30,11 +30,11 @@ NS_ASSUME_NONNULL_BEGIN
  * description.
  */
 - (instancetype)initWithNativeDescription:
-    (webrtc::SessionDescriptionInterface *)nativeDescription;
+    (const webrtc::SessionDescriptionInterface *)nativeDescription;
 
-+ (std::string)stringForType:(RTCSdpType)type;
++ (std::string)stdStringForType:(RTCSdpType)type;
 
-+ (RTCSdpType)typeForString:(const std::string &)string;
++ (RTCSdpType)typeForStdString:(const std::string &)string;
 
 @end
 

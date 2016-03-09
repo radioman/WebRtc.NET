@@ -11,11 +11,10 @@
 #ifndef WEBRTC_VIDEO_VIE_ENCODER_H_
 #define WEBRTC_VIDEO_VIE_ENCODER_H_
 
-#include <map>
+#include <memory>
 #include <vector>
 
 #include "webrtc/base/criticalsection.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/scoped_ref_ptr.h"
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/call/bitrate_allocator.h"
@@ -25,7 +24,6 @@
 #include "webrtc/modules/video_coding/include/video_coding_defines.h"
 #include "webrtc/modules/video_processing/include/video_processing.h"
 #include "webrtc/typedefs.h"
-#include "webrtc/video/video_capture_input.h"
 
 namespace webrtc {
 
@@ -33,6 +31,7 @@ class BitrateAllocator;
 class BitrateObserver;
 class Config;
 class EncodedImageCallback;
+class OveruseFrameDetector;
 class PacedSender;
 class PayloadRouter;
 class ProcessThread;
@@ -41,36 +40,28 @@ class SendStatisticsProxy;
 class ViEBitrateObserver;
 class ViEEffectFilter;
 class VideoCodingModule;
+class VideoEncoder;
 
-class ViEEncoder : public RtcpIntraFrameObserver,
-                   public VideoEncoderRateObserver,
+class ViEEncoder : public VideoEncoderRateObserver,
                    public VCMPacketizationCallback,
-                   public VCMSendStatisticsCallback,
-                   public VideoCaptureCallback {
+                   public VCMSendStatisticsCallback {
  public:
   friend class ViEBitrateObserver;
 
   ViEEncoder(uint32_t number_of_cores,
+             const std::vector<uint32_t>& ssrcs,
              ProcessThread* module_process_thread,
              SendStatisticsProxy* stats_proxy,
              I420FrameCallback* pre_encode_callback,
+             OveruseFrameDetector* overuse_detector,
              PacedSender* pacer,
+             PayloadRouter* payload_router,
              BitrateAllocator* bitrate_allocator);
   ~ViEEncoder();
 
   bool Init();
 
-  // This function is assumed to be called before any frames are delivered and
-  // only once.
-  // Ideally this would be done in Init, but the dependencies between ViEEncoder
-  // and ViEChannel makes it really hard to do in a good way.
-  void StartThreadsAndSetSharedMembers(
-      rtc::scoped_refptr<PayloadRouter> send_payload_router,
-      VCMProtectionCallback* vcm_protection_callback);
-
-  // This function must be called before the corresponding ViEChannel is
-  // deleted.
-  void StopThreadsAndRemoveSharedMembers();
+  VideoCodingModule* vcm() const;
 
   void SetNetworkTransmissionState(bool is_transmitting);
 
@@ -86,11 +77,9 @@ class ViEEncoder : public RtcpIntraFrameObserver,
                                   uint8_t pl_type,
                                   bool internal_source);
   int32_t DeRegisterExternalEncoder(uint8_t pl_type);
-  int32_t SetEncoder(const VideoCodec& video_codec);
+  void SetEncoder(const VideoCodec& video_codec, int min_transmit_bitrate_bps);
 
-  // Implementing VideoCaptureCallback.
-  void DeliverFrame(VideoFrame video_frame) override;
-
+  void EncodeVideoFrame(const VideoFrame& video_frame);
   void SendKeyFrame();
 
   uint32_t LastObservedBitrateBps() const;
@@ -101,16 +90,13 @@ class ViEEncoder : public RtcpIntraFrameObserver,
   // this class and set it on construction there.
   void SetProtectionMethod(bool nack, bool fec);
 
-  // Buffering mode.
-  void SetSenderBufferingMode(int target_delay_ms);
-
   // Implements VideoEncoderRateObserver.
   void OnSetRates(uint32_t bitrate_bps, int framerate) override;
 
   // Implements VCMPacketizationCallback.
   int32_t SendData(uint8_t payload_type,
                    const EncodedImage& encoded_image,
-                   const RTPFragmentationHeader& fragmentation_header,
+                   const RTPFragmentationHeader* fragmentation_header,
                    const RTPVideoHeader* rtp_video_hdr) override;
   void OnEncoderImplementationName(const char* implementation_name) override;
 
@@ -118,16 +104,10 @@ class ViEEncoder : public RtcpIntraFrameObserver,
   int32_t SendStatistics(const uint32_t bit_rate,
                          const uint32_t frame_rate) override;
 
-  // Implements RtcpIntraFrameObserver.
-  void OnReceivedIntraFrameRequest(uint32_t ssrc) override;
-  void OnReceivedSLI(uint32_t ssrc, uint8_t picture_id) override;
-  void OnReceivedRPSI(uint32_t ssrc, uint64_t picture_id) override;
-  void OnLocalSsrcChanged(uint32_t old_ssrc, uint32_t new_ssrc) override;
-
-  // Sets SSRCs for all streams.
-  void SetSsrcs(const std::vector<uint32_t>& ssrcs);
-
-  void SetMinTransmitBitrate(int min_transmit_bitrate_kbps);
+  // virtual to test EncoderStateFeedback with mocks.
+  virtual void OnReceivedIntraFrameRequest(uint32_t ssrc);
+  virtual void OnReceivedSLI(uint32_t ssrc, uint8_t picture_id);
+  virtual void OnReceivedRPSI(uint32_t ssrc, uint64_t picture_id);
 
   // Lets the sender suspend video when the rate drops below
   // |threshold_bps|, and turns back on when the rate goes back up above
@@ -152,18 +132,20 @@ class ViEEncoder : public RtcpIntraFrameObserver,
   void TraceFrameDropEnd() EXCLUSIVE_LOCKS_REQUIRED(data_cs_);
 
   const uint32_t number_of_cores_;
+  const std::vector<uint32_t> ssrcs_;
 
-  const rtc::scoped_ptr<VideoProcessing> vp_;
-  const rtc::scoped_ptr<QMVideoSettingsCallback> qm_callback_;
-  const rtc::scoped_ptr<VideoCodingModule> vcm_;
-  rtc::scoped_refptr<PayloadRouter> send_payload_router_;
+  const std::unique_ptr<VideoProcessing> vp_;
+  const std::unique_ptr<QMVideoSettingsCallback> qm_callback_;
+  const std::unique_ptr<VideoCodingModule> vcm_;
 
-  mutable rtc::CriticalSection data_cs_;
-  rtc::scoped_ptr<BitrateObserver> bitrate_observer_;
+  rtc::CriticalSection data_cs_;
+  std::unique_ptr<BitrateObserver> bitrate_observer_;
 
   SendStatisticsProxy* const stats_proxy_;
   I420FrameCallback* const pre_encode_callback_;
+  OveruseFrameDetector* const overuse_detector_;
   PacedSender* const pacer_;
+  PayloadRouter* const send_payload_router_;
   BitrateAllocator* const bitrate_allocator_;
 
   // The time we last received an input frame or encoded frame. This is used to
@@ -171,14 +153,12 @@ class ViEEncoder : public RtcpIntraFrameObserver,
   // padding.
   int64_t time_of_last_frame_activity_ms_ GUARDED_BY(data_cs_);
   VideoCodec encoder_config_ GUARDED_BY(data_cs_);
-  int min_transmit_bitrate_kbps_ GUARDED_BY(data_cs_);
+  int min_transmit_bitrate_bps_ GUARDED_BY(data_cs_);
   uint32_t last_observed_bitrate_bps_ GUARDED_BY(data_cs_);
-  int target_delay_ms_ GUARDED_BY(data_cs_);
   bool network_is_transmitting_ GUARDED_BY(data_cs_);
   bool encoder_paused_ GUARDED_BY(data_cs_);
   bool encoder_paused_and_dropped_frame_ GUARDED_BY(data_cs_);
-  std::map<unsigned int, int64_t> time_last_intra_request_ms_
-      GUARDED_BY(data_cs_);
+  std::vector<int64_t> time_last_intra_request_ms_ GUARDED_BY(data_cs_);
 
   ProcessThread* module_process_thread_;
 
@@ -186,7 +166,6 @@ class ViEEncoder : public RtcpIntraFrameObserver,
   uint8_t picture_id_sli_ GUARDED_BY(data_cs_);
   bool has_received_rpsi_ GUARDED_BY(data_cs_);
   uint64_t picture_id_rpsi_ GUARDED_BY(data_cs_);
-  std::map<uint32_t, int> ssrc_streams_ GUARDED_BY(data_cs_);
 
   bool video_suspended_ GUARDED_BY(data_cs_);
 };

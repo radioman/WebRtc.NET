@@ -24,9 +24,11 @@
 #include "webrtc/base/messagehandler.h"
 #include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/scoped_ref_ptr.h"
+#include "webrtc/base/sharedexclusivelock.h"
 #include "webrtc/base/sigslot.h"
 #include "webrtc/base/socketserver.h"
 #include "webrtc/base/timeutils.h"
+#include "webrtc/base/thread_annotations.h"
 
 namespace rtc {
 
@@ -167,10 +169,21 @@ class MessageQueue {
  public:
   static const int kForever = -1;
 
-  explicit MessageQueue(SocketServer* ss = NULL);
+  // Create a new MessageQueue and optionally assign it to the passed
+  // SocketServer. Subclasses that override Clear should pass false for
+  // init_queue and call DoInit() from their constructor to prevent races
+  // with the MessageQueueManager using the object while the vtable is still
+  // being created.
+  explicit MessageQueue(SocketServer* ss = NULL,
+                        bool init_queue = true);
+
+  // NOTE: SUBCLASSES OF MessageQueue THAT OVERRIDE Clear MUST CALL
+  // DoDestroy() IN THEIR DESTRUCTORS! This is required to avoid a data race
+  // between the destructor modifying the vtable, and the MessageQueueManager
+  // calling Clear on the object from a different thread.
   virtual ~MessageQueue();
 
-  SocketServer* socketserver() { return ss_; }
+  SocketServer* socketserver();
   void set_socketserver(SocketServer* ss);
 
   // Note: The behavior of MessageQueue has changed.  When a MQ is stopped,
@@ -241,19 +254,33 @@ class MessageQueue {
                    uint32_t id,
                    MessageData* pdata);
 
-  // The SocketServer is not owned by MessageQueue.
-  SocketServer* ss_;
-  // If a server isn't supplied in the constructor, use this one.
-  scoped_ptr<SocketServer> default_ss_;
+  // Perform initialization, subclasses must call this from their constructor
+  // if false was passed as init_queue to the MessageQueue constructor.
+  void DoInit();
+
+  // Perform cleanup, subclasses that override Clear must call this from the
+  // destructor.
+  void DoDestroy();
+
+  void WakeUpSocketServer();
+
   bool fStop_;
   bool fPeekKeep_;
   Message msgPeek_;
-  MessageList msgq_;
-  PriorityQueue dmsgq_;
-  uint32_t dmsgq_next_num_;
+  MessageList msgq_ GUARDED_BY(crit_);
+  PriorityQueue dmsgq_ GUARDED_BY(crit_);
+  uint32_t dmsgq_next_num_ GUARDED_BY(crit_);
   CriticalSection crit_;
+  bool fInitialized_;
+  bool fDestroyed_;
 
  private:
+  // The SocketServer is not owned by MessageQueue.
+  SocketServer* ss_ GUARDED_BY(ss_lock_);
+  // If a server isn't supplied in the constructor, use this one.
+  scoped_ptr<SocketServer> default_ss_;
+  SharedExclusiveLock ss_lock_;
+
   RTC_DISALLOW_COPY_AND_ASSIGN(MessageQueue);
 };
 

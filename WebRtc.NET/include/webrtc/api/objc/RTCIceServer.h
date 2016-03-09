@@ -15,15 +15,15 @@ NS_ASSUME_NONNULL_BEGIN
 @interface RTCIceServer : NSObject
 
 /** URI(s) for this server represented as NSStrings. */
-@property(nonatomic, copy, readonly) NSArray<NSString *> *urlStrings;
+@property(nonatomic, readonly) NSArray<NSString *> *urlStrings;
 
 /** Username to use if this RTCIceServer object is a TURN server. */
-@property(nonatomic, copy, readonly, nullable) NSString *username;
+@property(nonatomic, readonly, nullable) NSString *username;
 
 /** Credential to use if this RTCIceServer object is a TURN server. */
-@property(nonatomic, copy, readonly, nullable) NSString *credential;
+@property(nonatomic, readonly, nullable) NSString *credential;
 
-- (instancetype)init NS_UNAVAILABLE;
+- (nonnull instancetype)init NS_UNAVAILABLE;
 
 /** Convenience initializer for a server with no authentication (e.g. STUN). */
 - (instancetype)initWithURLStrings:(NSArray<NSString *> *)urlStrings;

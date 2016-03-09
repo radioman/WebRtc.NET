@@ -15,7 +15,6 @@
 #include <time.h>
 #include <algorithm>
 
-
 // NOTE(ajm): Path provided by gyp.
 #include "libyuv/scale.h"    // NOLINT
 #include "libyuv/convert.h"  // NOLINT
@@ -29,6 +28,7 @@
 #include "webrtc/modules/video_coding/codecs/vp8/include/vp8_common_types.h"
 #include "webrtc/modules/video_coding/codecs/vp8/screenshare_layers.h"
 #include "webrtc/modules/video_coding/codecs/vp8/temporal_layers.h"
+#include "webrtc/system_wrappers/include/clock.h"
 #include "webrtc/system_wrappers/include/tick_util.h"
 
 namespace webrtc {
@@ -329,8 +329,8 @@ void VP8EncoderImpl::SetupTemporalLayers(int num_streams,
   if (num_streams == 1) {
     if (codec.mode == kScreensharing) {
       // Special mode when screensharing on a single stream.
-      temporal_layers_.push_back(
-          new ScreenshareLayers(num_temporal_layers, rand()));
+      temporal_layers_.push_back(new ScreenshareLayers(
+          num_temporal_layers, rand(), webrtc::Clock::GetRealTimeClock()));
     } else {
       temporal_layers_.push_back(
           tl_factory->Create(num_temporal_layers, rand()));
@@ -601,8 +601,10 @@ int VP8EncoderImpl::InitEncode(const VideoCodec* inst,
   // Disable both high-QP limits and framedropping. Both are handled by libvpx
   // internally.
   const int kDisabledBadQpThreshold = 64;
+  // TODO(glaznev/sprang): consider passing codec initial bitrate to quality
+  // scaler to avoid starting with HD for low initial bitrates.
   quality_scaler_.Init(codec_.qpMax / QualityScaler::kDefaultLowQpDenominator,
-                       kDisabledBadQpThreshold, false);
+                       kDisabledBadQpThreshold, false, 0, 0, 0);
   quality_scaler_.ReportFramerate(codec_.maxFramerate);
 
   // Only apply scaling to improve for single-layer streams. The scaling metrics
@@ -1084,15 +1086,6 @@ VP8DecoderImpl::VP8DecoderImpl()
 VP8DecoderImpl::~VP8DecoderImpl() {
   inited_ = true;  // in order to do the actual release
   Release();
-}
-
-int VP8DecoderImpl::Reset() {
-  if (!inited_) {
-    return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
-  }
-  InitDecode(&codec_, 1);
-  propagation_cnt_ = -1;
-  return WEBRTC_VIDEO_CODEC_OK;
 }
 
 int VP8DecoderImpl::InitDecode(const VideoCodec* inst, int number_of_cores) {

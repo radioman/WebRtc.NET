@@ -66,8 +66,6 @@
 #pragma comment(lib,"isac.lib")
 #pragma comment(lib,"isac_common.lib")
 #pragma comment(lib,"jsoncpp.lib")
-#pragma comment(lib,"libjingle_media.lib")
-#pragma comment(lib,"libjingle_p2p.lib")
 #pragma comment(lib,"libjingle_peerconnection.lib")
 #pragma comment(lib,"libjpeg.lib")
 #pragma comment(lib,"libsrtp.lib")
@@ -77,7 +75,7 @@
 #pragma comment(lib,"libvpx_intrinsics_sse2.lib")
 #pragma comment(lib,"libvpx_intrinsics_sse4_1.lib")
 #pragma comment(lib,"libvpx_intrinsics_ssse3.lib")
-#pragma comment(lib,"libvpx_new.lib")
+#pragma comment(lib,"libvpx.lib")
 #pragma comment(lib,"media_file.lib")
 #pragma comment(lib,"metrics_default.lib")
 #pragma comment(lib,"neteq.lib")
@@ -98,6 +96,8 @@
 #pragma comment(lib,"rtc_xmllite.lib")
 #pragma comment(lib,"rtc_xmpp.lib")
 #pragma comment(lib,"rtp_rtcp.lib")
+#pragma comment(lib,"rtc_media.lib")
+#pragma comment(lib,"rtc_pc.lib")
 #pragma comment(lib,"system_wrappers.lib")
 #pragma comment(lib,"usrsctplib.lib")
 #pragma comment(lib,"video_capture_module.lib")
@@ -115,9 +115,12 @@
 #pragma comment(lib,"webrtc_opus.lib")
 #pragma comment(lib,"webrtc_utility.lib")
 #pragma comment(lib,"webrtc_video_coding.lib")
-//#pragma comment(lib,"webrtc_vp8.lib")
+
+//#pragma comment(lib,"webrtc_vp8.lib")       // original
 #pragma comment(lib,"webrtc_vp8_no_impl.lib") // for hacking vp8_impl.cc
 #pragma comment(lib,"webrtc_vp9.lib")
+
+#pragma comment(lib,"congestion_controller.lib")
 
 #include "stdafx.h"
 
