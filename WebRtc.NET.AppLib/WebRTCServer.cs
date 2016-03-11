@@ -7,29 +7,29 @@ namespace WebRtc.NET.AppLib
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Diagnostics;
-
-    public class Str
-    {
-        public const string Failed = "failed";
-        public const string Success = "success";
-        public const string Exist = "exist";
-    }
-    public class Command
-    {
-        public const string offer = "offer";
-        public const string onicecandidate = "onicecandidate";
-    }
-
+    using System.Threading.Tasks;
+    using System.Threading;
     class WebRTCServer : IDisposable
     {
-        public ConcurrentDictionary<Guid, IWebSocketConnection> UserList = new ConcurrentDictionary<Guid, IWebSocketConnection>();
-        public ConcurrentDictionary<Guid, IWebSocketConnection> Streams = new ConcurrentDictionary<Guid, IWebSocketConnection>();
+        class WebRtcSession
+        {
+            public readonly ManagedConductor WebRtc;
+            public readonly CancellationTokenSource Cancel;
 
-        internal WebRtc.NET.ManagedConductor mc;
+            public WebRtcSession()
+            {
+                WebRtc = new ManagedConductor();
+                Cancel = new CancellationTokenSource();
+            }
+        }
+
+        ConcurrentDictionary<Guid, IWebSocketConnection> UserList = new ConcurrentDictionary<Guid, IWebSocketConnection>();
+        ConcurrentDictionary<Guid, WebRtcSession> Streams = new ConcurrentDictionary<Guid, WebRtcSession>();
 
         WebSocketServer server;
         public WebRTCServer(int port) : this("ws://0.0.0.0:" + port)
-        {            
+        {
+            
         }
 
         public WebRTCServer(string URL)
@@ -141,46 +141,125 @@ namespace WebRtc.NET.AppLib
             {
                 IWebSocketConnection ctx;                
                 UserList.TryRemove(context.ConnectionInfo.Id, out ctx);
-                Streams.TryRemove(context.ConnectionInfo.Id, out ctx);
+
+                WebRtcSession s;
+                if (Streams.TryRemove(context.ConnectionInfo.Id, out s))
+                {
+                    s.Cancel.Cancel();
+                }
             }
         }
+
+        public const string offer = "offer";
+        public const string onicecandidate = "onicecandidate";
 
         private void OnReceive(IWebSocketConnection context, string msg)
         {
             Debug.WriteLine($"OnReceive {context.ConnectionInfo.Id}: {msg}");
 
-            if (!msg.Contains("command") || mc == null) return; 
+            if (!msg.Contains("command")) return; 
 
             if(UserList.ContainsKey(context.ConnectionInfo.Id))
             {
-                JsonData jd = JsonMapper.ToObject(msg);
-                string command = jd["command"].ToString();
+                JsonData msgJson = JsonMapper.ToObject(msg);
+                string command = msgJson["command"].ToString();
 
                 switch (command) 
                 {
-                    case Command.offer:
+                    case offer:
                     {
                         if (UserList.Count <= ClientLimit && !Streams.ContainsKey(context.ConnectionInfo.Id))
                         {
-                            Streams[context.ConnectionInfo.Id] = context;
+                            var session = Streams[context.ConnectionInfo.Id] = new WebRtcSession();
+                            {
+                                using (var go = new ManualResetEvent(false))
+                                {
+                                    var t = Task.Factory.StartNew(() =>
+                                    {
+                                        ManagedConductor.InitializeSSL();
 
-                            var desc = jd["desc"];
-                            var sdp = desc["sdp"];
+                                        using (session.WebRtc)
+                                        {
+                                            var ok = session.WebRtc.InitializePeerConnection();
+                                            if (ok)
+                                            {
+                                                go.Set();
 
-                            mc.OnOfferRequest(sdp.ToString());
+                                                while (!session.Cancel.Token.IsCancellationRequested &&
+                                                       session.WebRtc.ProcessMessages(1000))
+                                                {
+                                                    Debug.Write(".");
+                                                }
+                                                session.WebRtc.ProcessMessages(1000);
+                                            }
+                                            else
+                                            {
+                                                Debug.WriteLine("InitializePeerConnection failed");
+                                                context.Close();
+                                            }
+                                        }
+
+                                        ManagedConductor.CleanupSSL();
+                                    }, session.Cancel.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
+                                    if (go.WaitOne(9999))
+                                    {
+                                        session.WebRtc.OnIceCandidate += delegate (string sdp_mid, int sdp_mline_index, string sdp)
+                                        {
+                                            if (context.IsAvailable)
+                                            {
+                                                JsonData j = new JsonData();
+                                                j["command"] = "OnIceCandidate";
+                                                j["sdp_mid"] = sdp_mid;
+                                                j["sdp_mline_index"] = sdp_mline_index;
+                                                j["sdp"] = sdp;
+                                                context.Send(j.ToJson());
+                                            }
+                                        };
+
+                                        session.WebRtc.OnSuccessAnswer += delegate(string sdp)
+                                        {
+                                            if (context.IsAvailable)
+                                            {
+                                                JsonData j = new JsonData();
+                                                j["command"] = "OnSuccessAnswer";
+                                                j["sdp"] = sdp;
+                                                context.Send(j.ToJson());
+                                            }
+                                        };
+
+                                        session.WebRtc.OnFailure += delegate(string error)
+                                        {
+                                            Debug.WriteLine($"OnFailure: {error}");
+                                        };
+
+                                        session.WebRtc.OnError += delegate
+                                        {
+                                            Debug.WriteLine("OnError");
+                                        };
+                                        
+                                        var d = msgJson["desc"];
+                                        var s = d["sdp"];
+                                        session.WebRtc.OnOfferRequest(s.ToString());
+                                    }
+                                }
+                            }
                         }
                     }
                     break;
 
-                    case Command.onicecandidate:
+                    case onicecandidate:
                     {
-                        var c = jd["candidate"];
+                        var c = msgJson["candidate"];
 
                         var sdpMLineIndex = c["sdpMLineIndex"];
                         var sdpMid = c["sdpMid"];
                         var candidate = c["candidate"];
 
-                        mc.AddIceCandidate(sdpMid.ToString(), (int)sdpMLineIndex, candidate.ToString());
+                        var session = Streams[context.ConnectionInfo.Id];
+                        {
+                            session.WebRtc.AddIceCandidate(sdpMid.ToString(), (int)sdpMLineIndex, candidate.ToString());
+                        }
                     }
                     break;
                 }

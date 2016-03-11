@@ -36,9 +36,6 @@ namespace WebRtc.NET.AppLib
         }
 
         WebRTCServer webSocketServer;
-        WebRtc.NET.ManagedConductor mc;
-
-        BackgroundWorker webrtc;
 
         public MainForm()
         {
@@ -46,11 +43,6 @@ namespace WebRtc.NET.AppLib
 
             FormClosing += MainForm_FormClosing;
             Shown += MainForm_Shown;
-
-            webrtc = new BackgroundWorker();
-            webrtc.WorkerSupportsCancellation = true;
-            webrtc.DoWork += WebRtc_DoWork;
-            webrtc.RunWorkerAsync();
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -89,13 +81,6 @@ namespace WebRtc.NET.AppLib
             {
                 webSocketServer.Dispose();
                 webSocketServer = null;
-            }
-
-            webrtc.CancelAsync();
-            while (webrtc.IsBusy)
-            {
-                Application.DoEvents();
-                Thread.Sleep(100);
             }
         }
 
@@ -157,98 +142,14 @@ namespace WebRtc.NET.AppLib
             }
         }
 
-        unsafe void WebRtc_DoWork(object sender, DoWorkEventArgs e)
-        {
-            try
-            {
-                WebRtc.NET.ManagedConductor.InitializeSSL();
-
-                using (mc = new ManagedConductor())
-                {
-                    mc.OnSuccessAnswer += Mc_OnSuccessAnswer;
-                    mc.OnIceCandidate += Mc_OnIceCandidate; ;
-                    mc.OnFailure += Mc_OnFailure;
-                    mc.OnError += Mc_OnError;
-                    mc.OnFillBuffer += OnFillBuffer;
-
-                    //var cd = mc.OpenVideoCaptureDevice();
-                    //Debug.WriteLine($"OpenVideoCaptureDevice: {cd}");
-
-                    var r = mc.InitializePeerConnection();
-                    if (r)
-                    {
-                        var bg = sender as BackgroundWorker;
-                        while (!bg.CancellationPending && mc.ProcessMessages(1000))
-                        {
-                            Debug.Write(".");
-                        }
-                        mc.ProcessMessages(1000);
-                    }
-                    else
-                    {
-                        Debug.WriteLine("InitializePeerConnection failed");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"DoWork: {ex}");
-            }
-            WebRtc.NET.ManagedConductor.CleanupSSL();
-        }
-
-        private void Mc_OnError()
-        {
-            Debug.WriteLine("Mc_OnError");  
-        }
-
-        private void Mc_OnFailure(string error)
-        {
-            Debug.WriteLine($"Mc_OnFailure: {error}");
-        }
-
-        private void Mc_OnIceCandidate(string sdp_mid, int sdp_mline_index, string sdp)
-        {
-            if (webSocketServer != null)
-            {
-                // send ice
-                var c = webSocketServer.Streams.LastOrDefault();
-                if (c.Value.IsAvailable)
-                {
-                    JsonData jd = new JsonData();
-                    jd["command"] = "OnIceCandidate";
-                    jd["sdp_mid"] = sdp_mid;
-                    jd["sdp_mline_index"] = sdp_mline_index;
-                    jd["sdp"] = sdp;
-                    c.Value.Send(jd.ToJson());
-                }
-            }
-        }
-
-        private void Mc_OnSuccessAnswer(string sdp)
-        {
-            if (webSocketServer != null)
-            {
-                // send anwer
-                var c = webSocketServer.Streams.LastOrDefault();
-                if (c.Value.IsAvailable)
-                {
-                    JsonData jd = new JsonData();
-                    jd["command"] = "OnSuccessAnswer";
-                    jd["sdp"] = sdp;
-                    c.Value.Send(jd.ToJson());
-                }
-            }
-        }
-
-        const int screenWidth = 752 * 1;
-        const int screenHeight = 480 * 1;
+        const int screenWidth = 640 * 1;
+        const int screenHeight = 360 * 1;
 
         // stride: 4512
         readonly Bitmap img = new Bitmap(screenWidth, screenHeight, PixelFormat.Format24bppRgb);
         readonly Bitmap imgView = new Bitmap(screenWidth, screenHeight, PixelFormat.Format24bppRgb);
         readonly Rectangle bounds = new Rectangle(0, 0, screenWidth, screenHeight);
-        readonly Rectangle boundsItem = new Rectangle(0, 0, 752, 480);
+        readonly Rectangle boundsItem = new Rectangle(0, 0, 640, 360);
 
         readonly TurboJpegEncoder encoder = TurboJpegEncoder.CreateEncoder();
         public unsafe void OnFillBuffer(byte * yuv, long yuvSize)
@@ -731,7 +632,7 @@ namespace WebRtc.NET.AppLib
             if (checkBoxWebsocket.Checked)
             {
                 webSocketServer = new WebRTCServer((int)numericWebSocket.Value);
-                webSocketServer.mc = mc;
+
                 numericMaxClients_ValueChanged(null, null);
 
                 if (checkBoxDemo.Checked)
@@ -794,7 +695,7 @@ namespace WebRtc.NET.AppLib
             if (timerDemo == null)
             {
                 timerDemo = new System.Windows.Forms.Timer();
-                timerDemo.Interval = 100;
+                timerDemo.Interval = 200;
                 timerDemo.Tick += new System.EventHandler(this.timerDemo_Tick);
             }
             timerDemo.Enabled = checkBoxDemo.Checked;            

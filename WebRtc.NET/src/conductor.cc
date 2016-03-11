@@ -10,15 +10,6 @@
 #include "webrtc/media/engine/webrtcvideoencoderfactory.h"
 #include "webrtc/modules/video_coding/codecs/vp8/include/vp8.h"
 
-// Names used for a IceCandidate JSON object.
-const char kCandidateSdpMidName[] = "sdpMid";
-const char kCandidateSdpMlineIndexName[] = "sdpMLineIndex";
-const char kCandidateSdpName[] = "candidate";
-
-// Names used for a SessionDescription JSON object.
-const char kSessionDescriptionTypeName[] = "type";
-const char kSessionDescriptionSdpName[] = "sdp";
-
 const char kVideoLabel[] = "video_label";
 const char kStreamLabel[] = "stream_label";
 
@@ -137,15 +128,17 @@ bool Conductor::InitializePeerConnection()
 	ASSERT(pc_factory_ == nullptr);
 	ASSERT(peer_connection_ == nullptr);
 
-	worker_thread_ = new rtc::Thread();
-	worker_thread_->Start();
+	//worker_thread_ = new rtc::Thread();
+	//worker_thread_->Start();
 
-	pc_factory_ = webrtc::CreatePeerConnectionFactory(
-		worker_thread_,
-		rtc::ThreadManager::Instance()->CurrentThread(),
-		NULL,
-		new WebRtcSimulcastEncoderFactory(),
-		NULL);
+	//pc_factory_ = webrtc::CreatePeerConnectionFactory(
+	//	worker_thread_,
+	//	rtc::ThreadManager::Instance()->CurrentThread(),
+	//	NULL,
+	//	new WebRtcSimulcastEncoderFactory(),
+	//	NULL);
+
+	pc_factory_ = webrtc::CreatePeerConnectionFactory();
 
 	if (!pc_factory_)
 	{

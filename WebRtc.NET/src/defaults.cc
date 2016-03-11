@@ -47,7 +47,7 @@ public:
 	// Override virtual method of parent MessageHandler. Context: Worker Thread.
 	virtual void OnMessage(rtc::Message* /*pmsg*/)
 	{
-		int waiting_time_ms = 100;
+		int waiting_time_ms = 200;
 		if (capturer_)
 		{
 			capturer_->ReadFrame(false);
@@ -81,8 +81,8 @@ private:
 // TODO(shaowei): allow width_ and height_ to be configurable.
 YuvFramesCapturer2::YuvFramesCapturer2(Conductor & c)
 	: frames_generator_thread(NULL),
-	width_(752),
-	height_(480),
+	width_(640),
+	height_(360),
 	frame_index_(0),
 	barcode_interval_(1),
 	startThread_(NULL),
@@ -112,7 +112,7 @@ void YuvFramesCapturer2::Init()
 	captured_frame_.data_size = frame_data_size_;
 
 	// Enumerate the supported formats. We have only one supported format.
-	cricket::VideoFormat format(width_, height_, cricket::VideoFormat::FpsToInterval(10), cricket::FOURCC_IYUV);
+	cricket::VideoFormat format(width_, height_, cricket::VideoFormat::FpsToInterval(5), cricket::FOURCC_IYUV);
 	std::vector<cricket::VideoFormat> supported;
 	supported.push_back(format);
 	SetSupportedFormats(supported);
