@@ -237,7 +237,15 @@ namespace WebRtc.NET.AppLib
                                         {
                                             Debug.WriteLine("OnError");
                                         };
-                                        
+
+                                        unsafe
+                                        {
+                                            session.WebRtc.OnFillBuffer += delegate (byte * frame_buffer, long yuvSize)
+                                            {
+                                                OnFillBuffer(frame_buffer, yuvSize);
+                                            };
+                                        }
+
                                         var d = msgJson["desc"];
                                         var s = d["sdp"];
                                         session.WebRtc.OnOfferRequest(s.ToString());
@@ -265,6 +273,8 @@ namespace WebRtc.NET.AppLib
                 }
             }
         }
+
+        public ManagedConductor.OnCallbackFillBuffer OnFillBuffer;
 
         public void Dispose()
         {

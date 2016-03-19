@@ -632,7 +632,10 @@ namespace WebRtc.NET.AppLib
             if (checkBoxWebsocket.Checked)
             {
                 webSocketServer = new WebRTCServer((int)numericWebSocket.Value);
-
+                unsafe
+                {
+                    webSocketServer.OnFillBuffer = OnFillBuffer;
+                }
                 numericMaxClients_ValueChanged(null, null);
 
                 if (checkBoxDemo.Checked)
