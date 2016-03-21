@@ -114,7 +114,8 @@ void Conductor::DeletePeerConnection()
 			peer_connection_->RemoveStream(it->second);
 		}
 		active_streams_.clear();
-
+			
+		peer_connection_->Close();
 		peer_connection_ = nullptr;
 	}
 
@@ -192,11 +193,17 @@ bool Conductor::CreatePeerConnection(bool dtls)
 
 void Conductor::CreateOffer()
 {
+	if (!peer_connection_)
+		return;
+
 	peer_connection_->CreateOffer(this, nullptr);
 }
 
 void Conductor::OnOfferReply(std::string type, std::string sdp)
 {
+	if (!peer_connection_)
+		return;
+
 	webrtc::SdpParseError error;
 	webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription(type, sdp, &error));
 	if (!session_description)
@@ -209,6 +216,9 @@ void Conductor::OnOfferReply(std::string type, std::string sdp)
 
 void Conductor::OnOfferRequest(std::string sdp)
 {
+	if (!peer_connection_)
+		return;
+
 	webrtc::SdpParseError error;
 	webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription("offer", sdp, &error));
 	if (!session_description)
@@ -232,6 +242,10 @@ bool Conductor::AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::st
 			<< "SdpParseError was: " << error.description;
 		return false;
 	}
+
+	if (!peer_connection_)
+		return false;
+
 	if (!peer_connection_->AddIceCandidate(candidate.get()))
 	{
 		LOG(WARNING) << "Failed to apply the received candidate";
@@ -371,6 +385,9 @@ void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
 
 void Conductor::OnSuccess(webrtc::SessionDescriptionInterface* desc)
 {
+	if (!peer_connection_)
+		return;
+
 	peer_connection_->SetLocalDescription(this, desc);
 
 	std::string sdp;
