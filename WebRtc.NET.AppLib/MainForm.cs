@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using LitJson;
 using Microsoft.Win32;
-using TurboJpeg;
+using WebRtc.NET;
 
 namespace WebRtc.NET.AppLib
 {
@@ -296,7 +296,7 @@ namespace WebRtc.NET.AppLib
                     return -1;
                 }
 
-                c.encoder.EncodeJpegToRGB24(buff, size, ref c.rgb, ref fwidth, ref fheight);
+                c.encoder.EncodeJpegToRGB24(buff, size, ref c.rgb, screenWidth, ref fwidth, ref fheight);
                 if (c.rgbBits == null)
                 {
                     var p = Marshal.UnsafeAddrOfPinnedArrayElement(c.rgb, 0);

@@ -1,7 +1,7 @@
 
 #include "TJpeg.h"
 
-using namespace TurboJpeg;
+using namespace WebRtc::NET;
 using namespace System::Diagnostics;
 
 TurboJpegEncoder::TurboJpegEncoder(tjhandle jpeg, tjhandle jpegc)
@@ -185,7 +185,7 @@ int TurboJpegEncoder::EncodeRGB24toI420(Byte * rgbBuf, Int32 w, Int32 h, Byte * 
 	return 0;
 }
 
-int TurboJpegEncoder::EncodeJpegToRGB24(array<Byte> ^ buffer, Int32 bufferSize, array<Byte> ^% rgb, Int32 % jwidth, Int32 % jheight)
+int TurboJpegEncoder::EncodeJpegToRGB24(array<Byte> ^ buffer, Int32 bufferSize, array<Byte> ^% rgb, Int32 maxwidth, Int32 % jwidth, Int32 % jheight)
 {
 	try
 	{
@@ -201,25 +201,25 @@ int TurboJpegEncoder::EncodeJpegToRGB24(array<Byte> ^ buffer, Int32 bufferSize, 
 			return r;
 		}
 
-		jwidth = width;
-		jheight = height;
-
 		if (rgb == nullptr)
 		{
 			Debug::WriteLine(String::Format("tjDecompressHeader3 ok, width: {0}, height: {1}, jpegSubsamp: {2}, jpegColorspace: {3}", width, height, jpegSubsamp == TJSAMP_420 ? "TJSAMP_420" : jpegSubsamp.ToString(), jpegColorspace));
 		}
 
+		jwidth = maxwidth < width ? maxwidth : width;
+		jheight = (int)(((double)maxwidth / width) * height);
+
 		int pad = 4;
 		int pitch = 0;
 		if (rgb == nullptr)
 		{
-			int rgbSize = TJBUFSIZE(width, height);
+			int rgbSize = TJBUFSIZE(jwidth, jheight);
 			rgb = gcnew array<System::Byte>(rgbSize);
 		}
 		pin_ptr<unsigned char> rgbPin = &rgb[0];
 		unsigned char * rgbBuf = rgbPin;
 
-		r = tjDecompress2(jpeg, jpegBuf, jpegSize, rgbBuf, width, pitch, height, TJPF_BGR, TJFLAG_FASTDCT);
+		r = tjDecompress2(jpeg, jpegBuf, jpegSize, rgbBuf, jwidth, pitch, 0, TJPF_BGR, TJFLAG_FASTDCT);
 		if (r != 0)
 		{
 			Debug::WriteLine(String::Format("tjDecompress2, LastJpegError: {0}", LastJpegError));
