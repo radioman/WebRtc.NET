@@ -18,11 +18,6 @@ using namespace msclr::interop;
 
 [assembly:System::Runtime::Versioning::TargetFrameworkAttribute(L".NETFramework,Version=v4.0", FrameworkDisplayName = L".NET Framework 4")];
 
-void _OnMainForm(bool param)
-{
-	//Util::OnMainForm(param);
-}
-
 namespace WebRtc
 {
 	namespace NET

@@ -8,6 +8,7 @@ TurboJpegEncoder::TurboJpegEncoder(tjhandle jpeg, tjhandle jpegc)
 {
 	this->jpeg = jpeg;
 	this->jpegc = jpegc;
+	pBestFactor = nullptr;
 }
 
 TurboJpegEncoder::~TurboJpegEncoder()
@@ -19,11 +20,7 @@ TurboJpegEncoder::~TurboJpegEncoder()
 	jpeg = nullptr;
 	jpegc = nullptr;
 	_rgbBuf = nullptr;
-}
-
-static TurboJpegEncoder::TurboJpegEncoder()
-{
-	_rgbBuf = nullptr;
+	pBestFactor = nullptr;
 }
 
 TurboJpegEncoder^ TurboJpegEncoder::CreateEncoder()
@@ -206,20 +203,56 @@ int TurboJpegEncoder::EncodeJpegToRGB24(array<Byte> ^ buffer, Int32 bufferSize, 
 			Debug::WriteLine(String::Format("tjDecompressHeader3 ok, width: {0}, height: {1}, jpegSubsamp: {2}, jpegColorspace: {3}", width, height, jpegSubsamp == TJSAMP_420 ? "TJSAMP_420" : jpegSubsamp.ToString(), jpegColorspace));
 		}
 
-		jwidth = maxwidth < width ? maxwidth : width;
-		jheight = (int)(((double)maxwidth / width) * height);
+		// Select best scaling factor depending of the desired size
+		if (pBestFactor == nullptr)
+		{
+			double fDesiredFactor = ((double)(maxwidth < width ? maxwidth : width) / (double)width);
 
-		int pad = 4;
-		int pitch = 0;
+			int iNumScalingFactors;
+			tjscalingfactor* pListFactors = tjGetScalingFactors(&iNumScalingFactors);
+			double fBestFactor = 1.0;
+			double fFactor;
+
+			for (int i = 0; i<iNumScalingFactors; i++)
+			{
+				fFactor = ((double)pListFactors[i].num / (double)pListFactors[i].denom);
+				if (fFactor == fDesiredFactor)
+				{
+					// We found the best
+					pBestFactor = &pListFactors[i];
+					fBestFactor = fFactor;
+					break;
+				}
+
+				if (!pBestFactor)
+				{
+					pBestFactor = &pListFactors[i];
+					fBestFactor = fFactor;
+				}
+				else
+				{
+					if (fabs(fFactor - fDesiredFactor) < fabs(fBestFactor - fDesiredFactor))
+					{
+						pBestFactor = &pListFactors[i];
+						fBestFactor = fFactor;
+					}
+				}
+			}
+		}
+
+		jwidth = TJSCALED(width, (*pBestFactor));
+		jheight = TJSCALED(height, (*pBestFactor));
+
+		int pitch = TJPAD(tjPixelSize[TJPF_BGR] * jwidth);
 		if (rgb == nullptr)
 		{
-			int rgbSize = TJBUFSIZE(jwidth, jheight);
+			int rgbSize = pitch * jheight;
 			rgb = gcnew array<System::Byte>(rgbSize);
 		}
 		pin_ptr<unsigned char> rgbPin = &rgb[0];
 		unsigned char * rgbBuf = rgbPin;
 
-		r = tjDecompress2(jpeg, jpegBuf, jpegSize, rgbBuf, jwidth, pitch, 0, TJPF_BGR, TJFLAG_FASTDCT);
+		r = tjDecompress2(jpeg, jpegBuf, jpegSize, rgbBuf, jwidth, pitch, jheight, TJPF_BGR, TJFLAG_FASTDCT);
 		if (r != 0)
 		{
 			Debug::WriteLine(String::Format("tjDecompress2, LastJpegError: {0}", LastJpegError));

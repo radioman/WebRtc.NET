@@ -3,6 +3,7 @@
 
 #pragma unmanaged
 #include <turbojpeg/turbojpeg.h>
+#include <math.h>
 #pragma managed
 
 namespace WebRtc
@@ -16,10 +17,8 @@ namespace WebRtc
 		private:
 			tjhandle jpeg;
 			tjhandle jpegc;
-
-			static unsigned char * _rgbBuf;
-
-			static TurboJpegEncoder();
+			tjscalingfactor * pBestFactor;
+			unsigned char * _rgbBuf;
 
 			TurboJpegEncoder(tjhandle jpeg, tjhandle jpegc);
 

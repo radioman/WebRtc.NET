@@ -31,8 +31,6 @@ public:
 		int waiting_time_ms = 0;
 		if (capturer_)
 		{
-			_OnMainForm(true);
-
 			capturer_->ReadFrame(true);
 			PostDelayed(waiting_time_ms, this);
 			Thread::Run();
@@ -40,8 +38,6 @@ public:
 
 		rtc::CritScope cs(&crit_);
 		finished_ = true;
-
-		_OnMainForm(false);
 	}
 
 	// Override virtual method of parent MessageHandler. Context: Worker Thread.
