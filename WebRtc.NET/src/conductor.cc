@@ -227,7 +227,14 @@ void Conductor::OnOfferRequest(std::string sdp)
 		return;
 	}
 	peer_connection_->SetRemoteDescription(this, session_description);
-	peer_connection_->CreateAnswer(this, nullptr);
+
+	webrtc::PeerConnectionInterface::RTCOfferAnswerOptions o;
+	{
+		o.voice_activity_detection = false;
+		o.offer_to_receive_audio = false;
+		o.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kOfferToReceiveMediaTrue;
+	}
+	peer_connection_->CreateAnswer(this, o);
 }
 
 bool Conductor::AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::string sdp)
