@@ -5,13 +5,30 @@ var localstream = null;
 var remotestream = null;
 var rpc = new Object();
 
-var servers = null;
-//{
-//    "iceServers":
-//             [
-//                 //{ "urls": "stun:stun-turn.org" }, //3478
-//             ]
-//};
+var pcOptions = {
+    optional: [
+        { DtlsSrtpKeyAgreement: true }
+    ]
+}
+
+var servers = {
+    iceServers:
+             [
+                 { url: 'stun:stun.l.google.com:19302' },
+                 { url: 'stun:stun.stunprotocol.org:3478' },
+                 { url: 'stun:stun.anyfirewall.com:3478' },
+                 { url: 'stun:stun1.l.google.com:19302' },
+                 { url: 'stun:stun2.l.google.com:19302' },
+                 { url: 'stun:stun3.l.google.com:19302' },
+                 { url: 'stun:stun4.l.google.com:19302' }
+             ]
+};
+
+var offerOptions = {
+    offerToReceiveAudio: 0,
+    offerToReceiveVideo: 1,
+    voiceActivityDetection: false
+};
 
 var vgaConstraints = {
     video: true
@@ -71,12 +88,6 @@ function send(data) {
     catch (ex) {
         console.log("Message sending failed!");
     }
-}
-
-var pcOptions = {
-    optional: [
-        { DtlsSrtpKeyAgreement: true }
-    ]
 }
 
 function startStream(streamId) {
@@ -142,11 +153,6 @@ trpc.getStats(null).then(o => dumpStat(o[Object.keys(o).find(key => isType(o[key
     },
     offerOptions);
 }
-
-var offerOptions = {
-    offerToReceiveAudio: 0,
-    offerToReceiveVideo: 1
-};
 
 function connect() {
 

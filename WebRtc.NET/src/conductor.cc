@@ -169,10 +169,24 @@ bool Conductor::CreatePeerConnection(bool dtls)
 	ASSERT(peer_connection_ == nullptr);
 
 	webrtc::PeerConnectionInterface::RTCConfiguration config;
+	config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
+	config.disable_ipv6 = true;
 
-	//webrtc::PeerConnectionInterface::IceServer server;
-	//server.uri = "stun:stun.l.google.com:19302";
-	//config.servers.push_back(server);
+	{
+		webrtc::PeerConnectionInterface::IceServer server;
+		server.uri = "stun:stun.l.google.com:19302";
+		config.servers.push_back(server);
+	}
+	{
+		webrtc::PeerConnectionInterface::IceServer server;
+		server.uri = "stun:stun.stunprotocol.org:3478";
+		config.servers.push_back(server);
+	}
+	{
+		webrtc::PeerConnectionInterface::IceServer server;
+		server.uri = "stun:stun.anyfirewall.com:3478";
+		config.servers.push_back(server);
+	}
 
 	webrtc::FakeConstraints constraints;
 	if (dtls)
