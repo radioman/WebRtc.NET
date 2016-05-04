@@ -122,6 +122,8 @@ void Conductor::DeletePeerConnection()
 	worker_thread_ = nullptr;
 	pc_factory_ = nullptr;
 	capturer = nullptr;
+
+	serverConfigs.clear();
 }
 
 bool Conductor::InitializePeerConnection()
@@ -172,19 +174,8 @@ bool Conductor::CreatePeerConnection(bool dtls)
 	config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
 	config.disable_ipv6 = true;
 
+	for each (auto server in serverConfigs)
 	{
-		webrtc::PeerConnectionInterface::IceServer server;
-		server.uri = "stun:stun.l.google.com:19302";
-		config.servers.push_back(server);
-	}
-	{
-		webrtc::PeerConnectionInterface::IceServer server;
-		server.uri = "stun:stun.stunprotocol.org:3478";
-		config.servers.push_back(server);
-	}
-	{
-		webrtc::PeerConnectionInterface::IceServer server;
-		server.uri = "stun:stun.anyfirewall.com:3478";
 		config.servers.push_back(server);
 	}
 
@@ -203,6 +194,16 @@ bool Conductor::CreatePeerConnection(bool dtls)
 
 	peer_connection_ = pc_factory_->CreatePeerConnection(config, &constraints, NULL, NULL, this);
 	return peer_connection_ != nullptr;
+}
+
+void Conductor::AddServerConfig(std::string uri, std::string username, std::string password)
+{
+	webrtc::PeerConnectionInterface::IceServer server;
+	server.uri = uri;
+	server.username = username;
+	server.password = password;
+
+	serverConfigs.push_back(server);
 }
 
 void Conductor::CreateOffer()

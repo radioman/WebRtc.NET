@@ -35,6 +35,8 @@ public:
 	bool OpenVideoCaptureDevice();
 	void OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize);
 
+	void AddServerConfig(std::string uri, std::string username, std::string password);
+
 	OnErrorCallbackNative onError;
 	OnSuccessCallbackNative onSuccess;
 	OnFailureCallbackNative onFailure;
@@ -113,6 +115,8 @@ private:
 	rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
 	rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
 	std::map<std::string, rtc::scoped_refptr<webrtc::MediaStreamInterface> > active_streams_;
+
+	std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
 };
 
 #endif  // WEBRTC_NET_CONDUCTOR_H_

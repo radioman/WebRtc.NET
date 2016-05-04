@@ -180,6 +180,10 @@ namespace WebRtc.NET.AppLib
 
                                         using (session.WebRtc)
                                         {
+                                            session.WebRtc.AddServerConfig("stun:stun.l.google.com:19302", string.Empty, string.Empty);
+                                            session.WebRtc.AddServerConfig("stun:stun.anyfirewall.com:3478", string.Empty, string.Empty);
+                                            session.WebRtc.AddServerConfig("stun:stun.stunprotocol.org:3478", string.Empty, string.Empty);
+
                                             var ok = session.WebRtc.InitializePeerConnection();
                                             if (ok)
                                             {

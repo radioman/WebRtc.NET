@@ -203,6 +203,11 @@ namespace WebRtc
 				return cd->AddIceCandidate(marshal_as<std::string>(sdp_mid), sdp_mlineindex, marshal_as<std::string>(sdp));
 			}
 
+			void AddServerConfig(String ^ uri, String ^ username, String ^ password)
+			{
+				cd->AddServerConfig(marshal_as<std::string>(uri), marshal_as<std::string>(username), marshal_as<std::string>(password));
+			}
+
 		protected:
 
 			!ManagedConductor()
