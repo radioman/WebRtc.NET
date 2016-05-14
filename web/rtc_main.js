@@ -1,10 +1,10 @@
-﻿// M:\GoogleChrome\GoogleChromePortable.exe --allow-file-access-from-files --use-fake-ui-for-media-stream
-
+﻿
 var socket = null;
 var localstream = null;
 var remotestream = null;
-var ice = [];
-var answer = null;
+var remoteIce = [];
+var remoteAnswer = null;
+var localIce = [];
 
 var pcOptions = {
     optional: [
@@ -97,8 +97,6 @@ function startStream() {
         remotestream.addStream(localstream);
     }
 
-    var isType = (stat, type) => stat.type == type && !stat.isRemote; // skip RTCP
-
     remotestream.onaddstream = function (e) {
         try {
             console.log("remote media connection success!");
@@ -109,10 +107,25 @@ function startStream() {
                 vid2.play();
             };
 
-            setInterval(() => Promise.all([
-remotestream.getStats(null).then(o => dumpStat(o[Object.keys(o).find(key => isType(o[key], "inboundrtp"))]))
-            ])
-.then(strings => update(statsdiv, "<small>" + strings.join("") + "</small>")), 100);
+            var t = setInterval(function () {
+                if (!remotestream) {
+                    clearInterval(t);
+                }
+                else {
+                    Promise.all([
+                        remotestream.getStats(null).then(function (o) {
+                            return dumpStat(
+                                o[Object.keys(o).find(function (key) {
+                                    var s = o[key];
+                                    return (s.type == "inboundrtp" && !s.isRemote);
+                                })
+                            ]);
+                        })
+                    ]).then(function (s) {
+                        statsdiv.innerHTML = "<small>" + s + "</small>";
+                    });
+                }
+            }, 100);
 
         } catch (ex) {
             console.log("Failed to connect to remote media!", ex);
@@ -120,32 +133,53 @@ remotestream.getStats(null).then(o => dumpStat(o[Object.keys(o).find(key => isTy
         }
     };
     remotestream.onicecandidate = function (event) {
-        if (event.candidate) {
+        if (event.candidate) {            
 
-            console.log('onicecandidate: ' + event.candidate.candidate);
+            var ice = parseIce(event.candidate.candidate);
+            if (ice && ice.component_id == 1  // skip RTCP 
+                    && ice.localIP.indexOf(":") < 0) { // skip IP6
 
-            var obj = JSON.stringify({
-                "command": "onicecandidate",
-                "candidate": event.candidate
-            });
-            send(obj);
+                console.log('onicecandidate[local]: ' + event.candidate.candidate);
+                var obj = JSON.stringify({
+                    "command": "onicecandidate",
+                    "candidate": event.candidate
+                });
+                send(obj);
+                localIce.push(ice);
+            }
+            else {
+                console.log('onicecandidate[local skip]: ' + event.candidate.candidate);
+            }
         }
         else {
             console.log('onicecandidate: complete.')
 
-            if (answer) {
+            if (remoteAnswer) {
 
                 remotestream.setRemoteDescription(
-                new RTCSessionDescription({ type: "answer", sdp: answer }),
+                new RTCSessionDescription({ type: "answer", sdp: remoteAnswer }),
                 function () { },
                 function (errorInformation) {
                     console.log('setRemoteDescription error: ' + errorInformation);
                     socket.close();
                 });
 
-                for (var i = 0, len = ice.length; i < len; i++) {
-                    var c = ice[i];
+                for (var i = 0, lenr = remoteIce.length; i < lenr; i++) {
+                    var c = remoteIce[i];                    
                     remotestream.addIceCandidate(c);
+                }
+
+                // fill empty pairs using last remote ice
+                for (var i = 0, lenl = localIce.length; i < lenl; i++) {
+                    if (i >= remoteIce.length) {
+                        var c = remoteIce[remoteIce.length - 1];
+
+                        var ice = parseIce(c.candidate);
+                        ice.foundation += i;
+                        c.candidate = stringifyIce(ice);
+
+                        remotestream.addIceCandidate(c);
+                    }
                 }
             }
         }
@@ -195,8 +229,9 @@ function connect() {
                 remotestream.close();
                 remotestream = null;
             }
-            answer = null;
-            ice = [];
+            remoteAnswer = null;
+            remoteIce = [];
+            localIce = [];
 
             document.getElementById('btnconnect').disabled = false;
         }
@@ -207,18 +242,18 @@ function connect() {
             switch (command) {
                 case "OnSuccessAnswer": {
                     if (remotestream) {
-                        console.log("OnSuccessAnswer: " + obj.sdp);
+                        console.log("OnSuccessAnswer[remote]: " + obj.sdp);
 
-                        answer = obj.sdp;
+                        remoteAnswer = obj.sdp;
                     }
                 }
                     break;
 
                 case "OnIceCandidate": {
                     if (remotestream) {
-                        console.log("OnIceCandidate: " + obj.sdp);
+                        console.log("OnIceCandidate[remote]: " + obj.sdp);
 
-                        ice.push(new RTCIceCandidate({
+                        remoteIce.push(new RTCIceCandidate({
                             sdpMLineIndex: obj.sdp_mline_index,
                             candidate: obj.sdp
                         }));
@@ -261,6 +296,108 @@ function dumpStat(o) {
     return s;
 }
 
-var log = msg => div.innerHTML += "<p>" + msg + "</p>";
-var update = (div, msg) => div.innerHTML = msg;
-var failed = e => log(e + ", line " + e.lineNumber);
+function parseIce(candidateString) {
+    // token                  =  1*(alphanum / "-" / "." / "!" / "%" / "*"
+    //                              / "_" / "+" / "`" / "'" / "~" )
+    var token_re = '[0-9a-zA-Z\\-\\.!\\%\\*_\\+\\`\\\'\\~]+';
+
+    // ice-char               = ALPHA / DIGIT / "+" / "/"
+    var ice_char_re = '[a-zA-Z0-9\\+\\/]+';
+
+    // foundation             = 1*32ice-char
+    var foundation_re = ice_char_re;
+
+    // component-id           = 1*5DIGIT
+    var component_id_re = '[0-9]{1,5}';
+
+    // transport             = "UDP" / transport-extension
+    // transport-extension   = token      ; from RFC 3261
+    var transport_re = token_re;
+
+    // priority              = 1*10DIGIT
+    var priority_re = '[0-9]{1,10}';
+
+    // connection-address SP      ; from RFC 4566
+    var connection_address_v4_re = '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}';
+    var connection_address_v6_re = '\\:?(?:[0-9a-fA-F]{0,4}\\:?)+'; // fde8:cd2d:634c:6b00:6deb:9894:734:f75f
+
+    var connection_address_re = '(?:' + connection_address_v4_re + ')|(?:' + connection_address_v6_re + ')';
+
+    // port                      ; port from RFC 4566
+    var port_re = '[0-9]{1,5}';
+
+    //  cand-type             = "typ" SP candidate-types
+    //  candidate-types       = "host" / "srflx" / "prflx" / "relay" / token
+    var cand_type_re = token_re;
+
+    var ICE_RE = '(?:a=)?candidate:(' + foundation_re + ')' + // candidate:599991555 // 'a=' not passed for Firefox (and now for Chrome too)
+      '\\s' + '(' + component_id_re + ')' +                 // 2
+      '\\s' + '(' + transport_re + ')' +                 // udp
+      '\\s' + '(' + priority_re + ')' +                 // 2122260222
+      '\\s' + '(' + connection_address_re + ')' +                 // 192.168.1.32 || fde8:cd2d:634c:6b00:6deb:9894:734:f75f
+      '\\s' + '(' + port_re + ')' +                 // 49827
+      '\\s' + 'typ' +                       // typ
+      '\\s' + '(' + cand_type_re + ')' +                 // host
+      '(?:' +
+      '\\s' + 'raddr' +
+      '\\s' + '(' + connection_address_re + ')' +
+      '\\s' + 'rport' +
+      '\\s' + '(' + port_re + ')' +
+      ')?' +
+      '(?:' +
+      '\\s' + 'generation' +                       // generation
+      '\\s' + '(' + '\\d+' + ')' +                 // 0
+      ')?' +
+      '(?:' +
+      '\\s' + 'ufrag' +                       // ufrag
+      '\\s' + '(' + ice_char_re + ')' +      // WreAYwhmkiw6SPvs
+      ')?';
+
+    var pattern = new RegExp(ICE_RE);
+    var parsed = candidateString.match(pattern);
+
+    //console.log('parseIceCandidate(): candidateString:', candidateString);
+    //console.log('parseIceCandidate(): pattern:', pattern);
+    //console.log('parseIceCandidate(): parsed:', parsed);
+
+    // Check if the string was successfully parsed
+    if (!parsed) {
+        console.warn('parseIceCandidate(): parsed is empty: \'' + parsed + '\'');
+        return null;
+    }
+
+    var propNames = [
+      'foundation',
+      'component_id',
+      'transport',
+      'priority',
+      'localIP',
+      'localPort',
+      'type',
+      'remoteIP',
+      'remotePort',
+      'generation',
+      'ufrag'
+    ];
+
+    var candObj = {};
+    for (var i = 0; i < propNames.length; i++) {
+        candObj[propNames[i]] = parsed[i + 1];
+    }
+    return candObj;
+}
+
+function stringifyIce(iceCandObj) {
+    var s = 'candidate:' + iceCandObj.foundation + '' +
+          ' ' + iceCandObj.component_id + '' +
+          ' ' + iceCandObj.transport + '' +
+          ' ' + iceCandObj.priority + '' +
+          ' ' + iceCandObj.localIP + '' +
+          ' ' + iceCandObj.localPort + '' +
+          ' typ ' + iceCandObj.type + '' +
+          (iceCandObj.remoteIP ? ' raddr ' + iceCandObj.remoteIP + '' : '') +
+          (iceCandObj.remotePort ? ' rport ' + iceCandObj.remotePort + '' : '') +
+          (iceCandObj.generation ? ' generation ' + iceCandObj.generation + '' : '') +
+          (iceCandObj.ufrag ? ' ufrag ' + iceCandObj.ufrag + '' : '');
+    return s;
+}
