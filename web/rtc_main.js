@@ -1,9 +1,10 @@
 ﻿// M:\GoogleChrome\GoogleChromePortable.exe --allow-file-access-from-files --use-fake-ui-for-media-stream
 
-var socket;
+var socket = null;
 var localstream = null;
 var remotestream = null;
-var rpc = new Object();
+var ice = [];
+var answer = null;
 
 var pcOptions = {
     optional: [
@@ -16,18 +17,15 @@ var servers = {
              [
                  { url: 'stun:stun.l.google.com:19302' },
                  { url: 'stun:stun.stunprotocol.org:3478' },
-                 { url: 'stun:stun.anyfirewall.com:3478' },
-                 { url: 'stun:stun1.l.google.com:19302' },
-                 { url: 'stun:stun2.l.google.com:19302' },
-                 { url: 'stun:stun3.l.google.com:19302' },
-                 { url: 'stun:stun4.l.google.com:19302' }
+                 { url: 'stun:stun.anyfirewall.com:3478' }
              ]
 };
 
 var offerOptions = {
     offerToReceiveAudio: 0,
     offerToReceiveVideo: 1,
-    voiceActivityDetection: false
+    voiceActivityDetection: false,
+    iceRestart: true
 };
 
 var vgaConstraints = {
@@ -90,19 +88,18 @@ function send(data) {
     }
 }
 
-function startStream(streamId) {
+function startStream() {
     console.log("startStream...");
 
-    var trpc = rpc[streamId] = new RTCPeerConnection(servers, pcOptions);
-    remotestream = trpc;
+    remotestream = new RTCPeerConnection(servers, pcOptions);
 
     if (localstream) {
-        trpc.addStream(localstream);
+        remotestream.addStream(localstream);
     }
 
     var isType = (stat, type) => stat.type == type && !stat.isRemote; // skip RTCP
 
-    trpc.onaddstream = function (e) {
+    remotestream.onaddstream = function (e) {
         try {
             console.log("remote media connection success!");
 
@@ -113,37 +110,60 @@ function startStream(streamId) {
             };
 
             setInterval(() => Promise.all([
-trpc.getStats(null).then(o => dumpStat(o[Object.keys(o).find(key => isType(o[key], "inboundrtp"))]))
+remotestream.getStats(null).then(o => dumpStat(o[Object.keys(o).find(key => isType(o[key], "inboundrtp"))]))
             ])
-.then(strings => update(statsdiv, "<small>" + strings.join("") + "</small>")), 10);
+.then(strings => update(statsdiv, "<small>" + strings.join("") + "</small>")), 100);
 
         } catch (ex) {
             console.log("Failed to connect to remote media!", ex);
             socket.close();
         }
     };
-    trpc.onicecandidate = function (event) {
+    remotestream.onicecandidate = function (event) {
         if (event.candidate) {
+
+            console.log('onicecandidate: ' + event.candidate.candidate);
+
             var obj = JSON.stringify({
                 "command": "onicecandidate",
                 "candidate": event.candidate
             });
             send(obj);
         }
+        else {
+            console.log('onicecandidate: complete.')
+
+            if (answer) {
+
+                remotestream.setRemoteDescription(
+                new RTCSessionDescription({ type: "answer", sdp: answer }),
+                function () { },
+                function (errorInformation) {
+                    console.log('setRemoteDescription error: ' + errorInformation);
+                    socket.close();
+                });
+
+                for (var i = 0, len = ice.length; i < len; i++) {
+                    var c = ice[i];
+                    remotestream.addIceCandidate(c);
+                }
+            }
+        }
     };
 
-    trpc.createOffer(function (desc) {
-        //console.log('createOffer: ' + desc.sdp);
-        trpc.setLocalDescription(desc, function () {
+    remotestream.createOffer(function (desc) {
+        console.log('createOffer: ' + desc.sdp);
+
+        remotestream.setLocalDescription(desc, function () {
             var obj = JSON.stringify({
                 "command": "offer",
-                "streamId": streamId,
                 "desc": desc
             });
             send(obj);
         },
         function (errorInformation) {
             console.log('setLocalDescription error: ' + errorInformation);
+
             socket.close();
         });
     },
@@ -164,15 +184,20 @@ function connect() {
     function setSocketEvents(Socket) {
         Socket.onopen = function () {
             console.log("Socket connected!");
-            startStream(Socket);
+
+            startStream();
         };
 
         Socket.onclose = function () {
             console.log("Socket connection has been disconnected!");
+
             if (remotestream) {
                 remotestream.close();
                 remotestream = null;
             }
+            answer = null;
+            ice = [];
+
             document.getElementById('btnconnect').disabled = false;
         }
 
@@ -182,24 +207,21 @@ function connect() {
             switch (command) {
                 case "OnSuccessAnswer": {
                     if (remotestream) {
-                        console.log("OnSuccessAnswer", obj.sdp);
+                        console.log("OnSuccessAnswer: " + obj.sdp);
 
-                        remotestream.setRemoteDescription(
-                        new RTCSessionDescription({ type: "answer", sdp: obj.sdp }),
-                        function () { },
-                        function (errorInformation) {
-                            console.log('setRemoteDescription error: ' + errorInformation);
-                            Socket.close();
-                        });
+                        answer = obj.sdp;
                     }
                 }
                     break;
 
                 case "OnIceCandidate": {
                     if (remotestream) {
-                        console.log("OnIceCandidate", obj.sdp);
-                        remotestream.addIceCandidate(
-                            new RTCIceCandidate({ sdpMLineIndex: obj.sdp_mline_index, candidate: obj.sdp }));
+                        console.log("OnIceCandidate: " + obj.sdp);
+
+                        ice.push(new RTCIceCandidate({
+                            sdpMLineIndex: obj.sdp_mline_index,
+                            candidate: obj.sdp
+                        }));
                     }
                 }
                     break;
