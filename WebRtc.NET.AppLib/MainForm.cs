@@ -47,7 +47,7 @@ namespace WebRtc.NET.AppLib
         readonly Rectangle boundsItem = new Rectangle(0, 0, 640, 360);
 
         readonly TurboJpegEncoder encoder = TurboJpegEncoder.CreateEncoder();
-        public unsafe void OnFillBuffer(byte * yuv, long yuvSize)
+        public unsafe void OnFillBuffer(byte* yuv, long yuvSize)
         {
             lock (img)
             {
@@ -62,10 +62,6 @@ namespace WebRtc.NET.AppLib
             }
             //Thread.Sleep(200);
         }
-
-        //int fwidth = 752;
-        int fheight = 480;
-        int fwidth = 640;
 
         static readonly Font f = new Font("Tahoma", 14);
         static readonly Font fBig = new Font("Tahoma", 36);
@@ -88,7 +84,6 @@ namespace WebRtc.NET.AppLib
         };
 
         // ...
-        System.Windows.Forms.Timer timerUpdate;
 
         internal bool SetEncode = true;
         internal bool SetView = true;
@@ -106,42 +101,6 @@ namespace WebRtc.NET.AppLib
         {
             if (webSocketServer != null)
                 webSocketServer.ClientLimit = (int)numericMaxClients.Value;
-        }
-
-        DateTime last = DateTime.MinValue;
-
-        private void timerUpdate_Tick(object sender, EventArgs e)
-        {
-            if (webSocketServer != null)
-            {
-                Text = $"VideoBridge: {webSocketServer.StreamsCount} streams of {webSocketServer.ClientCount} sessions";
-            }
-
-            if (SetView)
-            {
-                try
-                {
-                    lock (imgView)
-                    {
-                        if (pictureBox1.Image == null)
-                        {
-                            pictureBox1.Image = imgView;
-                        }
-                        {
-                            pictureBox1.Invalidate();
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine("SetView: " + ex);
-                }
-            }
-
-            if (DateTime.Now - last > TimeSpan.FromSeconds(10))
-            {
-                last = DateTime.Now;
-            }
         }
 
         private void checkBoxWebsocket_CheckedChanged(object sender, EventArgs e)
@@ -168,7 +127,7 @@ namespace WebRtc.NET.AppLib
             }
         }
 
-        private System.Windows.Forms.Timer timerDemo;
+        private Timer timerDemo;
 
         private void timerDemo_Tick(object sender, EventArgs e)
         {
@@ -220,11 +179,11 @@ namespace WebRtc.NET.AppLib
         {
             if (timerDemo == null)
             {
-                timerDemo = new System.Windows.Forms.Timer();
+                timerDemo = new Timer();
                 timerDemo.Interval = 200;
-                timerDemo.Tick += new System.EventHandler(this.timerDemo_Tick);
+                timerDemo.Tick += timerDemo_Tick;
             }
-            timerDemo.Enabled = checkBoxDemo.Checked;            
+            timerDemo.Enabled = checkBoxDemo.Checked;
         }
     }
 }

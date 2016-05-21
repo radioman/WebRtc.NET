@@ -9,6 +9,8 @@ namespace WebRtc.NET.AppLib
     using System.Diagnostics;
     using System.Threading.Tasks;
     using System.Threading;
+    using System.Net.Sockets;
+    using System.Net;
     class WebRTCServer : IDisposable
     {
         class WebRtcSession
@@ -20,7 +22,7 @@ namespace WebRtc.NET.AppLib
             {
                 WebRtc = new ManagedConductor();
                 Cancel = new CancellationTokenSource();
-            }
+            }            
         }
 
         ConcurrentDictionary<Guid, IWebSocketConnection> UserList = new ConcurrentDictionary<Guid, IWebSocketConnection>();
@@ -234,12 +236,12 @@ namespace WebRtc.NET.AppLib
 
                                         session.WebRtc.OnFailure += delegate(string error)
                                         {
-                                            Debug.WriteLine($"OnFailure: {error}");
+                                            Trace.WriteLine($"OnFailure: {error}");
                                         };
 
                                         session.WebRtc.OnError += delegate
                                         {
-                                            Debug.WriteLine("OnError");
+                                            Trace.WriteLine("OnError");
                                         };
 
                                         unsafe
@@ -251,8 +253,9 @@ namespace WebRtc.NET.AppLib
                                         }
 
                                         var d = msgJson["desc"];
-                                        var s = d["sdp"];
-                                        session.WebRtc.OnOfferRequest(s.ToString());
+                                        var s = d["sdp"].ToString();
+
+                                        session.WebRtc.OnOfferRequest(s);
                                     }
                                 }
                             }
@@ -264,13 +267,13 @@ namespace WebRtc.NET.AppLib
                     {
                         var c = msgJson["candidate"];
 
-                        var sdpMLineIndex = c["sdpMLineIndex"];
-                        var sdpMid = c["sdpMid"];
-                        var candidate = c["candidate"];
+                        var sdpMLineIndex = (int)c["sdpMLineIndex"];
+                        var sdpMid = c["sdpMid"].ToString();
+                        var candidate = c["candidate"].ToString();
 
                         var session = Streams[context.ConnectionInfo.Id];
                         {
-                            session.WebRtc.AddIceCandidate(sdpMid.ToString(), (int)sdpMLineIndex, candidate.ToString());
+                            session.WebRtc.AddIceCandidate(sdpMid, sdpMLineIndex, candidate);
                         }
                     }
                     break;
