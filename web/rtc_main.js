@@ -32,51 +32,8 @@ var vgaConstraints = {
     video: true
 };
 
-function start() {
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-        console.log("enumerateDevices() not supported.");
-        return;
-    }
-
-    // List cameras and microphones.
-    navigator.mediaDevices.enumerateDevices()
-.then(function (devices) {
-    devices.forEach(function (device) {
-        console.log(device.kind + ": " + device.label +
-                    " id = " + device.deviceId);
-    });
-})
-.catch(function (err) {
-    console.log(err.name + ": " + error.message);
-});
-
-    console.log('Requesting local stream');
-    //startButton.disabled = true;
-    navigator.mediaDevices.getUserMedia(vgaConstraints).then(function (stream) {
-        console.log('Received local stream');
-
-        var vid1 = document.getElementById('vid1');
-        if (vid1) {
-            vid1.srcObject = stream;
-            vid1.onloadedmetadata = function (e) {
-                vid1.play();
-            };
-        }
-
-        localstream = stream;
-        //callButton.disabled = false;
-
-        connect();
-    })
-    .catch(function (err) {
-        console.log(err.name + ": " + err.message);
-        alert(err.name + ": " + err.message);
-    });
-}
-
 window.onload = function () {
-    start();
+    //getLocalStream();
 }
 
 function send(data) {
@@ -133,7 +90,7 @@ function startStream() {
         }
     };
     remotestream.onicecandidate = function (event) {
-        if (event.candidate) {            
+        if (event.candidate) {
 
             var ice = parseIce(event.candidate.candidate);
             if (ice && ice.component_id == 1  // skip RTCP 
@@ -165,7 +122,7 @@ function startStream() {
                 });
 
                 for (var i = 0, lenr = remoteIce.length; i < lenr; i++) {
-                    var c = remoteIce[i];                    
+                    var c = remoteIce[i];
                     remotestream.addIceCandidate(c);
                 }
 
@@ -400,4 +357,44 @@ function stringifyIce(iceCandObj) {
           (iceCandObj.generation ? ' generation ' + iceCandObj.generation + '' : '') +
           (iceCandObj.ufrag ? ' ufrag ' + iceCandObj.ufrag + '' : '');
     return s;
+}
+
+//---------------------------------------
+
+function getLocalStream() {
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        console.log("enumerateDevices() not supported.");
+        return;
+    }
+
+    // List cameras and microphones.
+    navigator.mediaDevices.enumerateDevices().then(function (devices) {
+        devices.forEach(function (device) {
+            console.log(device.kind + ": " + device.label +
+                        " id = " + device.deviceId);
+        });
+    }).catch(function (err) {
+        console.log(err.name + ": " + error.message);
+    });
+
+    console.log('Requesting local stream');
+
+    navigator.mediaDevices.getUserMedia(vgaConstraints).then(function (stream) {
+        console.log('Received local stream');
+
+        var vid1 = document.getElementById('vid1');
+        if (vid1) {
+            vid1.srcObject = stream;
+            vid1.onloadedmetadata = function (e) {
+                vid1.play();
+            };
+        }
+
+        localstream = stream;
+    })
+    .catch(function (err) {
+        console.log(err.name + ": " + err.message);
+        alert(err.name + ": " + err.message);
+    });
 }

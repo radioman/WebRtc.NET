@@ -13,81 +13,6 @@
 const char kVideoLabel[] = "video_label";
 const char kStreamLabel[] = "stream_label";
 
-namespace
-{
-	// Wrap cricket::WebRtcVideoEncoderFactory as a webrtc::VideoEncoderFactory.
-	class EncoderFactoryAdapter : public webrtc::VideoEncoderFactory
-	{
-	public:
-		EncoderFactoryAdapter()
-		{
-		}
-
-		virtual ~EncoderFactoryAdapter()
-		{
-		}
-
-		// Implement webrtc::VideoEncoderFactory.
-		webrtc::VideoEncoder* Create() override
-		{
-			return webrtc::VP8Encoder::Create();
-		}
-
-		void Destroy(webrtc::VideoEncoder* encoder) override
-		{
-			delete encoder;
-		}
-
-	private:
-
-	};
-
-	// An encoder factory that wraps Create requests for simulcastable codec types
-	// with a webrtc::SimulcastEncoderAdapter. Non simulcastable codec type
-	// requests are just passed through to the contained encoder factory.
-	class WebRtcSimulcastEncoderFactory : public cricket::WebRtcVideoEncoderFactory
-	{
-	public:
-		WebRtcSimulcastEncoderFactory()
-		{
-			VideoCodec c(webrtc::kVideoCodecVP8, "VP8", 752, 640, 10);
-			codecs_.push_back(c);
-		}
-
-		webrtc::VideoEncoder* CreateVideoEncoder(webrtc::VideoCodecType type) override
-		{
-			// If it's a codec type we can simulcast, create a wrapped encoder.
-			if (type == webrtc::kVideoCodecVP8)
-			{
-				return new webrtc::SimulcastEncoderAdapter(new EncoderFactoryAdapter());
-			}
-			return NULL;
-		}
-
-		const std::vector<VideoCodec>& codecs() const override
-		{
-			return codecs_;
-		}
-
-		bool EncoderTypeHasInternalSource(webrtc::VideoCodecType type) const override
-		{
-			return false;
-		}
-
-		void DestroyVideoEncoder(webrtc::VideoEncoder* encoder) override
-		{
-			// Otherwise, SimulcastEncoderAdapter can be deleted directly, and will call
-			// DestroyVideoEncoder on the factory for individual encoder instances.
-			delete encoder;
-		}
-
-	private:
-
-		std::vector<VideoCodec> codecs_;
-	};
-}
-//----------------------------------------------------------
-
 Conductor::Conductor()
 {
 	onError = nullptr;
@@ -95,7 +20,6 @@ Conductor::Conductor()
 	onFailure = nullptr;
 	onIceCandidate = nullptr;
 	capturer = nullptr;
-	worker_thread_ = nullptr;
 }
 
 Conductor::~Conductor()
@@ -119,7 +43,6 @@ void Conductor::DeletePeerConnection()
 		peer_connection_ = nullptr;
 	}
 
-	worker_thread_ = nullptr;
 	pc_factory_ = nullptr;
 	capturer = nullptr;
 
@@ -130,16 +53,6 @@ bool Conductor::InitializePeerConnection()
 {
 	ASSERT(pc_factory_ == nullptr);
 	ASSERT(peer_connection_ == nullptr);
-
-	//worker_thread_ = new rtc::Thread();
-	//worker_thread_->Start();
-
-	//pc_factory_ = webrtc::CreatePeerConnectionFactory(
-	//	worker_thread_,
-	//	rtc::ThreadManager::Instance()->CurrentThread(),
-	//	NULL,
-	//	new WebRtcSimulcastEncoderFactory(),
-	//	NULL);
 
 	pc_factory_ = webrtc::CreatePeerConnectionFactory();
 
@@ -152,7 +65,8 @@ bool Conductor::InitializePeerConnection()
 	webrtc::PeerConnectionFactoryInterface::Options opt;
 	{
 		//opt.disable_encryption = true;
-		opt.disable_sctp_data_channels = true;
+        //opt.disable_network_monitor = true;
+		opt.disable_sctp_data_channels = true;		
 		pc_factory_->SetOptions(opt);
 	}
 
@@ -173,6 +87,7 @@ bool Conductor::CreatePeerConnection(bool dtls)
 	webrtc::PeerConnectionInterface::RTCConfiguration config;
 	config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
 	config.disable_ipv6 = true;
+	config.enable_dtls_srtp = rtc::Optional<bool>(dtls);
 
 	for each (auto server in serverConfigs)
 	{
@@ -180,17 +95,11 @@ bool Conductor::CreatePeerConnection(bool dtls)
 	}
 
 	webrtc::FakeConstraints constraints;
-	if (dtls)
-	{
-		constraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, "true");
-	}
-	else
-	{
-		constraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, "false");
-	}
 	constraints.SetMandatoryReceiveVideo(false);
 	constraints.SetMandatoryReceiveAudio(false);
+	constraints.SetMandatoryIceRestart(true);	
 	constraints.AddMandatory(webrtc::MediaConstraintsInterface::kVoiceActivityDetection, "false");
+	constraints.AddMandatory(webrtc::MediaConstraintsInterface::kEnableIPv6, "false");
 
 	peer_connection_ = pc_factory_->CreatePeerConnection(config, &constraints, NULL, NULL, this);
 	return peer_connection_ != nullptr;
