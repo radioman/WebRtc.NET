@@ -31,6 +31,10 @@ namespace webrtc {
 
 class Clock;
 class EncodedImageCallback;
+// TODO(pbos): Remove VCMQMSettingsCallback completely. This might be done by
+// removing the VCM and use VideoSender/VideoReceiver as a public interface
+// directly.
+class VCMQMSettingsCallback;
 class VideoEncoder;
 class VideoDecoder;
 struct CodecSpecificInfo;
@@ -73,7 +77,21 @@ class VideoCodingModule : public Module {
       VideoEncoderRateObserver* encoder_rate_observer,
       VCMQMSettingsCallback* qm_settings_callback);
 
+  static VideoCodingModule* Create(
+      Clock* clock,
+      VideoEncoderRateObserver* encoder_rate_observer,
+      VCMQMSettingsCallback* qm_settings_callback,
+      NackSender* nack_sender,
+      KeyFrameRequestSender* keyframe_request_sender,
+      EncodedImageCallback* pre_decode_image_callback);
+
   static VideoCodingModule* Create(Clock* clock, EventFactory* event_factory);
+
+  static VideoCodingModule* Create(
+      Clock* clock,
+      EventFactory* event_factory,
+      NackSender* nack_sender,
+      KeyFrameRequestSender* keyframe_request_sender);
 
   // Get supported codec settings using codec type
   //
@@ -170,32 +188,6 @@ class VideoCodingModule : public Module {
   //                     < 0,    on error.
   virtual int32_t SetReceiveChannelParameters(int64_t rtt) = 0;
 
-  // Register a transport callback which will be called to deliver the encoded
-  // data and
-  // side information.
-  //
-  // Input:
-  //      - transport  : The callback object to register.
-  //
-  // Return value      : VCM_OK, on success.
-  //                     < 0,    on error.
-  virtual int32_t RegisterTransportCallback(
-      VCMPacketizationCallback* transport) = 0;
-
-  // Register video output information callback which will be called to deliver
-  // information
-  // about the video stream produced by the encoder, for instance the average
-  // frame rate and
-  // bit rate.
-  //
-  // Input:
-  //      - outputInformation  : The callback object to register.
-  //
-  // Return value      : VCM_OK, on success.
-  //                     < 0,    on error.
-  virtual int32_t RegisterSendStatisticsCallback(
-      VCMSendStatisticsCallback* sendStats) = 0;
-
   // Register a video protection callback which will be called to deliver
   // the requested FEC rate and NACK status (on/off).
   //
@@ -235,14 +227,13 @@ class VideoCodingModule : public Module {
   //                     < 0,    on error.
   virtual int32_t AddVideoFrame(
       const VideoFrame& videoFrame,
-      const VideoContentMetrics* contentMetrics = NULL,
       const CodecSpecificInfo* codecSpecificInfo = NULL) = 0;
 
   // Next frame encoded should be an intra frame (keyframe).
   //
   // Return value      : VCM_OK, on success.
   //                     < 0,    on error.
-  virtual int32_t IntraFrameRequest(int stream_index) = 0;
+  virtual int32_t IntraFrameRequest(size_t stream_index) = 0;
 
   // Frame Dropper enable. Can be used to disable the frame dropping when the
   // encoder
@@ -378,10 +369,6 @@ class VideoCodingModule : public Module {
   //                     < 0,    on error.
   virtual int32_t Decode(uint16_t maxWaitTimeMs = 200) = 0;
 
-  // Registers a callback which conveys the size of the render buffer.
-  virtual int RegisterRenderBufferSizeCallback(
-      VCMRenderBufferSizeCallback* callback) = 0;
-
   // API to get the codec which is currently used for decoding by the module.
   //
   // Input:
@@ -498,8 +485,6 @@ class VideoCodingModule : public Module {
   // suspended due to bandwidth limitations; otherwise false.
   virtual bool VideoSuspended() const = 0;
 
-  virtual void RegisterPreDecodeImageCallback(
-      EncodedImageCallback* observer) = 0;
   virtual void RegisterPostEncodeImageCallback(
       EncodedImageCallback* post_encode_callback) = 0;
   // Releases pending decode calls, permitting faster thread shutdown.

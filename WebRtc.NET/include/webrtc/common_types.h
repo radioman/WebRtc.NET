@@ -296,6 +296,18 @@ class SendSideDelayObserver {
                                     uint32_t ssrc) = 0;
 };
 
+// Callback, used to notify an observer whenever a packet is sent to the
+// transport.
+// TODO(asapersson): This class will remove the need for SendSideDelayObserver.
+// Remove SendSideDelayObserver once possible.
+class SendPacketObserver {
+ public:
+  virtual ~SendPacketObserver() {}
+  virtual void OnSendPacket(uint16_t packet_id,
+                            int64_t capture_time_ms,
+                            uint32_t ssrc) = 0;
+};
+
 // ==================================================================
 // Voice specific types
 // ==================================================================
@@ -713,7 +725,7 @@ struct OverUseDetectorOptions {
     initial_e[1][1] = 1e-1;
     initial_e[0][1] = initial_e[1][0] = 0;
     initial_process_noise[0] = 1e-13;
-    initial_process_noise[1] = 1e-2;
+    initial_process_noise[1] = 1e-3;
   }
   double initial_slope;
   double initial_offset;
@@ -879,6 +891,11 @@ class StreamDataCountersCallback {
 // RTCP mode to use. Compound mode is described by RFC 4585 and reduced-size
 // RTCP mode is described by RFC 5506.
 enum class RtcpMode { kOff, kCompound, kReducedSize };
+
+enum NetworkState {
+  kNetworkUp,
+  kNetworkDown,
+};
 
 }  // namespace webrtc
 

@@ -11,11 +11,13 @@
 #ifndef WEBRTC_API_JAVA_JNI_ANDROIDVIDEOCAPTURER_JNI_H_
 #define WEBRTC_API_JAVA_JNI_ANDROIDVIDEOCAPTURER_JNI_H_
 
+#include <memory>
 #include <string>
 
 #include "webrtc/api/androidvideocapturer.h"
 #include "webrtc/api/java/jni/jni_helpers.h"
 #include "webrtc/base/asyncinvoker.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/thread_checker.h"
 #include "webrtc/common_video/include/i420_buffer_pool.h"
@@ -34,7 +36,7 @@ class AndroidVideoCapturerJni : public webrtc::AndroidVideoCapturerDelegate {
 
   AndroidVideoCapturerJni(JNIEnv* jni,
                           jobject j_video_capturer,
-                          jobject j_surface_texture_helper);
+                          jobject j_egl_context);
 
   void Start(int width, int height, int framerate,
              webrtc::AndroidVideoCapturer* capturer) override;
@@ -86,7 +88,7 @@ class AndroidVideoCapturerJni : public webrtc::AndroidVideoCapturerDelegate {
   webrtc::AndroidVideoCapturer* capturer_ GUARDED_BY(capturer_lock_);
   // |invoker_| is used to communicate with |capturer_| on the thread Start() is
   // called on.
-  rtc::scoped_ptr<rtc::GuardedAsyncInvoker> invoker_ GUARDED_BY(capturer_lock_);
+  std::unique_ptr<rtc::GuardedAsyncInvoker> invoker_ GUARDED_BY(capturer_lock_);
 
   static jobject application_context_;
 

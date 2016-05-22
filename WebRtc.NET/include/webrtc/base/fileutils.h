@@ -23,8 +23,8 @@
 
 #include "webrtc/base/basictypes.h"
 #include "webrtc/base/common.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/base/platform_file.h"
-#include "webrtc/base/scoped_ptr.h"
 
 namespace rtc {
 

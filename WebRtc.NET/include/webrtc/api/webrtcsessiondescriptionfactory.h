@@ -11,8 +11,11 @@
 #ifndef WEBRTC_API_WEBRTCSESSIONDESCRIPTIONFACTORY_H_
 #define WEBRTC_API_WEBRTCSESSIONDESCRIPTIONFACTORY_H_
 
+#include <memory>
+
 #include "webrtc/api/dtlsidentitystore.h"
 #include "webrtc/api/peerconnectioninterface.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/base/messagehandler.h"
 #include "webrtc/base/rtccertificate.h"
 #include "webrtc/p2p/base/transportdescriptionfactory.h"
@@ -37,7 +40,7 @@ class WebRtcIdentityRequestObserver : public DtlsIdentityRequestObserver,
   void OnFailure(int error) override;
   void OnSuccess(const std::string& der_cert,
                  const std::string& der_private_key) override;
-  void OnSuccess(rtc::scoped_ptr<rtc::SSLIdentity> identity) override;
+  void OnSuccess(std::unique_ptr<rtc::SSLIdentity> identity) override;
 
   sigslot::signal1<int> SignalRequestFailed;
   sigslot::signal1<const rtc::scoped_refptr<rtc::RTCCertificate>&>
@@ -82,7 +85,7 @@ class WebRtcSessionDescriptionFactory : public rtc::MessageHandler,
   WebRtcSessionDescriptionFactory(
       rtc::Thread* signaling_thread,
       cricket::ChannelManager* channel_manager,
-      rtc::scoped_ptr<DtlsIdentityStoreInterface> dtls_identity_store,
+      std::unique_ptr<DtlsIdentityStoreInterface> dtls_identity_store,
       WebRtcSession* session,
       const std::string& session_id);
 
@@ -130,7 +133,7 @@ class WebRtcSessionDescriptionFactory : public rtc::MessageHandler,
   WebRtcSessionDescriptionFactory(
       rtc::Thread* signaling_thread,
       cricket::ChannelManager* channel_manager,
-      rtc::scoped_ptr<DtlsIdentityStoreInterface> dtls_identity_store,
+      std::unique_ptr<DtlsIdentityStoreInterface> dtls_identity_store,
       const rtc::scoped_refptr<WebRtcIdentityRequestObserver>&
           identity_request_observer,
       WebRtcSession* session,
@@ -161,7 +164,7 @@ class WebRtcSessionDescriptionFactory : public rtc::MessageHandler,
   cricket::TransportDescriptionFactory transport_desc_factory_;
   cricket::MediaSessionDescriptionFactory session_desc_factory_;
   uint64_t session_version_;
-  const rtc::scoped_ptr<DtlsIdentityStoreInterface> dtls_identity_store_;
+  const std::unique_ptr<DtlsIdentityStoreInterface> dtls_identity_store_;
   const rtc::scoped_refptr<WebRtcIdentityRequestObserver>
       identity_request_observer_;
   // TODO(jiayl): remove the dependency on session once bug 2264 is fixed.

@@ -100,7 +100,7 @@ class VideoSender : public PacketSender, public BitrateObserver {
   RTC_DISALLOW_COPY_AND_ASSIGN(VideoSender);
 };
 
-class PacedVideoSender : public VideoSender, public PacedSender::Callback {
+class PacedVideoSender : public VideoSender, public PacedSender::PacketSender {
  public:
   PacedVideoSender(PacketProcessorListener* listener,
                    VideoSource* source,
@@ -113,7 +113,8 @@ class PacedVideoSender : public VideoSender, public PacedSender::Callback {
   bool TimeToSendPacket(uint32_t ssrc,
                         uint16_t sequence_number,
                         int64_t capture_time_ms,
-                        bool retransmission) override;
+                        bool retransmission,
+                        int probe_cluster_id) override;
   size_t TimeToSendPadding(size_t bytes) override;
 
   // Implements BitrateObserver.

@@ -35,7 +35,6 @@ class AudioEncoderPcm : public AudioEncoder {
 
   ~AudioEncoderPcm() override;
 
-  size_t MaxEncodedBytes() const override;
   int SampleRateHz() const override;
   size_t NumChannels() const override;
   size_t Num10MsFramesInNextPacket() const override;
@@ -55,6 +54,10 @@ class AudioEncoderPcm : public AudioEncoder {
                             uint8_t* encoded) = 0;
 
   virtual size_t BytesPerSample() const = 0;
+
+  // Used to set EncodedInfoLeaf::encoder_type in
+  // AudioEncoderPcm::EncodeImpl
+  virtual AudioEncoder::CodecType GetCodecType() const = 0;
 
  private:
   const int sample_rate_hz_;
@@ -85,6 +88,8 @@ class AudioEncoderPcmA final : public AudioEncoderPcm {
 
   size_t BytesPerSample() const override;
 
+  AudioEncoder::CodecType GetCodecType() const override;
+
  private:
   static const int kSampleRateHz = 8000;
   RTC_DISALLOW_COPY_AND_ASSIGN(AudioEncoderPcmA);
@@ -106,6 +111,8 @@ class AudioEncoderPcmU final : public AudioEncoderPcm {
                     uint8_t* encoded) override;
 
   size_t BytesPerSample() const override;
+
+  AudioEncoder::CodecType GetCodecType() const override;
 
  private:
   static const int kSampleRateHz = 8000;

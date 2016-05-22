@@ -21,6 +21,7 @@ namespace webrtc {
 
 class MockDecoderDatabase : public DecoderDatabase {
  public:
+  MockDecoderDatabase() : DecoderDatabase(nullptr) {}
   virtual ~MockDecoderDatabase() { Die(); }
   MOCK_METHOD0(Die, void());
   MOCK_CONST_METHOD0(Empty,
@@ -59,7 +60,7 @@ class MockDecoderDatabase : public DecoderDatabase {
   MOCK_METHOD1(SetActiveCngDecoder,
       int(uint8_t rtp_payload_type));
   MOCK_METHOD0(GetActiveCngDecoder,
-      AudioDecoder*());
+      ComfortNoiseDecoder*());
   MOCK_CONST_METHOD1(CheckPayloadTypes,
       int(const PacketList& packet_list));
 };

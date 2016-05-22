@@ -12,20 +12,27 @@
 #define WEBRTC_MODULES_CONGESTION_CONTROLLER_INCLUDE_MOCK_MOCK_CONGESTION_CONTROLLER_H_
 
 #include "testing/gmock/include/gmock/gmock.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/base/socket.h"
 #include "webrtc/modules/congestion_controller/include/congestion_controller.h"
 
 namespace webrtc {
 namespace test {
 
+class MockCongestionObserver : public CongestionController::Observer {
+ public:
+  MOCK_METHOD3(OnNetworkChanged,
+               void(uint32_t bitrate_bps,
+                    uint8_t fraction_loss,
+                    int64_t rtt_ms));
+};
+
 class MockCongestionController : public CongestionController {
  public:
   MockCongestionController(Clock* clock,
-                           BitrateObserver* bitrate_observer,
+                           Observer* observer,
                            RemoteBitrateObserver* remote_bitrate_observer)
-      : CongestionController(clock,
-                             bitrate_observer,
-                             remote_bitrate_observer) {}
+      : CongestionController(clock, observer, remote_bitrate_observer) {}
   MOCK_METHOD3(SetBweBitrates,
                void(int min_bitrate_bps,
                     int start_bitrate_bps,

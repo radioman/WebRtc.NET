@@ -18,6 +18,7 @@
 
 #include "webrtc/base/basictypes.h"
 #include "webrtc/base/bytebuffer.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/base/stream.h"
 
 namespace cricket {
@@ -39,8 +40,8 @@ enum RtpDumpPacketFilter {
 };
 
 struct RtpDumpFileHeader {
-  RtpDumpFileHeader(uint32_t start_ms, uint32_t s, uint16_t p);
-  void WriteToByteBuffer(rtc::ByteBuffer* buf);
+  RtpDumpFileHeader(int64_t start_ms, uint32_t s, uint16_t p);
+  void WriteToByteBuffer(rtc::ByteBufferWriter* buf);
 
   static const char kFirstLine[];
   static const size_t kHeaderLength = 16;
@@ -112,7 +113,7 @@ class RtpDumpReader {
   rtc::StreamInterface* stream_;
   bool file_header_read_;
   size_t first_line_and_file_header_len_;
-  uint32_t start_time_ms_;
+  int64_t start_time_ms_;
   uint32_t ssrc_override_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(RtpDumpReader);
@@ -158,10 +159,10 @@ class RtpDumpLoopReader : public RtpDumpReader {
   // the previous dump packets in the input stream.
   uint32_t first_elapsed_time_;
   int first_rtp_seq_num_;
-  uint32_t first_rtp_timestamp_;
+  int64_t first_rtp_timestamp_;
   uint32_t prev_elapsed_time_;
   int prev_rtp_seq_num_;
-  uint32_t prev_rtp_timestamp_;
+  int64_t prev_rtp_timestamp_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(RtpDumpLoopReader);
 };
@@ -206,9 +207,9 @@ class RtpDumpWriter {
   rtc::StreamInterface* stream_;
   int packet_filter_;
   bool file_header_written_;
-  uint32_t start_time_ms_;  // Time when the record starts.
+  int64_t start_time_ms_;  // Time when the record starts.
   // If writing to the stream takes longer than this many ms, log a warning.
-  uint32_t warn_slow_writes_delay_;
+  int64_t warn_slow_writes_delay_;
   RTC_DISALLOW_COPY_AND_ASSIGN(RtpDumpWriter);
 };
 

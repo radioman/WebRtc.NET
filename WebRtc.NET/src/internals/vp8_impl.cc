@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2012 The WebRTC project authors. All Rights Reserved.
- *
- *  Use of this source code is governed by a BSD-style license
- *  that can be found in the LICENSE file in the root of the source
- *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may
- *  be found in the AUTHORS file in the root of the source tree.
- */
+*  Copyright (c) 2012 The WebRTC project authors. All Rights Reserved.
+*
+*  Use of this source code is governed by a BSD-style license
+*  that can be found in the LICENSE file in the root of the source
+*  tree. An additional intellectual property rights grant can be found
+*  in the file PATENTS.  All contributing project authors may
+*  be found in the AUTHORS file in the root of the source tree.
+*/
 
 #include "webrtc/modules/video_coding/codecs/vp8/vp8_impl.h"
 
@@ -15,11 +15,12 @@
 #include <time.h>
 #include <algorithm>
 
- // NOTE(ajm): Path provided by gyp.
+// NOTE(ajm): Path provided by gyp.
 #include "libyuv/scale.h"    // NOLINT
 #include "libyuv/convert.h"  // NOLINT
 
 #include "webrtc/base/checks.h"
+#include "webrtc/base/timeutils.h"
 #include "webrtc/base/trace_event.h"
 #include "webrtc/common_types.h"
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
@@ -29,7 +30,6 @@
 #include "webrtc/modules/video_coding/codecs/vp8/screenshare_layers.h"
 #include "webrtc/modules/video_coding/codecs/vp8/temporal_layers.h"
 #include "webrtc/system_wrappers/include/clock.h"
-#include "webrtc/system_wrappers/include/tick_util.h"
 
 namespace webrtc
 {
@@ -193,7 +193,7 @@ namespace webrtc
 		key_frame_request_(kMaxSimulcastStreams, false),
 		quality_scaler_enabled_(false)
 	{
-		uint32_t seed = static_cast<uint32_t>(TickTime::MillisecondTimestamp());
+		uint32_t seed = rtc::Time32();
 		srand(seed);
 
 		picture_id_.reserve(kMaxSimulcastStreams);
@@ -537,7 +537,7 @@ namespace webrtc
 		configurations_[0].g_timebase.den = 90000;
 		configurations_[0].g_lag_in_frames = 0;  // 0- no frame lagging
 
-		// Set the error resilience mode according to user settings.
+												 // Set the error resilience mode according to user settings.
 		switch (inst->codecSpecific.VP8.resilience)
 		{
 			case kResilienceOff:
@@ -549,8 +549,8 @@ namespace webrtc
 				break;
 			case kResilientStream:
 				configurations_[0].g_error_resilient = 1;  // TODO(holmer): Replace with
-				// VPX_ERROR_RESILIENT_DEFAULT when we
-				// drop support for libvpx 9.6.0.
+														   // VPX_ERROR_RESILIENT_DEFAULT when we
+														   // drop support for libvpx 9.6.0.
 				break;
 			case kResilientFrames:
 #ifdef INDEPENDENT_PARTITIONS
@@ -695,14 +695,9 @@ namespace webrtc
 		}
 
 		rps_.Init();
-		// Disable both high-QP limits and framedropping. Both are handled by libvpx
-		// internally.
-		const int kDisabledBadQpThreshold = 64;
-		// TODO(glaznev/sprang): consider passing codec initial bitrate to quality
-		// scaler to avoid starting with HD for low initial bitrates.
-		quality_scaler_.Init(codec_.qpMax / QualityScaler::kDefaultLowQpDenominator,
-							 kDisabledBadQpThreshold, false, 0, 0, 0);
-		quality_scaler_.ReportFramerate(codec_.maxFramerate);
+		quality_scaler_.Init(QualityScaler::kLowVp8QpThreshold,
+							 QualityScaler::kBadVp8QpThreshold, codec_.startBitrate,
+							 codec_.width, codec_.height, codec_.maxFramerate);
 
 		// Only apply scaling to improve for single-layer streams. The scaling metrics
 		// use frame drops as a signal and is only applicable when we drop frames.
@@ -710,13 +705,14 @@ namespace webrtc
 			configurations_[0].rc_dropframe_thresh > 0 &&
 			codec_.codecSpecific.VP8.automaticResizeOn;
 
+		//quality_scaler_enabled_ = false;
 
 		return InitAndSetControlSettings();
 	}
 
 	int VP8EncoderImpl::SetCpuSpeed(int width, int height)
 	{
-#if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)
+#if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64) || defined(ANDROID)
 		// On mobile platform, always set to -12 to leverage between cpu usage
 		// and video quality.
 		return -12;
@@ -785,7 +781,7 @@ namespace webrtc
 		// when encoding lower resolution streams. Would it work with the
 		// multi-res encoding feature?
 		denoiserState denoiser_state = kDenoiserOnYOnly;
-#if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64)
+#if defined(WEBRTC_ARCH_ARM) || defined(WEBRTC_ARCH_ARM64) || defined(ANDROID)
 		denoiser_state = kDenoiserOnYOnly;
 #else
 		denoiser_state = kDenoiserOnAdaptive;
@@ -869,15 +865,18 @@ namespace webrtc
 		// Image in vpx_image_t format.
 		// Input image is const. VP8's raw image is not defined as const.
 		raw_images_[0].planes[VPX_PLANE_Y] =
-			const_cast<uint8_t*>(input_image.buffer(kYPlane));
+			const_cast<uint8_t*>(input_image.video_frame_buffer()->DataY());
 		raw_images_[0].planes[VPX_PLANE_U] =
-			const_cast<uint8_t*>(input_image.buffer(kUPlane));
+			const_cast<uint8_t*>(input_image.video_frame_buffer()->DataU());
 		raw_images_[0].planes[VPX_PLANE_V] =
-			const_cast<uint8_t*>(input_image.buffer(kVPlane));
+			const_cast<uint8_t*>(input_image.video_frame_buffer()->DataV());
 
-		raw_images_[0].stride[VPX_PLANE_Y] = input_image.stride(kYPlane);
-		raw_images_[0].stride[VPX_PLANE_U] = input_image.stride(kUPlane);
-		raw_images_[0].stride[VPX_PLANE_V] = input_image.stride(kVPlane);
+		raw_images_[0].stride[VPX_PLANE_Y] =
+			input_image.video_frame_buffer()->StrideY();
+		raw_images_[0].stride[VPX_PLANE_U] =
+			input_image.video_frame_buffer()->StrideU();
+		raw_images_[0].stride[VPX_PLANE_V] =
+			input_image.video_frame_buffer()->StrideV();
 
 		for (size_t i = 1; i < encoders_.size(); ++i)
 		{
@@ -1175,30 +1174,35 @@ namespace webrtc
 				}
 			}
 			encoded_images_[encoder_idx]._timeStamp = input_image.timestamp();
-			encoded_images_[encoder_idx].capture_time_ms_ = input_image.render_time_ms();
+			encoded_images_[encoder_idx].capture_time_ms_ =
+				input_image.render_time_ms();
+			encoded_images_[encoder_idx].rotation_ = input_image.rotation();
 
 			int qp = -1;
 			vpx_codec_control(&encoders_[encoder_idx], VP8E_GET_LAST_QUANTIZER_64, &qp);
 			temporal_layers_[stream_idx]->FrameEncoded(
 				encoded_images_[encoder_idx]._length,
 				encoded_images_[encoder_idx]._timeStamp, qp);
-
 			if (send_stream_[stream_idx])
 			{
 				if (encoded_images_[encoder_idx]._length > 0)
 				{
-					TRACE_COUNTER_ID1("webrtc", "EncodedFrameSize", encoder_idx, encoded_images_[encoder_idx]._length);
-
-					encoded_images_[encoder_idx]._encodedHeight = codec_.simulcastStream[stream_idx].height;
-					encoded_images_[encoder_idx]._encodedWidth = codec_.simulcastStream[stream_idx].width;
-
-					encoded_images_[encoder_idx].adapt_reason_.quality_resolution_downscales =
+					TRACE_COUNTER_ID1("webrtc", "EncodedFrameSize", encoder_idx,
+									  encoded_images_[encoder_idx]._length);
+					encoded_images_[encoder_idx]._encodedHeight =
+						codec_.simulcastStream[stream_idx].height;
+					encoded_images_[encoder_idx]._encodedWidth =
+						codec_.simulcastStream[stream_idx].width;
+					encoded_images_[encoder_idx]
+						.adapt_reason_.quality_resolution_downscales =
 						quality_scaler_enabled_ ? quality_scaler_.downscale_shift() : -1;
-
 					// Report once per frame (lowest stream always sent).
 					encoded_images_[encoder_idx].adapt_reason_.bw_resolutions_disabled =
 						(stream_idx == 0) ? bw_resolutions_disabled : -1;
-
+					int qp_128 = -1;
+					vpx_codec_control(&encoders_[encoder_idx], VP8E_GET_LAST_QUANTIZER,
+									  &qp_128);
+					encoded_images_[encoder_idx].qp_ = qp_128;
 					encoded_complete_callback_->Encoded(encoded_images_[encoder_idx],
 														&codec_specific, &frag_info);
 				}
@@ -1212,9 +1216,9 @@ namespace webrtc
 		{
 			if (encoded_images_[0]._length > 0)
 			{
-				int qp;
-				vpx_codec_control(&encoders_[0], VP8E_GET_LAST_QUANTIZER_64, &qp);
-				quality_scaler_.ReportQP(qp);
+				int qp_128;
+				vpx_codec_control(&encoders_[0], VP8E_GET_LAST_QUANTIZER, &qp_128);
+				quality_scaler_.ReportQP(qp_128);
 			}
 			else
 			{
@@ -1279,7 +1283,8 @@ namespace webrtc
 		cfg.h = cfg.w = 0;  // set after decode
 
 		vpx_codec_flags_t flags = 0;
-#if !defined(WEBRTC_ARCH_ARM) && !defined(WEBRTC_ARCH_ARM64)
+#if !defined(WEBRTC_ARCH_ARM) && !defined(WEBRTC_ARCH_ARM64) && \
+  !defined(ANDROID)
 		flags = VPX_CODEC_USE_POSTPROC;
 #ifdef INDEPENDENT_PARTITIONS
 		flags |= VPX_CODEC_USE_INPUT_PARTITION;
@@ -1332,7 +1337,8 @@ namespace webrtc
 		}
 #endif
 
-#if !defined(WEBRTC_ARCH_ARM) && !defined(WEBRTC_ARCH_ARM64)
+#if !defined(WEBRTC_ARCH_ARM) && !defined(WEBRTC_ARCH_ARM64) && \
+  !defined(ANDROID)
 		vp8_postproc_cfg_t ppcfg;
 		// MFQE enabled to reduce key frame popping.
 		ppcfg.post_proc_flag = VP8_MFQE | VP8_DEBLOCK;
@@ -1563,9 +1569,12 @@ namespace webrtc
 		libyuv::I420Copy(img->planes[VPX_PLANE_Y], img->stride[VPX_PLANE_Y],
 						 img->planes[VPX_PLANE_U], img->stride[VPX_PLANE_U],
 						 img->planes[VPX_PLANE_V], img->stride[VPX_PLANE_V],
-						 decoded_image.buffer(kYPlane), decoded_image.stride(kYPlane),
-						 decoded_image.buffer(kUPlane), decoded_image.stride(kUPlane),
-						 decoded_image.buffer(kVPlane), decoded_image.stride(kVPlane),
+						 decoded_image.video_frame_buffer()->MutableDataY(),
+						 decoded_image.video_frame_buffer()->StrideY(),
+						 decoded_image.video_frame_buffer()->MutableDataU(),
+						 decoded_image.video_frame_buffer()->StrideU(),
+						 decoded_image.video_frame_buffer()->MutableDataV(),
+						 decoded_image.video_frame_buffer()->StrideV(),
 						 img->d_w, img->d_h);
 		decoded_image.set_ntp_time_ms(ntp_time_ms);
 		int ret = decode_complete_callback_->Decoded(decoded_image);

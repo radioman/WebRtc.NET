@@ -83,11 +83,9 @@ class AudioProcessingImpl : public AudioProcessing {
   void set_delay_offset_ms(int offset) override;
   int delay_offset_ms() const override;
   void set_stream_key_pressed(bool key_pressed) override;
-  int input_sample_rate_hz() const override;
 
   // Render-side exclusive methods possibly running APM in a
   // multi-threaded manner. Acquire the render lock.
-  int AnalyzeReverseStream(AudioFrame* frame) override;
   int ProcessReverseStream(AudioFrame* frame) override;
   int AnalyzeReverseStream(const float* const* data,
                            size_t samples_per_channel,
@@ -198,19 +196,20 @@ class AudioProcessingImpl : public AudioProcessing {
       EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
   void InitializeEchoCanceller()
       EXCLUSIVE_LOCKS_REQUIRED(crit_render_, crit_capture_);
+  void InitializeGainController()
+      EXCLUSIVE_LOCKS_REQUIRED(crit_render_, crit_capture_);
+  void InitializeEchoControlMobile()
+      EXCLUSIVE_LOCKS_REQUIRED(crit_render_, crit_capture_);
   int InitializeLocked(const ProcessingConfig& config)
       EXCLUSIVE_LOCKS_REQUIRED(crit_render_, crit_capture_);
 
   // Capture-side exclusive methods possibly running APM in a multi-threaded
   // manner that are called with the render lock already acquired.
   int ProcessStreamLocked() EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
-  bool output_copy_needed(bool is_data_processed) const
-      EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
-  bool is_data_processed() const EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
-  bool synthesis_needed(bool is_data_processed) const
-      EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
-  bool analysis_needed(bool is_data_processed) const
-      EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
+  bool output_copy_needed() const EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
+  bool is_fwd_processed() const EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
+  bool fwd_synthesis_needed() const EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
+  bool fwd_analysis_needed() const EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
   void MaybeUpdateHistograms() EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
 
   // Render-side exclusive methods possibly running APM in a multi-threaded
@@ -221,6 +220,8 @@ class AudioProcessingImpl : public AudioProcessing {
                                  const StreamConfig& output_config)
       EXCLUSIVE_LOCKS_REQUIRED(crit_render_);
   bool is_rev_processed() const EXCLUSIVE_LOCKS_REQUIRED(crit_render_);
+  bool rev_synthesis_needed() const EXCLUSIVE_LOCKS_REQUIRED(crit_render_);
+  bool rev_analysis_needed() const EXCLUSIVE_LOCKS_REQUIRED(crit_render_);
   int ProcessReverseStreamLocked() EXCLUSIVE_LOCKS_REQUIRED(crit_render_);
 
 // Debug dump methods that are internal and called without locks.
@@ -275,16 +276,12 @@ class AudioProcessingImpl : public AudioProcessing {
 
   // APM constants.
   const struct ApmConstants {
-    ApmConstants(int agc_startup_min_volume,
-                 bool use_experimental_agc,
-                 bool intelligibility_enabled)
+    ApmConstants(int agc_startup_min_volume, bool use_experimental_agc)
         :  // Format of processing streams at input/output call sites.
           agc_startup_min_volume(agc_startup_min_volume),
-          use_experimental_agc(use_experimental_agc),
-          intelligibility_enabled(intelligibility_enabled) {}
+          use_experimental_agc(use_experimental_agc) {}
     int agc_startup_min_volume;
     bool use_experimental_agc;
-    bool intelligibility_enabled;
   } constants_;
 
   struct ApmCaptureState {
@@ -324,11 +321,13 @@ class AudioProcessingImpl : public AudioProcessing {
   } capture_ GUARDED_BY(crit_capture_);
 
   struct ApmCaptureNonLockedState {
-    ApmCaptureNonLockedState(bool beamformer_enabled)
+    ApmCaptureNonLockedState(bool beamformer_enabled,
+                             bool intelligibility_enabled)
         : fwd_proc_format(kSampleRate16kHz),
           split_rate(kSampleRate16kHz),
           stream_delay_ms(0),
-          beamformer_enabled(beamformer_enabled) {}
+          beamformer_enabled(beamformer_enabled),
+          intelligibility_enabled(intelligibility_enabled) {}
     // Only the rate and samples fields of fwd_proc_format_ are used because the
     // forward processing number of channels is mutable and is tracked by the
     // capture_audio_.
@@ -336,6 +335,7 @@ class AudioProcessingImpl : public AudioProcessing {
     int split_rate;
     int stream_delay_ms;
     bool beamformer_enabled;
+    bool intelligibility_enabled;
   } capture_nonlocked_;
 
   struct ApmRenderState {

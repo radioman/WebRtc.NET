@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 
+#include "webrtc/api/rtpparameters.h"
 #include "webrtc/media/base/mediaconstants.h"
 
 namespace cricket {
@@ -64,16 +65,15 @@ struct Codec {
   int id;
   std::string name;
   int clockrate;
-  int preference;
   CodecParameterMap params;
   FeedbackParams feedback_params;
 
   // Creates a codec with the given parameters.
-  Codec(int id, const std::string& name, int clockrate, int preference);
+  Codec(int id, const std::string& name, int clockrate);
   // Creates an empty codec.
   Codec();
   Codec(const Codec& c);
-  ~Codec();
+  virtual ~Codec();
 
   // Indicates if this codec is compatible with the specified codec.
   bool Matches(const Codec& codec) const;
@@ -92,13 +92,11 @@ struct Codec {
   bool HasFeedbackParam(const FeedbackParam& param) const;
   void AddFeedbackParam(const FeedbackParam& param);
 
-  static bool Preferable(const Codec& first, const Codec& other) {
-    return first.preference > other.preference;
-  }
-
   // Filter |this| feedbacks params such that only those shared by both |this|
   // and |other| are kept.
   void IntersectFeedbackParams(const Codec& other);
+
+  virtual webrtc::RtpCodecParameters ToCodecParameters() const;
 
   Codec& operator=(const Codec& c);
 
@@ -118,21 +116,18 @@ struct AudioCodec : public Codec {
              const std::string& name,
              int clockrate,
              int bitrate,
-             size_t channels,
-             int preference);
+             size_t channels);
   // Creates an empty codec.
   AudioCodec();
   AudioCodec(const AudioCodec& c);
-  ~AudioCodec() = default;
+  virtual ~AudioCodec() = default;
 
   // Indicates if this codec is compatible with the specified codec.
   bool Matches(const AudioCodec& codec) const;
 
-  static bool Preferable(const AudioCodec& first, const AudioCodec& other) {
-    return first.preference > other.preference;
-  }
-
   std::string ToString() const;
+
+  webrtc::RtpCodecParameters ToCodecParameters() const override;
 
   AudioCodec& operator=(const AudioCodec& c);
 
@@ -153,17 +148,12 @@ struct VideoCodec : public Codec {
              const std::string& name,
              int width,
              int height,
-             int framerate,
-             int preference);
+             int framerate);
   VideoCodec(int id, const std::string& name);
   // Creates an empty codec.
   VideoCodec();
   VideoCodec(const VideoCodec& c);
-  ~VideoCodec() = default;
-
-  static bool Preferable(const VideoCodec& first, const VideoCodec& other) {
-    return first.preference > other.preference;
-  }
+  virtual ~VideoCodec() = default;
 
   std::string ToString() const;
 
@@ -193,9 +183,10 @@ struct VideoCodec : public Codec {
 };
 
 struct DataCodec : public Codec {
-  DataCodec(int id, const std::string& name, int preference);
+  DataCodec(int id, const std::string& name);
   DataCodec();
   DataCodec(const DataCodec& c);
+  virtual ~DataCodec() = default;
 
   DataCodec& operator=(const DataCodec& c);
 

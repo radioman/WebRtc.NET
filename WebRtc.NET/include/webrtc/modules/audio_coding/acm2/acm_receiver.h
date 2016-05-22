@@ -82,11 +82,13 @@ class AcmReceiver {
   // Output:
   //   -audio_frame           : an audio frame were output data and
   //                            associated parameters are written to.
+  //   -muted                 : if true, the sample data in audio_frame is not
+  //                            populated, and must be interpreted as all zero.
   //
   // Return value             : 0 if OK.
   //                           -1 if NetEq returned an error.
   //
-  int GetAudio(int desired_freq_hz, AudioFrame* audio_frame);
+  int GetAudio(int desired_freq_hz, AudioFrame* audio_frame, bool* muted);
 
   //
   // Adds a new codec to the NetEq codec database.
@@ -195,11 +197,9 @@ class AcmReceiver {
   //
   int RemoveAllCodecs();
 
-  //
-  // Gets the RTP timestamp of the last sample delivered by GetAudio().
-  // Returns true if the RTP timestamp is valid, otherwise false.
-  //
-  bool GetPlayoutTimestamp(uint32_t* timestamp);
+  // Returns the RTP timestamp for the last sample delivered by GetAudio().
+  // The return value will be empty if no valid timestamp is available.
+  rtc::Optional<uint32_t> GetPlayoutTimestamp();
 
   //
   // Get the audio codec associated with the last non-CNG/non-DTMF received

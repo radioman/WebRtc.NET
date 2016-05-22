@@ -14,6 +14,7 @@
 #include <map>
 
 #include "webrtc/base/basictypes.h"
+#include "webrtc/base/constructormagic.h"
 
 namespace webrtc {
 
@@ -32,7 +33,8 @@ enum class ConfigOptionID {
   kExperimentalNs,
   kBeamforming,
   kIntelligibility,
-  kEchoCanceller3
+  kEchoCanceller3,
+  kAecRefinedAdaptiveFilter
 };
 
 // Class Config is designed to ease passing a set of options across webrtc code.

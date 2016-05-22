@@ -17,8 +17,6 @@
 namespace webrtc {
 class QualityScaler {
  public:
-  static const int kDefaultLowQpDenominator;
-  static const int kDefaultMinDownscaleDimension;
   struct Resolution {
     int width;
     int height;
@@ -27,42 +25,49 @@ class QualityScaler {
   QualityScaler();
   void Init(int low_qp_threshold,
             int high_qp_threshold,
-            bool use_framerate_reduction,
             int initial_bitrate_kbps,
             int width,
-            int height);
-  void SetMinResolution(int min_width, int min_height);
+            int height,
+            int fps);
   void ReportFramerate(int framerate);
   void ReportQP(int qp);
   void ReportDroppedFrame();
-  void Reset(int framerate, int bitrate, int width, int height);
   void OnEncodeFrame(const VideoFrame& frame);
   Resolution GetScaledResolution() const;
   const VideoFrame& GetScaledFrame(const VideoFrame& frame);
-  int GetTargetFramerate() const;
   int downscale_shift() const { return downscale_shift_; }
+
+  // QP is obtained from VP8-bitstream for HW, so the QP corresponds to the
+  // bitstream range of [0, 127] and not the user-level range of [0,63].
+  static const int kLowVp8QpThreshold;
+  static const int kBadVp8QpThreshold;
+
+  // H264 QP is in the range [0, 51].
+  static const int kLowH264QpThreshold;
+  static const int kBadH264QpThreshold;
 
  private:
   void AdjustScale(bool up);
+  void UpdateTargetResolution(int frame_width, int frame_height);
   void ClearSamples();
+  void UpdateSampleCounts();
 
   Scaler scaler_;
   VideoFrame scaled_frame_;
 
-  size_t num_samples_;
+  size_t num_samples_downscale_;
+  size_t num_samples_upscale_;
+  int measure_seconds_upscale_;
+  MovingAverage<int> average_qp_upscale_;
+  MovingAverage<int> average_qp_downscale_;
+
   int framerate_;
-  int target_framerate_;
   int low_qp_threshold_;
   int high_qp_threshold_;
   MovingAverage<int> framedrop_percent_;
-  MovingAverage<int> average_qp_;
   Resolution res_;
 
   int downscale_shift_;
-  int framerate_down_;
-  bool use_framerate_reduction_;
-  int min_width_;
-  int min_height_;
 };
 
 }  // namespace webrtc

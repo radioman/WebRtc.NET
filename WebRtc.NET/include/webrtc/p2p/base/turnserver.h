@@ -13,6 +13,7 @@
 
 #include <list>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 
@@ -23,7 +24,7 @@
 #include "webrtc/base/socketaddress.h"
 
 namespace rtc {
-class ByteBuffer;
+class ByteBufferWriter;
 class PacketSocketFactory;
 class Thread;
 }
@@ -125,7 +126,7 @@ class TurnServerAllocation : public rtc::MessageHandler,
   TurnServer* server_;
   rtc::Thread* thread_;
   TurnServerConnection conn_;
-  rtc::scoped_ptr<rtc::AsyncPacketSocket> external_socket_;
+  std::unique_ptr<rtc::AsyncPacketSocket> external_socket_;
   std::string key_;
   std::string transaction_id_;
   std::string username_;
@@ -143,6 +144,7 @@ class TurnAuthInterface {
   // Return true if the given username and realm are valid, or false if not.
   virtual bool GetKey(const std::string& username, const std::string& realm,
                       std::string* key) = 0;
+  virtual ~TurnAuthInterface() = default;
 };
 
 // An interface enables Turn Server to control redirection behavior.
@@ -200,13 +202,13 @@ class TurnServer : public sigslot::has_slots<> {
   void SetExternalSocketFactory(rtc::PacketSocketFactory* factory,
                                 const rtc::SocketAddress& address);
   // For testing only.
-  std::string SetTimestampForNextNonce(uint32_t timestamp) {
+  std::string SetTimestampForNextNonce(int64_t timestamp) {
     ts_for_next_nonce_ = timestamp;
     return GenerateNonce(timestamp);
   }
 
  private:
-  std::string GenerateNonce(uint32_t now) const;
+  std::string GenerateNonce(int64_t now) const;
   void OnInternalPacket(rtc::AsyncPacketSocket* socket, const char* data,
                         size_t size, const rtc::SocketAddress& address,
                         const rtc::PacketTime& packet_time);
@@ -246,7 +248,7 @@ class TurnServer : public sigslot::has_slots<> {
                                             const rtc::SocketAddress& addr);
 
   void SendStun(TurnServerConnection* conn, StunMessage* msg);
-  void Send(TurnServerConnection* conn, const rtc::ByteBuffer& buf);
+  void Send(TurnServerConnection* conn, const rtc::ByteBufferWriter& buf);
 
   void OnAllocationDestroyed(TurnServerAllocation* allocation);
   void DestroyInternalSocket(rtc::AsyncPacketSocket* socket);
@@ -269,15 +271,14 @@ class TurnServer : public sigslot::has_slots<> {
 
   InternalSocketMap server_sockets_;
   ServerSocketMap server_listen_sockets_;
-  rtc::scoped_ptr<rtc::PacketSocketFactory>
-      external_socket_factory_;
+  std::unique_ptr<rtc::PacketSocketFactory> external_socket_factory_;
   rtc::SocketAddress external_addr_;
 
   AllocationMap allocations_;
 
   // For testing only. If this is non-zero, the next NONCE will be generated
   // from this value, and it will be reset to 0 after generating the NONCE.
-  uint32_t ts_for_next_nonce_ = 0;
+  int64_t ts_for_next_nonce_ = 0;
 
   friend class TurnServerAllocation;
 };

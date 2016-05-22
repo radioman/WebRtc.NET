@@ -11,17 +11,26 @@
 #ifndef WEBRTC_MEDIA_BASE_VIDEOBROADCASTER_H_
 #define WEBRTC_MEDIA_BASE_VIDEOBROADCASTER_H_
 
+#include <memory>
 #include <utility>
 #include <vector>
 
+#include "webrtc/base/criticalsection.h"
 #include "webrtc/base/thread_checker.h"
 #include "webrtc/media/base/videoframe.h"
 #include "webrtc/media/base/videosinkinterface.h"
-#include "webrtc/media/base/videosourceinterface.h"
+#include "webrtc/media/base/videosourcebase.h"
+#include "webrtc/media/engine/webrtcvideoframe.h"
 
 namespace rtc {
 
-class VideoBroadcaster : public VideoSourceInterface<cricket::VideoFrame>,
+// VideoBroadcaster broadcast video frames to sinks and combines
+// VideoSinkWants from its sinks. It does that by implementing
+// rtc::VideoSourceInterface and rtc::VideoSinkInterface.
+// Sinks must be added and removed on one and only one thread.
+// Video frames can be broadcasted on any thread. I.e VideoBroadcaster::OnFrame
+// can be called on any thread.
+class VideoBroadcaster : public VideoSourceBase,
                          public VideoSinkInterface<cricket::VideoFrame> {
  public:
   VideoBroadcaster();
@@ -39,20 +48,15 @@ class VideoBroadcaster : public VideoSourceInterface<cricket::VideoFrame>,
   void OnFrame(const cricket::VideoFrame& frame) override;
 
  protected:
-  struct SinkPair {
-    SinkPair(VideoSinkInterface<cricket::VideoFrame>* sink,
-             VideoSinkWants wants)
-        : sink(sink), wants(wants) {}
-    VideoSinkInterface<cricket::VideoFrame>* sink;
-    VideoSinkWants wants;
-  };
-  SinkPair* FindSinkPair(const VideoSinkInterface<cricket::VideoFrame>* sink);
-  void UpdateWants();
+  void UpdateWants() EXCLUSIVE_LOCKS_REQUIRED(sinks_and_wants_lock_);
+  const cricket::VideoFrame& GetBlackFrame(const cricket::VideoFrame& frame)
+      EXCLUSIVE_LOCKS_REQUIRED(sinks_and_wants_lock_);
 
   ThreadChecker thread_checker_;
+  rtc::CriticalSection sinks_and_wants_lock_;
 
-  VideoSinkWants current_wants_;
-  std::vector<SinkPair> sinks_;
+  VideoSinkWants current_wants_ GUARDED_BY(sinks_and_wants_lock_);
+  std::unique_ptr<cricket::WebRtcVideoFrame> black_frame_;
 };
 
 }  // namespace rtc

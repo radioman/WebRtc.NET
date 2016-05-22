@@ -11,15 +11,17 @@
 #ifndef WEBRTC_MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_MAGNIFIER_H_
 #define WEBRTC_MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_MAGNIFIER_H_
 
+#include <memory>
+
 #include <windows.h>
 #include <magnification.h>
 #include <wincodec.h>
 
 #include "webrtc/base/constructormagic.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/desktop_capture/screen_capture_frame_queue.h"
 #include "webrtc/modules/desktop_capture/screen_capturer.h"
 #include "webrtc/modules/desktop_capture/screen_capturer_helper.h"
+#include "webrtc/modules/desktop_capture/shared_desktop_frame.h"
 #include "webrtc/modules/desktop_capture/win/scoped_thread_desktop.h"
 #include "webrtc/system_wrappers/include/atomic32.h"
 
@@ -39,13 +41,13 @@ class ScreenCapturerWinMagnifier : public ScreenCapturer {
   // screen is being captured, or the OS does not support Magnification API, or
   // the magnifier capturer fails (e.g. in Windows8 Metro mode).
   explicit ScreenCapturerWinMagnifier(
-      rtc::scoped_ptr<ScreenCapturer> fallback_capturer);
+      std::unique_ptr<ScreenCapturer> fallback_capturer);
   virtual ~ScreenCapturerWinMagnifier();
 
   // Overridden from ScreenCapturer:
   void Start(Callback* callback) override;
   void SetSharedMemoryFactory(
-      rtc::scoped_ptr<SharedMemoryFactory> shared_memory_factory) override;
+      std::unique_ptr<SharedMemoryFactory> shared_memory_factory) override;
   void Capture(const DesktopRegion& region) override;
   bool GetScreenList(ScreenList* screens) override;
   bool SelectScreen(ScreenId id) override;
@@ -103,10 +105,10 @@ class ScreenCapturerWinMagnifier : public ScreenCapturer {
 
   static Atomic32 tls_index_;
 
-  rtc::scoped_ptr<ScreenCapturer> fallback_capturer_;
+  std::unique_ptr<ScreenCapturer> fallback_capturer_;
   bool fallback_capturer_started_;
   Callback* callback_;
-  rtc::scoped_ptr<SharedMemoryFactory> shared_memory_factory_;
+  std::unique_ptr<SharedMemoryFactory> shared_memory_factory_;
   ScreenId current_screen_id_;
   std::wstring current_device_key_;
   HWND excluded_window_;
@@ -116,10 +118,10 @@ class ScreenCapturerWinMagnifier : public ScreenCapturer {
   ScreenCapturerHelper helper_;
 
   // Queue of the frames buffers.
-  ScreenCaptureFrameQueue queue_;
+  ScreenCaptureFrameQueue<SharedDesktopFrame> queue_;
 
   // Class to calculate the difference between two screen bitmaps.
-  rtc::scoped_ptr<Differ> differ_;
+  std::unique_ptr<Differ> differ_;
 
   // Used to suppress duplicate logging of SetThreadExecutionState errors.
   bool set_thread_execution_state_failed_;

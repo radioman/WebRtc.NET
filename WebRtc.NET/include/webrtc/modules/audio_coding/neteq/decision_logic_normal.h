@@ -28,11 +28,16 @@ class DecisionLogicNormal : public DecisionLogic {
                       DecoderDatabase* decoder_database,
                       const PacketBuffer& packet_buffer,
                       DelayManager* delay_manager,
-                      BufferLevelFilter* buffer_level_filter)
-      : DecisionLogic(fs_hz, output_size_samples, playout_mode,
-                      decoder_database, packet_buffer, delay_manager,
-                      buffer_level_filter) {
-  }
+                      BufferLevelFilter* buffer_level_filter,
+                      const TickTimer* tick_timer)
+      : DecisionLogic(fs_hz,
+                      output_size_samples,
+                      playout_mode,
+                      decoder_database,
+                      packet_buffer,
+                      delay_manager,
+                      buffer_level_filter,
+                      tick_timer) {}
 
  protected:
   static const int kAllowMergeWithoutExpandMs = 20;  // 20 ms.
@@ -54,7 +59,8 @@ class DecisionLogicNormal : public DecisionLogic {
                                     const RTPHeader* packet_header,
                                     Modes prev_mode,
                                     bool play_dtmf,
-                                    bool* reset_decoder) override;
+                                    bool* reset_decoder,
+                                    size_t generated_noise_samples) override;
 
   // Returns the operation to do given that the expected packet is not
   // available, but a packet further into the future is at hand.
@@ -65,7 +71,8 @@ class DecisionLogicNormal : public DecisionLogic {
       Modes prev_mode,
       uint32_t target_timestamp,
       uint32_t available_timestamp,
-      bool play_dtmf);
+      bool play_dtmf,
+      size_t generated_noise_samples);
 
   // Returns the operation to do given that the expected packet is available.
   virtual Operations ExpectedPacketAvailable(Modes prev_mode, bool play_dtmf);
@@ -77,12 +84,16 @@ class DecisionLogicNormal : public DecisionLogic {
  private:
   // Returns the operation given that the next available packet is a comfort
   // noise payload (RFC 3389 only, not codec-internal).
-  Operations CngOperation(Modes prev_mode, uint32_t target_timestamp,
-                          uint32_t available_timestamp);
+  Operations CngOperation(Modes prev_mode,
+                          uint32_t target_timestamp,
+                          uint32_t available_timestamp,
+                          size_t generated_noise_samples);
 
   // Checks if enough time has elapsed since the last successful timescale
   // operation was done (i.e., accelerate or preemptive expand).
-  bool TimescaleAllowed() const { return timescale_hold_off_ == 0; }
+  bool TimescaleAllowed() const {
+    return !timescale_countdown_ || timescale_countdown_->Finished();
+  }
 
   // Checks if the current (filtered) buffer level is under the target level.
   bool UnderTargetLevel() const;

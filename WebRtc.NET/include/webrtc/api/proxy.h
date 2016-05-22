@@ -18,7 +18,7 @@
 //  public:
 //   std::string FooA() = 0;
 //   std::string FooB(bool arg1) const = 0;
-//   std::string FooC(bool arg1)= 0;
+//   std::string FooC(bool arg1) = 0;
 //  };
 //
 // Note that return types can not be a const reference.
@@ -30,13 +30,24 @@
 // BEGIN_PROXY_MAP(Test)
 //   PROXY_METHOD0(std::string, FooA)
 //   PROXY_CONSTMETHOD1(std::string, FooB, arg1)
-//   PROXY_METHOD1(std::string, FooC, arg1)
+//   PROXY_WORKER_METHOD1(std::string, FooC, arg1)
 // END_PROXY()
 //
-// The proxy can be created using TestProxy::Create(Thread*, TestInterface*).
+// where the first two methods are invoked on the signaling thread,
+// and the third is invoked on the worker thread.
+//
+// The proxy can be created using
+//
+//   TestProxy::Create(Thread* signaling_thread, Thread* worker_thread,
+//                     TestInterface*).
+//
+// The variant defined with BEGIN_SIGNALING_PROXY_MAP is unaware of
+// the worker thread, and invokes all methods on the signaling thread.
 
 #ifndef WEBRTC_API_PROXY_H_
 #define WEBRTC_API_PROXY_H_
+
+#include <memory>
 
 #include "webrtc/base/event.h"
 #include "webrtc/base/thread.h"
@@ -108,7 +119,7 @@ class SynchronousMethodCall
 
  private:
   void OnMessage(rtc::Message*) { proxy_->OnMessage(NULL); e_->Set(); }
-  rtc::scoped_ptr<rtc::Event> e_;
+  std::unique_ptr<rtc::Event> e_;
   rtc::MessageHandler* proxy_;
 };
 
@@ -295,79 +306,125 @@ class MethodCall5 : public rtc::Message,
   T5 a5_;
 };
 
-#define BEGIN_PROXY_MAP(c)                                                \
+#define BEGIN_SIGNALING_PROXY_MAP(c)                                     \
   class c##Proxy : public c##Interface {                                  \
    protected:                                                             \
     typedef c##Interface C;                                               \
-    c##Proxy(rtc::Thread* thread, C* c) : owner_thread_(thread), c_(c) {} \
+    c##Proxy(rtc::Thread* signaling_thread, C* c)                         \
+      : signaling_thread_(signaling_thread), c_(c) {}                     \
     ~c##Proxy() {                                                         \
-      MethodCall0<c##Proxy, void> call(this, &c##Proxy::Release_s);       \
-      call.Marshal(owner_thread_);                                        \
+      MethodCall0<c##Proxy, void> call(                                   \
+          this, &c##Proxy::Release_s);                                    \
+      call.Marshal(signaling_thread_);                                    \
     }                                                                     \
                                                                           \
    public:                                                                \
-    static rtc::scoped_refptr<C> Create(rtc::Thread* thread, C* c) {      \
-      return new rtc::RefCountedObject<c##Proxy>(thread, c);              \
+    static rtc::scoped_refptr<C> Create(rtc::Thread* signaling_thread, C* c) { \
+      return new rtc::RefCountedObject<c##Proxy>(                         \
+          signaling_thread, c);                                           \
+    }
+
+#define BEGIN_PROXY_MAP(c)                                              \
+  class c##Proxy : public c##Interface {                                \
+   protected:                                                           \
+    typedef c##Interface C;                                             \
+    c##Proxy(rtc::Thread* signaling_thread, rtc::Thread* worker_thread, C* c) \
+      : signaling_thread_(signaling_thread),                            \
+        worker_thread_(worker_thread),                                  \
+        c_(c) {}                                                        \
+    ~c##Proxy() {                                                       \
+      MethodCall0<c##Proxy, void> call(this, &c##Proxy::Release_s);     \
+      call.Marshal(signaling_thread_);                                  \
+    }                                                                   \
+                                                                        \
+   public:                                                              \
+    static rtc::scoped_refptr<C> Create(                                \
+        rtc::Thread* signaling_thread, rtc::Thread* worker_thread, C* c) { \
+      return new rtc::RefCountedObject<c##Proxy>(                       \
+          signaling_thread, worker_thread, c);                          \
     }
 
 #define PROXY_METHOD0(r, method)                  \
   r method() override {                           \
     MethodCall0<C, r> call(c_.get(), &C::method); \
-    return call.Marshal(owner_thread_);           \
+    return call.Marshal(signaling_thread_);       \
   }
 
 #define PROXY_CONSTMETHOD0(r, method)                  \
   r method() const override {                          \
     ConstMethodCall0<C, r> call(c_.get(), &C::method); \
-    return call.Marshal(owner_thread_);                \
+    return call.Marshal(signaling_thread_);            \
   }
 
 #define PROXY_METHOD1(r, method, t1)                      \
   r method(t1 a1) override {                              \
     MethodCall1<C, r, t1> call(c_.get(), &C::method, a1); \
-    return call.Marshal(owner_thread_);                   \
+    return call.Marshal(signaling_thread_);               \
   }
 
 #define PROXY_CONSTMETHOD1(r, method, t1)                      \
   r method(t1 a1) const override {                             \
     ConstMethodCall1<C, r, t1> call(c_.get(), &C::method, a1); \
-    return call.Marshal(owner_thread_);                        \
+    return call.Marshal(signaling_thread_);                    \
   }
 
 #define PROXY_METHOD2(r, method, t1, t2)                          \
   r method(t1 a1, t2 a2) override {                               \
     MethodCall2<C, r, t1, t2> call(c_.get(), &C::method, a1, a2); \
-    return call.Marshal(owner_thread_);                           \
+    return call.Marshal(signaling_thread_);                       \
   }
 
 #define PROXY_METHOD3(r, method, t1, t2, t3)                              \
   r method(t1 a1, t2 a2, t3 a3) override {                                \
     MethodCall3<C, r, t1, t2, t3> call(c_.get(), &C::method, a1, a2, a3); \
-    return call.Marshal(owner_thread_);                                   \
+    return call.Marshal(signaling_thread_);                               \
   }
 
 #define PROXY_METHOD4(r, method, t1, t2, t3, t4)                             \
   r method(t1 a1, t2 a2, t3 a3, t4 a4) override {                            \
     MethodCall4<C, r, t1, t2, t3, t4> call(c_.get(), &C::method, a1, a2, a3, \
                                            a4);                              \
-    return call.Marshal(owner_thread_);                                      \
+    return call.Marshal(signaling_thread_);                                  \
   }
 
 #define PROXY_METHOD5(r, method, t1, t2, t3, t4, t5)                         \
   r method(t1 a1, t2 a2, t3 a3, t4 a4, t5 a5) override {                     \
     MethodCall5<C, r, t1, t2, t3, t4, t5> call(c_.get(), &C::method, a1, a2, \
                                                a3, a4, a5);                  \
-    return call.Marshal(owner_thread_);                                      \
+    return call.Marshal(signaling_thread_);                                  \
   }
 
-#define END_PROXY() \
+// Define methods which should be invoked on the worker thread.
+#define PROXY_WORKER_METHOD1(r, method, t1)               \
+  r method(t1 a1) override {                              \
+    MethodCall1<C, r, t1> call(c_.get(), &C::method, a1); \
+    return call.Marshal(worker_thread_);                  \
+  }
+
+#define PROXY_WORKER_METHOD2(r, method, t1, t2)                   \
+  r method(t1 a1, t2 a2) override {                               \
+    MethodCall2<C, r, t1, t2> call(c_.get(), &C::method, a1, a2); \
+    return call.Marshal(worker_thread_);                          \
+  }
+
+#define END_SIGNALING_PROXY() \
    private:\
     void Release_s() {\
       c_ = NULL;\
     }\
-    mutable rtc::Thread* owner_thread_;\
+    mutable rtc::Thread* signaling_thread_;\
     rtc::scoped_refptr<C> c_;\
-  };\
+  };
+
+#define END_PROXY()                                  \
+   private:                                          \
+    void Release_s() {                               \
+      c_ = NULL;                                     \
+    }                                                \
+    mutable rtc::Thread* signaling_thread_;          \
+    mutable rtc::Thread* worker_thread_;             \
+    rtc::scoped_refptr<C> c_;                        \
+  };                                                 \
 
 }  // namespace webrtc
 

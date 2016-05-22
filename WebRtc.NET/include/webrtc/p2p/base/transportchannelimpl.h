@@ -12,6 +12,8 @@
 #define WEBRTC_P2P_BASE_TRANSPORTCHANNELIMPL_H_
 
 #include <string>
+
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/p2p/base/transportchannel.h"
 
 namespace buzz { class XmlElement; }
@@ -76,7 +78,10 @@ class TransportChannelImpl : public TransportChannel {
   // before forwarding.
   sigslot::signal2<TransportChannelImpl*, const Candidate&>
       SignalCandidateGathered;
+  sigslot::signal2<TransportChannelImpl*, const Candidates&>
+      SignalCandidatesRemoved;
   virtual void AddRemoteCandidate(const Candidate& candidate) = 0;
+  virtual void RemoveRemoteCandidate(const Candidate& candidate) = 0;
 
   virtual IceGatheringState gathering_state() const = 0;
 

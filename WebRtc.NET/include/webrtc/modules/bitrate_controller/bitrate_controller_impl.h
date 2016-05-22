@@ -20,14 +20,16 @@
 #include <list>
 #include <utility>
 
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/base/criticalsection.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/bitrate_controller/send_side_bandwidth_estimation.h"
 
 namespace webrtc {
 
 class BitrateControllerImpl : public BitrateController {
  public:
+  // TODO(perkj): BitrateObserver has been deprecated and is not used in WebRTC.
+  // |observer| is left for project that is not yet updated.
   BitrateControllerImpl(Clock* clock, BitrateObserver* observer);
   virtual ~BitrateControllerImpl() {}
 
@@ -35,14 +37,25 @@ class BitrateControllerImpl : public BitrateController {
 
   RtcpBandwidthObserver* CreateRtcpBandwidthObserver() override;
 
+  // Deprecated
   void SetStartBitrate(int start_bitrate_bps) override;
+  // Deprecated
   void SetMinMaxBitrate(int min_bitrate_bps, int max_bitrate_bps) override;
+
+  void SetBitrates(int start_bitrate_bps,
+                   int min_bitrate_bps,
+                   int max_bitrate_bps) override;
 
   void UpdateDelayBasedEstimate(uint32_t bitrate_bps) override;
 
   void SetReservedBitrate(uint32_t reserved_bitrate_bps) override;
 
   void SetEventLog(RtcEventLog* event_log) override;
+
+  // Returns true if the parameters have changed since the last call.
+  bool GetNetworkParameters(uint32_t* bitrate,
+                            uint8_t* fraction_loss,
+                            int64_t* rtt) override;
 
   int64_t TimeUntilNextProcess() override;
   void Process() override;
@@ -58,20 +71,16 @@ class BitrateControllerImpl : public BitrateController {
                                     int number_of_packets,
                                     int64_t now_ms);
 
+  // Deprecated
   void MaybeTriggerOnNetworkChanged();
-
-  // Returns true if the parameters have changed since the last call.
-  bool GetNetworkParameters(uint32_t* bitrate,
-                            uint8_t* fraction_loss,
-                            int64_t* rtt);
 
   void OnNetworkChanged(uint32_t bitrate,
                         uint8_t fraction_loss,  // 0 - 255.
                         int64_t rtt) EXCLUSIVE_LOCKS_REQUIRED(critsect_);
 
   // Used by process thread.
-  Clock* clock_;
-  BitrateObserver* observer_;
+  Clock* const clock_;
+  BitrateObserver* const observer_;
   int64_t last_bitrate_update_ms_;
 
   rtc::CriticalSection critsect_;

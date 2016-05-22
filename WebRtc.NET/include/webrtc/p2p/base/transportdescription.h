@@ -12,11 +12,11 @@
 #define WEBRTC_P2P_BASE_TRANSPORTDESCRIPTION_H_
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "webrtc/p2p/base/p2pconstants.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/sslfingerprint.h"
 
 namespace cricket {
@@ -139,7 +139,7 @@ struct TransportDescription {
   IceMode ice_mode;
   ConnectionRole connection_role;
 
-  rtc::scoped_ptr<rtc::SSLFingerprint> identity_fingerprint;
+  std::unique_ptr<rtc::SSLFingerprint> identity_fingerprint;
 };
 
 }  // namespace cricket

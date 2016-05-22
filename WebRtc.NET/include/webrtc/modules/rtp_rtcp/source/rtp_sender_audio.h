@@ -12,6 +12,8 @@
 #define WEBRTC_MODULES_RTP_RTCP_SOURCE_RTP_SENDER_AUDIO_H_
 
 #include "webrtc/common_types.h"
+#include "webrtc/base/criticalsection.h"
+#include "webrtc/base/onetimeevent.h"
 #include "webrtc/modules/rtp_rtcp/source/dtmf_queue.h"
 #include "webrtc/modules/rtp_rtcp/source/rtp_rtcp_config.h"
 #include "webrtc/modules/rtp_rtcp/source/rtp_sender.h"
@@ -21,9 +23,7 @@
 namespace webrtc {
 class RTPSenderAudio : public DTMFqueue {
  public:
-  RTPSenderAudio(Clock* clock,
-                 RTPSender* rtpSender,
-                 RtpAudioFeedback* audio_feedback);
+  RTPSenderAudio(Clock* clock, RTPSender* rtpSender);
   virtual ~RTPSenderAudio();
 
   int32_t RegisterAudioPayload(const char payloadName[RTP_PAYLOAD_NAME_SIZE],
@@ -73,9 +73,8 @@ class RTPSenderAudio : public DTMFqueue {
  private:
   Clock* const _clock;
   RTPSender* const _rtpSender;
-  RtpAudioFeedback* const _audioFeedback;
 
-  rtc::scoped_ptr<CriticalSectionWrapper> _sendAudioCritsect;
+  rtc::CriticalSection _sendAudioCritsect;
 
   uint16_t _packetSizeSamples GUARDED_BY(_sendAudioCritsect);
 
@@ -103,6 +102,7 @@ class RTPSenderAudio : public DTMFqueue {
   // Audio level indication
   // (https://datatracker.ietf.org/doc/draft-lennox-avt-rtp-audio-level-exthdr/)
   uint8_t _audioLevel_dBov GUARDED_BY(_sendAudioCritsect);
+  OneTimeEvent first_packet_sent_;
 };
 }  // namespace webrtc
 

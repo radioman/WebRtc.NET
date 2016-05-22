@@ -21,11 +21,6 @@
 
 namespace webrtc {
 
-// Deleter for use with unique_ptr.
-struct CngInstDeleter {
-  void operator()(CNG_enc_inst* ptr) const { WebRtcCng_FreeEnc(ptr); }
-};
-
 class Vad;
 
 class AudioEncoderCng final : public AudioEncoder {
@@ -52,7 +47,6 @@ class AudioEncoderCng final : public AudioEncoder {
   explicit AudioEncoderCng(Config&& config);
   ~AudioEncoderCng() override;
 
-  size_t MaxEncodedBytes() const override;
   int SampleRateHz() const override;
   size_t NumChannels() const override;
   int RtpTimestampRateHz() const override;
@@ -85,7 +79,7 @@ class AudioEncoderCng final : public AudioEncoder {
   std::vector<uint32_t> rtp_timestamps_;
   bool last_frame_active_;
   std::unique_ptr<Vad> vad_;
-  std::unique_ptr<CNG_enc_inst, CngInstDeleter> cng_inst_;
+  std::unique_ptr<ComfortNoiseEncoder> cng_encoder_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(AudioEncoderCng);
 };

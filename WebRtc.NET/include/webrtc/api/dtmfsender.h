@@ -17,6 +17,7 @@
 #include "webrtc/api/mediastreaminterface.h"
 #include "webrtc/api/proxy.h"
 #include "webrtc/base/common.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/base/messagehandler.h"
 #include "webrtc/base/refcount.h"
 
@@ -82,7 +83,7 @@ class DtmfSender
   DtmfSender();
 
   // Implements MessageHandler.
-  virtual void OnMessage(rtc::Message* msg);
+  void OnMessage(rtc::Message* msg) override;
 
   // The DTMF sending task.
   void DoInsertDtmf();
@@ -103,7 +104,7 @@ class DtmfSender
 };
 
 // Define proxy for DtmfSenderInterface.
-BEGIN_PROXY_MAP(DtmfSender)
+BEGIN_SIGNALING_PROXY_MAP(DtmfSender)
   PROXY_METHOD1(void, RegisterObserver, DtmfSenderObserverInterface*)
   PROXY_METHOD0(void, UnregisterObserver)
   PROXY_METHOD0(bool, CanInsertDtmf)
@@ -112,7 +113,7 @@ BEGIN_PROXY_MAP(DtmfSender)
   PROXY_CONSTMETHOD0(std::string, tones)
   PROXY_CONSTMETHOD0(int, duration)
   PROXY_CONSTMETHOD0(int, inter_tone_gap)
-END_PROXY()
+END_SIGNALING_PROXY()
 
 // Get DTMF code from the DTMF event character.
 bool GetDtmfCode(char tone, int* code);

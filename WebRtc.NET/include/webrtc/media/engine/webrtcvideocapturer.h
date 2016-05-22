@@ -17,7 +17,9 @@
 
 #include "webrtc/base/asyncinvoker.h"
 #include "webrtc/base/messagehandler.h"
+#include "webrtc/base/scoped_ref_ptr.h"
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
+#include "webrtc/media/base/device.h"
 #include "webrtc/media/base/videocapturer.h"
 #include "webrtc/media/engine/webrtcvideoframe.h"
 #include "webrtc/modules/video_capture/video_capture.h"
@@ -29,8 +31,9 @@ namespace cricket {
 class WebRtcVcmFactoryInterface {
  public:
   virtual ~WebRtcVcmFactoryInterface() {}
-  virtual webrtc::VideoCaptureModule* Create(
-      int id, const char* device) = 0;
+  virtual rtc::scoped_refptr<webrtc::VideoCaptureModule> Create(
+      int id,
+      const char* device) = 0;
   virtual webrtc::VideoCaptureModule::DeviceInfo* CreateDeviceInfo(int id) = 0;
   virtual void DestroyDeviceInfo(
       webrtc::VideoCaptureModule::DeviceInfo* info) = 0;
@@ -45,7 +48,7 @@ class WebRtcVideoCapturer : public VideoCapturer,
   virtual ~WebRtcVideoCapturer();
 
   bool Init(const Device& device);
-  bool Init(webrtc::VideoCaptureModule* module);
+  bool Init(const rtc::scoped_refptr<webrtc::VideoCaptureModule>& module);
 
   // Override virtual methods of the parent class VideoCapturer.
   bool GetBestCaptureFormat(const VideoFormat& desired,
@@ -58,14 +61,14 @@ class WebRtcVideoCapturer : public VideoCapturer,
  protected:
   void OnSinkWantsChanged(const rtc::VideoSinkWants& wants) override;
   // Override virtual methods of the parent class VideoCapturer.
-  virtual bool GetPreferredFourccs(std::vector<uint32_t>* fourccs);
+  bool GetPreferredFourccs(std::vector<uint32_t>* fourccs) override;
 
  private:
   // Callback when a frame is captured by camera.
-  virtual void OnIncomingCapturedFrame(const int32_t id,
-                                       const webrtc::VideoFrame& frame);
-  virtual void OnCaptureDelayChanged(const int32_t id,
-                                     const int32_t delay);
+  void OnIncomingCapturedFrame(const int32_t id,
+                               const webrtc::VideoFrame& frame) override;
+  void OnCaptureDelayChanged(const int32_t id,
+                             const int32_t delay) override;
 
   // Used to signal captured frames on the same thread as invoked Start().
   // With WebRTC's current VideoCapturer implementations, this will mean a
@@ -76,7 +79,7 @@ class WebRtcVideoCapturer : public VideoCapturer,
   void SignalFrameCapturedOnStartThread(const webrtc::VideoFrame& frame);
 
   std::unique_ptr<WebRtcVcmFactoryInterface> factory_;
-  webrtc::VideoCaptureModule* module_;
+  rtc::scoped_refptr<webrtc::VideoCaptureModule> module_;
   int captured_frames_;
   std::vector<uint8_t> capture_buffer_;
   rtc::Thread* start_thread_;  // Set in Start(), unset in Stop();

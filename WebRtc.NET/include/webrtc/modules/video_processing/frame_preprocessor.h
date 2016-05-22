@@ -14,7 +14,6 @@
 #include <memory>
 
 #include "webrtc/modules/video_processing/include/video_processing.h"
-#include "webrtc/modules/video_processing/content_analysis.h"
 #include "webrtc/modules/video_processing/spatial_resampler.h"
 #include "webrtc/modules/video_processing/video_decimator.h"
 #include "webrtc/typedefs.h"
@@ -38,16 +37,10 @@ class VPMFramePreprocessor {
 
   void SetInputFrameResampleMode(VideoFrameResampling resampling_mode);
 
-  // Enable content analysis.
-  void EnableContentAnalysis(bool enable);
-
   // Set target resolution: frame rate and dimension.
   int32_t SetTargetResolution(uint32_t width,
                               uint32_t height,
                               uint32_t frame_rate);
-
-  // Set target frame rate.
-  void SetTargetFramerate(int frame_rate);
 
   // Update incoming frame rate/dimension.
   void UpdateIncomingframe_rate();
@@ -60,23 +53,20 @@ class VPMFramePreprocessor {
   uint32_t GetDecimatedHeight() const;
 
   // Preprocess output:
-  void EnableDenosing(bool enable);
+  void EnableDenoising(bool enable);
   const VideoFrame* PreprocessFrame(const VideoFrame& frame);
-  VideoContentMetrics* GetContentMetrics() const;
 
  private:
   // The content does not change so much every frame, so to reduce complexity
   // we can compute new content metrics every |kSkipFrameCA| frames.
   enum { kSkipFrameCA = 2 };
 
-  VideoContentMetrics* content_metrics_;
-  VideoFrame denoised_frame_;
+  VideoFrame denoised_frame_[2];
   VideoFrame resampled_frame_;
   VPMSpatialResampler* spatial_resampler_;
-  VPMContentAnalysis* ca_;
   VPMVideoDecimator* vd_;
   std::unique_ptr<VideoDenoiser> denoiser_;
-  bool enable_ca_;
+  uint8_t denoised_frame_toggle_;
   uint32_t frame_cnt_;
 };
 

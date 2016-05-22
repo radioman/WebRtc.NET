@@ -99,8 +99,6 @@ enum KeyFrameRequestMethod { kKeyFrameReqPliRtcp, kKeyFrameReqFirRtcp };
 
 enum RtpRtcpPacketType { kPacketRtp = 0, kPacketKeepAlive = 1 };
 
-enum NACKMethod { kNackOff = 0, kNackRtcp = 2 };
-
 enum RetransmissionMode : uint8_t {
   kRetransmitOff = 0x0,
   kRetransmitFECPackets = 0x1,
@@ -215,16 +213,6 @@ class RtpFeedback {
   virtual void OnIncomingSSRCChanged(const uint32_t ssrc) = 0;
 
   virtual void OnIncomingCSRCChanged(const uint32_t CSRC, const bool added) = 0;
-};
-
-class RtpAudioFeedback {
- public:
-  virtual void OnPlayTelephoneEvent(const uint8_t event,
-                                    const uint16_t lengthMs,
-                                    const uint8_t volume) = 0;
-
- protected:
-  virtual ~RtpAudioFeedback() {}
 };
 
 class RtcpIntraFrameObserver {
@@ -355,16 +343,6 @@ class NullRtpData : public RtpData {
   bool OnRecoveredPacket(const uint8_t* packet, size_t packet_length) override {
     return true;
   }
-};
-
-// Null object version of RtpAudioFeedback.
-class NullRtpAudioFeedback : public RtpAudioFeedback {
- public:
-  virtual ~NullRtpAudioFeedback() {}
-
-  void OnPlayTelephoneEvent(const uint8_t event,
-                            const uint16_t lengthMs,
-                            const uint8_t volume) override {}
 };
 
 // Statistics about packet loss for a single directional connection. All values

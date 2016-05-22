@@ -11,6 +11,8 @@
 #ifndef WEBRTC_MODULES_UTILITY_INCLUDE_MOCK_MOCK_PROCESS_THREAD_H_
 #define WEBRTC_MODULES_UTILITY_INCLUDE_MOCK_MOCK_PROCESS_THREAD_H_
 
+#include <memory>
+
 #include "webrtc/modules/utility/include/process_thread.h"
 
 #include "testing/gmock/include/gmock/gmock.h"
@@ -19,6 +21,10 @@ namespace webrtc {
 
 class MockProcessThread : public ProcessThread {
  public:
+  // TODO(nisse): Valid overrides commented out, because the gmock
+  // methods don't use any override declarations, and we want to avoid
+  // warnings from -Winconsistent-missing-override. See
+  // http://crbug.com/428099.
   MOCK_METHOD0(Start, void());
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(WakeUp, void(Module* module));
@@ -29,7 +35,7 @@ class MockProcessThread : public ProcessThread {
   // MOCK_METHOD1 gets confused with mocking this method, so we work around it
   // by overriding the method from the interface and forwarding the call to a
   // mocked, simpler method.
-  void PostTask(rtc::scoped_ptr<ProcessTask> task) override {
+  void PostTask(std::unique_ptr<ProcessTask> task) /* override */ {
     PostTask(task.get());
   }
 };

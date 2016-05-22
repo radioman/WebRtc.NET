@@ -11,12 +11,14 @@
 #ifndef WEBRTC_P2P_QUIC_QUICTRANSPORTCHANNEL_H_
 #define WEBRTC_P2P_QUIC_QUICTRANSPORTCHANNEL_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "net/quic/quic_crypto_client_stream.h"
 #include "net/quic/quic_packet_writer.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/base/optional.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/p2p/base/transportchannelimpl.h"
 #include "webrtc/p2p/quic/quicconnectionhelper.h"
 #include "webrtc/p2p/quic/quicsession.h"
@@ -47,7 +49,7 @@ enum QuicTransportState {
 //       TransportChannelImpl* channel_;
 //   }
 //
-//   - Data written to SendPacket() is passed directly to |channel_| if  it is
+//   - Data written to SendPacket() is passed directly to |channel_| if it is
 //     an SRTP packet with the PF_SRTP_BYPASS flag.
 //
 //   - |quic_| passes outgoing packets to WritePacket(), which transfers them
@@ -60,8 +62,11 @@ enum QuicTransportState {
 //   - When the QUIC handshake is completed, quic_state() returns
 //     QUIC_TRANSPORT_CONNECTED and SRTP keying material can be exported.
 //
-// TODO(mikescarlett): Implement secure QUIC handshake, 0-RTT handshakes, and
-// QUIC data streams.
+//   - CreateQuicStream() creates an outgoing QUIC stream. Once the local peer
+//     sends data from this stream, the remote peer emits SignalIncomingStream
+//     with a QUIC stream of the same id to handle received data.
+//
+// TODO(mikescarlett): Implement secure QUIC handshake and 0-RTT handshakes.
 class QuicTransportChannel : public TransportChannelImpl,
                              public net::QuicPacketWriter,
                              public net::QuicCryptoClientStream::ProofHandler {
@@ -112,8 +117,9 @@ class QuicTransportChannel : public TransportChannelImpl,
                             size_t result_len) override;
   // TODO(mikescarlett): Remove this method once TransportChannel does not
   // require defining it.
-  bool GetRemoteSSLCertificate(rtc::SSLCertificate** cert) const override {
-    return false;
+  std::unique_ptr<rtc::SSLCertificate> GetRemoteSSLCertificate()
+      const override {
+    return nullptr;
   }
 
   // TransportChannelImpl overrides that we forward to the wrapped transport.
@@ -154,6 +160,9 @@ class QuicTransportChannel : public TransportChannelImpl,
   void AddRemoteCandidate(const Candidate& candidate) override {
     channel_->AddRemoteCandidate(candidate);
   }
+  void RemoveRemoteCandidate(const Candidate& candidate) override {
+    channel_->RemoveRemoteCandidate(candidate);
+  }
   void SetIceConfig(const IceConfig& config) override {
     channel_->SetIceConfig(config);
   }
@@ -165,8 +174,9 @@ class QuicTransportChannel : public TransportChannelImpl,
   // Called from net::QuicConnection when |quic_| has packets to write.
   net::WriteResult WritePacket(const char* buffer,
                                size_t buf_len,
-                               const net::IPAddressNumber& self_address,
-                               const net::IPEndPoint& peer_address) override;
+                               const net::IPAddress& self_address,
+                               const net::IPEndPoint& peer_address,
+                               net::PerPacketOptions* options) override;
   // Whether QuicTransportChannel buffers data when unable to write. If this is
   // set to false, then net::QuicConnection buffers unsent packets.
   bool IsWriteBlockedDataBuffered() const override { return false; }
@@ -201,6 +211,14 @@ class QuicTransportChannel : public TransportChannelImpl,
   void OnCanWrite();
   // Connectivity state of QuicTransportChannel.
   QuicTransportState quic_state() const { return quic_state_; }
+  // Creates a new QUIC stream that can send data.
+  ReliableQuicStream* CreateQuicStream();
+
+  // Emitted when |quic_| creates a QUIC stream to receive data from the remote
+  // peer, when the stream did not exist previously.
+  sigslot::signal1<ReliableQuicStream*> SignalIncomingStream;
+  // Emitted when the QuicTransportChannel state becomes QUIC_TRANSPORT_CLOSED.
+  sigslot::signal0<> SignalClosed;
 
  private:
   // Fingerprint of remote peer.
@@ -225,6 +243,10 @@ class QuicTransportChannel : public TransportChannelImpl,
   void OnCandidateGathered(TransportChannelImpl* channel, const Candidate& c);
   void OnRoleConflict(TransportChannelImpl* channel);
   void OnRouteChange(TransportChannel* channel, const Candidate& candidate);
+  void OnSelectedCandidatePairChanged(
+      TransportChannel* channel,
+      CandidatePairInterface* selected_candidate_pair,
+      int last_sent_packet_id);
   void OnConnectionRemoved(TransportChannelImpl* channel);
 
   // Callbacks for |quic_|.
@@ -232,6 +254,8 @@ class QuicTransportChannel : public TransportChannelImpl,
   void OnHandshakeComplete();
   // Called when |quic_| has closed the connection.
   void OnConnectionClosed(net::QuicErrorCode error, bool from_peer);
+  // Called when |quic_| has created a new QUIC stream for incoming data.
+  void OnIncomingStream(ReliableQuicStream* stream);
 
   // Called by OnReadPacket() when a QUIC packet is received.
   bool HandleQuicPacket(const char* data, size_t size);
@@ -248,12 +272,12 @@ class QuicTransportChannel : public TransportChannelImpl,
   rtc::Thread* worker_thread_;
   // Underlying channel which is responsible for connecting with the remote peer
   // and sending/receiving packets across the network.
-  TransportChannelImpl* const channel_;
+  std::unique_ptr<TransportChannelImpl> channel_;
   // Connectivity state of QuicTransportChannel.
   QuicTransportState quic_state_ = QUIC_TRANSPORT_NEW;
   // QUIC session which establishes the crypto handshake and converts data
   // to/from QUIC packets.
-  rtc::scoped_ptr<QuicSession> quic_;
+  std::unique_ptr<QuicSession> quic_;
   // Non-crypto config for |quic_|.
   net::QuicConfig config_;
   // Helper for net::QuicConnection that provides timing and
@@ -264,9 +288,11 @@ class QuicTransportChannel : public TransportChannelImpl,
   // the handshake. This must be set before we start QUIC.
   rtc::Optional<rtc::SSLRole> ssl_role_;
   // Config for QUIC crypto client stream, used when |ssl_role_| is SSL_CLIENT.
-  rtc::scoped_ptr<net::QuicCryptoClientConfig> quic_crypto_client_config_;
+  std::unique_ptr<net::QuicCryptoClientConfig> quic_crypto_client_config_;
   // Config for QUIC crypto server stream, used when |ssl_role_| is SSL_SERVER.
-  rtc::scoped_ptr<net::QuicCryptoServerConfig> quic_crypto_server_config_;
+  std::unique_ptr<net::QuicCryptoServerConfig> quic_crypto_server_config_;
+  // Used by QUIC crypto server stream to track most recently compressed certs.
+  std::unique_ptr<net::QuicCompressedCertsCache> quic_compressed_certs_cache_;
   // This peer's certificate.
   rtc::scoped_refptr<rtc::RTCCertificate> local_certificate_;
   // Fingerprint of the remote peer. This must be set before we start QUIC.

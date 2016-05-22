@@ -12,6 +12,7 @@
 #define WEBRTC_BASE_OPENSSLSTREAMADAPTER_H__
 
 #include <string>
+#include <memory>
 #include <vector>
 
 #include "webrtc/base/buffer.h"
@@ -69,7 +70,7 @@ class OpenSSLStreamAdapter : public SSLStreamAdapter {
                                 const unsigned char* digest_val,
                                 size_t digest_len) override;
 
-  bool GetPeerCertificate(SSLCertificate** cert) const override;
+  std::unique_ptr<SSLCertificate> GetPeerCertificate() const override;
 
   int StartSSLWithServer(const char* server_name) override;
   int StartSSLWithPeer() override;
@@ -92,6 +93,8 @@ class OpenSSLStreamAdapter : public SSLStreamAdapter {
 
   bool GetSslCipherSuite(int* cipher) override;
 
+  int GetSslVersion() const override;
+
   // Key Extractor interface
   bool ExportKeyingMaterial(const std::string& label,
                             const uint8_t* context,
@@ -109,9 +112,8 @@ class OpenSSLStreamAdapter : public SSLStreamAdapter {
   static bool HaveDtlsSrtp();
   static bool HaveExporter();
 
-  // TODO(guoweis): Move this away from a static class method.
-  static int GetDefaultSslCipherForTest(SSLProtocolVersion version,
-                                        KeyType key_type);
+  static bool IsAcceptableCipher(int cipher, KeyType key_type);
+  static bool IsAcceptableCipher(const std::string& cipher, KeyType key_type);
 
  protected:
   void OnEvent(StreamInterface* stream, int events, int err) override;
@@ -183,13 +185,13 @@ class OpenSSLStreamAdapter : public SSLStreamAdapter {
   SSL_CTX* ssl_ctx_;
 
   // Our key and certificate, mostly useful in peer-to-peer mode.
-  scoped_ptr<OpenSSLIdentity> identity_;
+  std::unique_ptr<OpenSSLIdentity> identity_;
   // in traditional mode, the server name that the server's certificate
   // must specify. Empty in peer-to-peer mode.
   std::string ssl_server_name_;
   // The certificate that the peer must present or did present. Initially
   // null in traditional mode, until the connection is established.
-  scoped_ptr<OpenSSLCertificate> peer_certificate_;
+  std::unique_ptr<OpenSSLCertificate> peer_certificate_;
   // In peer-to-peer mode, the digest of the certificate that
   // the peer must present.
   Buffer peer_certificate_digest_value_;

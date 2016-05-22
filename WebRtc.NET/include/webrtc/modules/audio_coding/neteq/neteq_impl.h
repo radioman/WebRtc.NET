@@ -24,6 +24,7 @@
 #include "webrtc/modules/audio_coding/neteq/random_vector.h"
 #include "webrtc/modules/audio_coding/neteq/rtcp.h"
 #include "webrtc/modules/audio_coding/neteq/statistics_calculator.h"
+#include "webrtc/modules/audio_coding/neteq/tick_timer.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -65,21 +66,33 @@ class NetEqImpl : public webrtc::NetEq {
     kVadPassive
   };
 
-  // Creates a new NetEqImpl object. The object will assume ownership of all
-  // injected dependencies, and will delete them when done.
+  struct Dependencies {
+    // The constructor populates the Dependencies struct with the default
+    // implementations of the objects. They can all be replaced by the user
+    // before sending the struct to the NetEqImpl constructor. However, there
+    // are dependencies between some of the classes inside the struct, so
+    // swapping out one may make it necessary to re-create another one.
+    explicit Dependencies(const NetEq::Config& config);
+    ~Dependencies();
+
+    std::unique_ptr<TickTimer> tick_timer;
+    std::unique_ptr<BufferLevelFilter> buffer_level_filter;
+    std::unique_ptr<DecoderDatabase> decoder_database;
+    std::unique_ptr<DelayPeakDetector> delay_peak_detector;
+    std::unique_ptr<DelayManager> delay_manager;
+    std::unique_ptr<DtmfBuffer> dtmf_buffer;
+    std::unique_ptr<DtmfToneGenerator> dtmf_tone_generator;
+    std::unique_ptr<PacketBuffer> packet_buffer;
+    std::unique_ptr<PayloadSplitter> payload_splitter;
+    std::unique_ptr<TimestampScaler> timestamp_scaler;
+    std::unique_ptr<AccelerateFactory> accelerate_factory;
+    std::unique_ptr<ExpandFactory> expand_factory;
+    std::unique_ptr<PreemptiveExpandFactory> preemptive_expand_factory;
+  };
+
+  // Creates a new NetEqImpl object.
   NetEqImpl(const NetEq::Config& config,
-            BufferLevelFilter* buffer_level_filter,
-            DecoderDatabase* decoder_database,
-            DelayManager* delay_manager,
-            DelayPeakDetector* delay_peak_detector,
-            DtmfBuffer* dtmf_buffer,
-            DtmfToneGenerator* dtmf_tone_generator,
-            PacketBuffer* packet_buffer,
-            PayloadSplitter* payload_splitter,
-            TimestampScaler* timestamp_scaler,
-            AccelerateFactory* accelerate_factory,
-            ExpandFactory* expand_factory,
-            PreemptiveExpandFactory* preemptive_expand_factory,
+            Dependencies&& deps,
             bool create_components = true);
 
   ~NetEqImpl() override;
@@ -104,7 +117,7 @@ class NetEqImpl : public webrtc::NetEq {
   int InsertSyncPacket(const WebRtcRTPHeader& rtp_header,
                        uint32_t receive_timestamp) override;
 
-  int GetAudio(AudioFrame* audio_frame) override;
+  int GetAudio(AudioFrame* audio_frame, bool* muted) override;
 
   int RegisterPayloadType(NetEqDecoder codec,
                           const std::string& codec_name,
@@ -160,7 +173,7 @@ class NetEqImpl : public webrtc::NetEq {
   // Disables post-decode VAD.
   void DisableVad() override;
 
-  bool GetPlayoutTimestamp(uint32_t* timestamp) override;
+  rtc::Optional<uint32_t> GetPlayoutTimestamp() const override;
 
   int last_output_sample_rate_hz() const override;
 
@@ -191,12 +204,15 @@ class NetEqImpl : public webrtc::NetEq {
 
   // This accessor method is only intended for testing purposes.
   const SyncBuffer* sync_buffer_for_test() const;
+  Operations last_operation_for_test() const;
 
  protected:
   static const int kOutputSizeMs = 10;
-  static const size_t kMaxFrameSize = 2880;  // 60 ms @ 48 kHz.
+  static const size_t kMaxFrameSize = 5760;  // 120 ms @ 48 kHz.
   // TODO(hlundin): Provide a better value for kSyncBufferSize.
-  static const size_t kSyncBufferSize = 2 * kMaxFrameSize;
+  // Current value is kMaxFrameSize + 60 ms * 48 kHz, which is enough for
+  // calculating correlations of current frame against history.
+  static const size_t kSyncBufferSize = kMaxFrameSize + 60 * 48;
 
   // Inserts a new packet into NetEq. This is used by the InsertPacket method
   // above. Returns 0 on success, otherwise an error code.
@@ -209,7 +225,7 @@ class NetEqImpl : public webrtc::NetEq {
 
   // Delivers 10 ms of audio data. The data is written to |audio_frame|.
   // Returns 0 on success, otherwise an error code.
-  int GetAudioInternal(AudioFrame* audio_frame)
+  int GetAudioInternal(AudioFrame* audio_frame, bool* muted)
       EXCLUSIVE_LOCKS_REQUIRED(crit_sect_);
 
   // Provides a decision to the GetAudioInternal method. The decision what to
@@ -328,6 +344,7 @@ class NetEqImpl : public webrtc::NetEq {
   virtual void CreateDecisionLogic() EXCLUSIVE_LOCKS_REQUIRED(crit_sect_);
 
   rtc::CriticalSection crit_sect_;
+  const std::unique_ptr<TickTimer> tick_timer_ GUARDED_BY(crit_sect_);
   const std::unique_ptr<BufferLevelFilter> buffer_level_filter_
       GUARDED_BY(crit_sect_);
   const std::unique_ptr<DecoderDatabase> decoder_database_
@@ -369,6 +386,7 @@ class NetEqImpl : public webrtc::NetEq {
   size_t output_size_samples_ GUARDED_BY(crit_sect_);
   size_t decoder_frame_length_ GUARDED_BY(crit_sect_);
   Modes last_mode_ GUARDED_BY(crit_sect_);
+  Operations last_operation_ GUARDED_BY(crit_sect_);
   std::unique_ptr<int16_t[]> mute_factor_array_ GUARDED_BY(crit_sect_);
   size_t decoded_buffer_length_ GUARDED_BY(crit_sect_);
   std::unique_ptr<int16_t[]> decoded_buffer_ GUARDED_BY(crit_sect_);
@@ -387,8 +405,11 @@ class NetEqImpl : public webrtc::NetEq {
   bool enable_fast_accelerate_ GUARDED_BY(crit_sect_);
   std::unique_ptr<Nack> nack_ GUARDED_BY(crit_sect_);
   bool nack_enabled_ GUARDED_BY(crit_sect_);
+  const bool enable_muted_state_ GUARDED_BY(crit_sect_);
   AudioFrame::VADActivity last_vad_activity_ GUARDED_BY(crit_sect_) =
       AudioFrame::kVadPassive;
+  std::unique_ptr<TickTimer::Stopwatch> generated_noise_stopwatch_
+      GUARDED_BY(crit_sect_);
 
  private:
   RTC_DISALLOW_COPY_AND_ASSIGN(NetEqImpl);

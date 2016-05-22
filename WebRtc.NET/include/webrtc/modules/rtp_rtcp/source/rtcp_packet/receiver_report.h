@@ -14,23 +14,23 @@
 #include <vector>
 
 #include "webrtc/base/basictypes.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet/report_block.h"
-#include "webrtc/modules/rtp_rtcp/source/rtcp_utility.h"
 
 namespace webrtc {
 namespace rtcp {
+class CommonHeader;
 
 class ReceiverReport : public RtcpPacket {
  public:
   static const uint8_t kPacketType = 201;
   ReceiverReport() : sender_ssrc_(0) {}
 
-  virtual ~ReceiverReport() {}
+  ~ReceiverReport() override {}
 
   // Parse assumes header is already parsed and validated.
-  bool Parse(const RTCPUtility::RtcpCommonHeader& header,
-             const uint8_t* payload);  // Size of the payload is in the header.
+  bool Parse(const CommonHeader& packet);
 
   void From(uint32_t ssrc) { sender_ssrc_ = ssrc; }
   bool WithReportBlock(const ReportBlock& block);
@@ -50,7 +50,7 @@ class ReceiverReport : public RtcpPacket {
   static const size_t kRrBaseLength = 4;
   static const size_t kMaxNumberOfReportBlocks = 0x1F;
 
-  size_t BlockLength() const {
+  size_t BlockLength() const override {
     return kHeaderLength + kRrBaseLength +
            report_blocks_.size() * ReportBlock::kLength;
   }

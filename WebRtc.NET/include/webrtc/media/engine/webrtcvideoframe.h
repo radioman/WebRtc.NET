@@ -27,6 +27,13 @@ struct CapturedFrame;
 class WebRtcVideoFrame : public VideoFrame {
  public:
   WebRtcVideoFrame();
+
+  // Preferred construction, with microsecond timestamp.
+  WebRtcVideoFrame(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& buffer,
+                   webrtc::VideoRotation rotation,
+                   int64_t timestamp_us);
+
+  // TODO(nisse): Deprecate/delete.
   WebRtcVideoFrame(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& buffer,
                    int64_t time_stamp_ns,
                    webrtc::VideoRotation rotation);
@@ -47,51 +54,31 @@ class WebRtcVideoFrame : public VideoFrame {
             int64_t time_stamp_ns,
             webrtc::VideoRotation rotation);
 
+  // The timestamp of the captured frame is expected to use the same
+  // timescale and epoch as rtc::Time.
+  // TODO(nisse): Consider adding a warning message, or even an RTC_DCHECK, if
+  // the time is too far off.
   bool Init(const CapturedFrame* frame, int dw, int dh, bool apply_rotation);
 
+  void InitToEmptyBuffer(int w, int h);
   void InitToEmptyBuffer(int w, int h, int64_t time_stamp_ns);
 
-  bool InitToBlack(int w, int h, int64_t time_stamp_ns) override;
+  bool InitToBlack(int w, int h, int64_t time_stamp_ns);
 
-  // From base class VideoFrame.
-  bool Reset(uint32_t format,
-                     int w,
-                     int h,
-                     int dw,
-                     int dh,
-                     uint8_t* sample,
-                     size_t sample_size,
-                     int64_t time_stamp_ns,
-                     webrtc::VideoRotation rotation,
-                     bool apply_rotation) override;
+  int width() const override;
+  int height() const override;
 
-  size_t GetWidth() const override;
-  size_t GetHeight() const override;
-  const uint8_t* GetYPlane() const override;
-  const uint8_t* GetUPlane() const override;
-  const uint8_t* GetVPlane() const override;
-  uint8_t* GetYPlane() override;
-  uint8_t* GetUPlane() override;
-  uint8_t* GetVPlane() override;
-  int32_t GetYPitch() const override;
-  int32_t GetUPitch() const override;
-  int32_t GetVPitch() const override;
-  void* GetNativeHandle() const override;
-  rtc::scoped_refptr<webrtc::VideoFrameBuffer> GetVideoFrameBuffer()
+  const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& video_frame_buffer()
       const override;
 
-  int64_t GetTimeStamp() const override { return time_stamp_ns_; }
-  void SetTimeStamp(int64_t time_stamp_ns) override {
-    time_stamp_ns_ = time_stamp_ns;
-  }
+  /* System monotonic clock */
+  int64_t timestamp_us() const override { return timestamp_us_; }
+  void set_timestamp_us(int64_t time_us) override { timestamp_us_ = time_us; };
 
-  webrtc::VideoRotation GetVideoRotation() const override {
-    return rotation_;
-  }
+  webrtc::VideoRotation rotation() const override { return rotation_; }
 
   VideoFrame* Copy() const override;
   bool IsExclusive() const override;
-  bool MakeExclusive() override;
   size_t ConvertToRgbBuffer(uint32_t to_fourcc,
                             uint8_t* buffer,
                             size_t size,
@@ -100,9 +87,24 @@ class WebRtcVideoFrame : public VideoFrame {
   const VideoFrame* GetCopyWithRotationApplied() const override;
 
  protected:
-  void SetRotation(webrtc::VideoRotation rotation) override {
+  void set_rotation(webrtc::VideoRotation rotation) override {
     rotation_ = rotation;
   }
+  // Creates a frame from a raw sample with FourCC |format| and size |w| x |h|.
+  // |h| can be negative indicating a vertically flipped image.
+  // |dw| is destination width; can be less than |w| if cropping is desired.
+  // |dh| is destination height, like |dw|, but must be a positive number.
+  // Returns whether the function succeeded or failed.
+  bool Reset(uint32_t format,
+             int w,
+             int h,
+             int dw,
+             int dh,
+             uint8_t* sample,
+             size_t sample_size,
+             int64_t timestamp_us,
+             webrtc::VideoRotation rotation,
+             bool apply_rotation);
 
  private:
   VideoFrame* CreateEmptyFrame(int w, int h,
@@ -110,7 +112,7 @@ class WebRtcVideoFrame : public VideoFrame {
 
   // An opaque reference counted handle that stores the pixel data.
   rtc::scoped_refptr<webrtc::VideoFrameBuffer> video_frame_buffer_;
-  int64_t time_stamp_ns_;
+  int64_t timestamp_us_;
   webrtc::VideoRotation rotation_;
 
   // This is mutable as the calculation is expensive but once calculated, it

@@ -85,12 +85,12 @@ class MockRtpRtcp : public RtpRtcp {
   MOCK_CONST_METHOD0(StartTimestamp,
       uint32_t());
   MOCK_METHOD1(SetStartTimestamp, void(const uint32_t timestamp));
-  MOCK_CONST_METHOD0(SequenceNumber,
-      uint16_t());
+  MOCK_CONST_METHOD0(SequenceNumber, uint16_t());
   MOCK_METHOD1(SetSequenceNumber, void(const uint16_t seq));
-  MOCK_METHOD2(SetRtpStateForSsrc,
-               bool(uint32_t ssrc, const RtpState& rtp_state));
-  MOCK_METHOD2(GetRtpStateForSsrc, bool(uint32_t ssrc, RtpState* rtp_state));
+  MOCK_METHOD1(SetRtpState, void(const RtpState& rtp_state));
+  MOCK_METHOD1(SetRtxState, void(const RtpState& rtp_state));
+  MOCK_CONST_METHOD0(GetRtpState, RtpState());
+  MOCK_CONST_METHOD0(GetRtxState, RtpState());
   MOCK_CONST_METHOD0(SSRC,
       uint32_t());
   MOCK_METHOD1(SetSSRC,
@@ -202,24 +202,19 @@ class MockRtpRtcp : public RtpRtcp {
   MOCK_METHOD1(SetTMMBRStatus, void(const bool enable));
   MOCK_METHOD1(OnBandwidthEstimateUpdate,
       void(uint16_t bandWidthKbit));
-  MOCK_CONST_METHOD0(NACK,
-      NACKMethod());
-  MOCK_METHOD2(SetNACKStatus,
-      int32_t(const NACKMethod method, int oldestSequenceNumberToNack));
   MOCK_CONST_METHOD0(SelectiveRetransmissions,
       int());
   MOCK_METHOD1(SetSelectiveRetransmissions,
       int(uint8_t settings));
   MOCK_METHOD2(SendNACK,
       int32_t(const uint16_t* nackList, const uint16_t size));
+  MOCK_METHOD1(SendNack, void(const std::vector<uint16_t>& sequence_numbers));
   MOCK_METHOD2(SetStorePacketsStatus,
                void(const bool enable, const uint16_t numberToStore));
   MOCK_CONST_METHOD0(StorePackets, bool());
   MOCK_METHOD1(RegisterRtcpStatisticsCallback, void(RtcpStatisticsCallback*));
   MOCK_METHOD0(GetRtcpStatisticsCallback, RtcpStatisticsCallback*());
   MOCK_METHOD1(SendFeedbackPacket, bool(const rtcp::TransportFeedback& packet));
-  MOCK_METHOD1(RegisterAudioCallback,
-      int32_t(RtpAudioFeedback* messagesCallback));
   MOCK_METHOD1(SetAudioPacketSize,
       int32_t(const uint16_t packetSizeSamples));
   MOCK_METHOD3(SendTelephoneEventOutband,

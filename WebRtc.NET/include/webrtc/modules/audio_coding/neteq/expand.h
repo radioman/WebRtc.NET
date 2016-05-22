@@ -62,6 +62,10 @@ class Expand {
     return channel_parameters_[channel].mute_factor;
   }
 
+  // Returns true if expansion has been faded down to zero amplitude (for all
+  // channels); false otherwise.
+  bool Muted() const;
+
   // Accessors and mutators.
   virtual size_t overlap_length() const;
   size_t max_lag() const { return max_lag_; }
@@ -120,12 +124,10 @@ class Expand {
 
   // Calculate the auto-correlation of |input|, with length |input_length|
   // samples. The correlation is calculated from a downsampled version of
-  // |input|, and is written to |output|. The scale factor is written to
-  // |output_scale|.
+  // |input|, and is written to |output|.
   void Correlation(const int16_t* input,
                    size_t input_length,
-                   int16_t* output,
-                   int* output_scale) const;
+                   int16_t* output) const;
 
   void UpdateLagIndex();
 

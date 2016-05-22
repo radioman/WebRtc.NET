@@ -8,17 +8,18 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef TALK_SESSION_MEDIA_SRTPFILTER_H_
-#define TALK_SESSION_MEDIA_SRTPFILTER_H_
+#ifndef WEBRTC_PC_SRTPFILTER_H_
+#define WEBRTC_PC_SRTPFILTER_H_
 
 #include <list>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "webrtc/base/basictypes.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/base/criticalsection.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/sigslotrepeater.h"
 #include "webrtc/base/sslstreamadapter.h"
 #include "webrtc/media/base/cryptoparams.h"
@@ -119,7 +120,7 @@ class SrtpFilter {
   bool GetRtpAuthParams(uint8_t** key, int* key_len, int* tag_len);
 
   // Update the silent threshold (in ms) for signaling errors.
-  void set_signal_silent_time(uint32_t signal_silent_time_in_ms);
+  void set_signal_silent_time(int signal_silent_time_in_ms);
 
   bool ResetParams();
 
@@ -165,12 +166,12 @@ class SrtpFilter {
     ST_RECEIVEDPRANSWER
   };
   State state_;
-  uint32_t signal_silent_time_in_ms_;
+  int signal_silent_time_in_ms_;
   std::vector<CryptoParams> offer_params_;
-  rtc::scoped_ptr<SrtpSession> send_session_;
-  rtc::scoped_ptr<SrtpSession> recv_session_;
-  rtc::scoped_ptr<SrtpSession> send_rtcp_session_;
-  rtc::scoped_ptr<SrtpSession> recv_rtcp_session_;
+  std::unique_ptr<SrtpSession> send_session_;
+  std::unique_ptr<SrtpSession> recv_session_;
+  std::unique_ptr<SrtpSession> send_rtcp_session_;
+  std::unique_ptr<SrtpSession> recv_rtcp_session_;
   CryptoParams applied_send_params_;
   CryptoParams applied_recv_params_;
 };
@@ -207,7 +208,7 @@ class SrtpSession {
   bool GetRtpAuthParams(uint8_t** key, int* key_len, int* tag_len);
 
   // Update the silent threshold (in ms) for signaling errors.
-  void set_signal_silent_time(uint32_t signal_silent_time_in_ms);
+  void set_signal_silent_time(int signal_silent_time_in_ms);
 
   // Calls srtp_shutdown if it's initialized.
   static void Terminate();
@@ -229,7 +230,7 @@ class SrtpSession {
   srtp_ctx_t* session_;
   int rtp_auth_tag_len_;
   int rtcp_auth_tag_len_;
-  rtc::scoped_ptr<SrtpStat> srtp_stat_;
+  std::unique_ptr<SrtpStat> srtp_stat_;
   static bool inited_;
   static rtc::GlobalLockPod lock_;
   int last_send_seq_num_;
@@ -251,9 +252,9 @@ class SrtpStat {
   void AddUnprotectRtcpResult(int result);
 
   // Get silent time (in ms) for SRTP statistics handler.
-  uint32_t signal_silent_time() const { return signal_silent_time_; }
+  int signal_silent_time() const { return signal_silent_time_; }
   // Set silent time (in ms) for SRTP statistics handler.
-  void set_signal_silent_time(uint32_t signal_silent_time) {
+  void set_signal_silent_time(int signal_silent_time) {
     signal_silent_time_ = signal_silent_time;
   }
 
@@ -295,7 +296,7 @@ class SrtpStat {
     void Reset() {
       last_signal_time = 0;
     }
-    uint32_t last_signal_time;
+    int64_t last_signal_time;
   };
 
   // Inspect SRTP result and signal error if needed.
@@ -303,11 +304,11 @@ class SrtpStat {
 
   std::map<FailureKey, FailureStat> failures_;
   // Threshold in ms to silent the signaling errors.
-  uint32_t signal_silent_time_;
+  int signal_silent_time_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(SrtpStat);
 };
 
 }  // namespace cricket
 
-#endif  // TALK_SESSION_MEDIA_SRTPFILTER_H_
+#endif  // WEBRTC_PC_SRTPFILTER_H_

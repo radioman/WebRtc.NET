@@ -14,41 +14,68 @@
 NS_ASSUME_NONNULL_BEGIN
 
 extern NSString * const kRTCAudioSessionErrorDomain;
+/** Method that requires lock was called without lock. */
 extern NSInteger const kRTCAudioSessionErrorLockRequired;
+/** Unknown configuration error occurred. */
+extern NSInteger const kRTCAudioSessionErrorConfiguration;
 
 @class RTCAudioSession;
+@class RTCAudioSessionConfiguration;
 
 // Surfaces AVAudioSession events. WebRTC will listen directly for notifications
 // from AVAudioSession and handle them before calling these delegate methods,
 // at which point applications can perform additional processing if required.
 @protocol RTCAudioSessionDelegate <NSObject>
 
-/** Called when AVAudioSession starts an interruption event. */
+@optional
+/** Called on a system notification thread when AVAudioSession starts an
+ *  interruption event.
+ */
 - (void)audioSessionDidBeginInterruption:(RTCAudioSession *)session;
 
-/** Called when AVAudioSession ends an interruption event. */
+/** Called on a system notification thread when AVAudioSession ends an
+ *  interruption event.
+ */
 - (void)audioSessionDidEndInterruption:(RTCAudioSession *)session
                    shouldResumeSession:(BOOL)shouldResumeSession;
 
-/** Called when AVAudioSession changes the route. */
+/** Called on a system notification thread when AVAudioSession changes the
+ *  route.
+ */
 - (void)audioSessionDidChangeRoute:(RTCAudioSession *)session
            reason:(AVAudioSessionRouteChangeReason)reason
     previousRoute:(AVAudioSessionRouteDescription *)previousRoute;
 
-/** Called when AVAudioSession media server terminates. */
+/** Called on a system notification thread when AVAudioSession media server
+ *  terminates.
+ */
 - (void)audioSessionMediaServicesWereLost:(RTCAudioSession *)session;
 
-/** Called when AVAudioSession media server restarts. */
+/** Called on a system notification thread when AVAudioSession media server
+ *  restarts.
+ */
 - (void)audioSessionMediaServicesWereReset:(RTCAudioSession *)session;
 
 // TODO(tkchin): Maybe handle SilenceSecondaryAudioHintNotification.
+
+- (void)audioSession:(RTCAudioSession *)session
+    didChangeCanPlayOrRecord:(BOOL)canPlayOrRecord;
+
+/** Called on a WebRTC thread when the audio device is notified to begin
+ *  playback or recording.
+ */
+- (void)audioSessionDidStartPlayOrRecord:(RTCAudioSession *)session;
+
+/** Called on a WebRTC thread when the audio device is notified to stop
+ *  playback or recording.
+ */
+- (void)audioSessionDidStopPlayOrRecord:(RTCAudioSession *)session;
 
 @end
 
 /** Proxy class for AVAudioSession that adds a locking mechanism similar to
  *  AVCaptureDevice. This is used to that interleaving configurations between
- *  WebRTC and the application layer are avoided. Only setter methods are
- *  currently proxied. Getters can be accessed directly off AVAudioSession.
+ *  WebRTC and the application layer are avoided.
  *
  *  RTCAudioSession also coordinates activation so that the audio session is
  *  activated only once. See |setActive:error:|.
@@ -67,6 +94,27 @@ extern NSInteger const kRTCAudioSessionErrorLockRequired;
 @property(nonatomic, readonly) BOOL isActive;
 /** Whether RTCAudioSession is currently locked for configuration. */
 @property(nonatomic, readonly) BOOL isLocked;
+
+/** If YES, WebRTC will not initialize the audio unit automatically when an
+ *  audio track is ready for playout or recording. Instead, applications should
+ *  call setIsAudioEnabled. If NO, WebRTC will initialize the audio unit
+ *  as soon as an audio track is ready for playout or recording.
+ */
+@property(nonatomic, assign) BOOL useManualAudio;
+
+/** This property is only effective if useManualAudio is YES.
+ *  Represents permission for WebRTC to initialize the VoIP audio unit.
+ *  When set to NO, if the VoIP audio unit used by WebRTC is active, it will be
+ *  stopped and uninitialized. This will stop incoming and outgoing audio.
+ *  When set to YES, WebRTC will initialize and start the audio unit when it is
+ *  needed (e.g. due to establishing an audio connection).
+ *  This property was introduced to work around an issue where if an AVPlayer is
+ *  playing audio while the VoIP audio unit is initialized, its audio would be
+ *  either cut off completely or played at a reduced volume. By preventing
+ *  the audio unit from being initialized until after the audio has completed,
+ *  we are able to prevent the abrupt cutoff.
+ */
+@property(nonatomic, assign) BOOL isAudioEnabled;
 
 // Proxy properties.
 @property(readonly) NSString *category;
@@ -88,20 +136,20 @@ extern NSInteger const kRTCAudioSessionErrorLockRequired;
 @property(readonly, nullable)
     AVAudioSessionDataSourceDescription *outputDataSource;
 @property(readonly) double sampleRate;
+@property(readonly) double preferredSampleRate;
 @property(readonly) NSInteger inputNumberOfChannels;
 @property(readonly) NSInteger outputNumberOfChannels;
 @property(readonly) float outputVolume;
 @property(readonly) NSTimeInterval inputLatency;
 @property(readonly) NSTimeInterval outputLatency;
 @property(readonly) NSTimeInterval IOBufferDuration;
+@property(readonly) NSTimeInterval preferredIOBufferDuration;
 
-/** Default constructor. Do not call init. */
+/** Default constructor. */
 + (instancetype)sharedInstance;
+- (instancetype)init NS_UNAVAILABLE;
 
-/** Adds a delegate, which is held weakly. Even though it's held weakly, callers
- *  should still call |removeDelegate| when it's no longer required to ensure
- *  proper dealloc. This is due to internal use of an NSHashTable.
- */
+/** Adds a delegate, which is held weakly. */
 - (void)addDelegate:(id<RTCAudioSessionDelegate>)delegate;
 /** Removes an added delegate. */
 - (void)removeDelegate:(id<RTCAudioSessionDelegate>)delegate;
@@ -147,6 +195,25 @@ extern NSInteger const kRTCAudioSessionErrorLockRequired;
                      error:(NSError **)outError;
 - (BOOL)setOutputDataSource:(AVAudioSessionDataSourceDescription *)dataSource
                       error:(NSError **)outError;
+
+@end
+
+@interface RTCAudioSession (Configuration)
+
+/** Applies the configuration to the current session. Attempts to set all
+ *  properties even if previous ones fail. Only the last error will be
+ *  returned.
+ *  |lockForConfiguration| must be called first.
+ */
+- (BOOL)setConfiguration:(RTCAudioSessionConfiguration *)configuration
+                   error:(NSError **)outError;
+
+/** Convenience method that calls both setConfiguration and setActive.
+ *  |lockForConfiguration| must be called first.
+ */
+- (BOOL)setConfiguration:(RTCAudioSessionConfiguration *)configuration
+                  active:(BOOL)active
+                   error:(NSError **)outError;
 
 @end
 

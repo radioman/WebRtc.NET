@@ -71,9 +71,10 @@ struct RTPVideoHeaderVP8 {
 };
 
 enum TemporalStructureMode {
-  kTemporalStructureMode1,    // 1 temporal layer structure - i.e., IPPP...
-  kTemporalStructureMode2,    // 2 temporal layers 0-1-0-1...
-  kTemporalStructureMode3     // 3 temporal layers 0-2-1-2-0-2-1-2...
+  kTemporalStructureMode1,  // 1 temporal layer structure - i.e., IPPP...
+  kTemporalStructureMode2,  // 2 temporal layers 01...
+  kTemporalStructureMode3,  // 3 temporal layers 0212...
+  kTemporalStructureMode4   // 3 temporal layers 02120212...
 };
 
 struct GofInfoVP9 {
@@ -121,6 +122,52 @@ struct GofInfoVP9 {
         pid_diff[3][0] = 1;
         pid_diff[3][1] = 2;
         break;
+      case kTemporalStructureMode4:
+        num_frames_in_gof = 8;
+        temporal_idx[0] = 0;
+        temporal_up_switch[0] = false;
+        num_ref_pics[0] = 1;
+        pid_diff[0][0] = 4;
+
+        temporal_idx[1] = 2;
+        temporal_up_switch[1] = true;
+        num_ref_pics[1] = 1;
+        pid_diff[1][0] = 1;
+
+        temporal_idx[2] = 1;
+        temporal_up_switch[2] = true;
+        num_ref_pics[2] = 1;
+        pid_diff[2][0] = 2;
+
+        temporal_idx[3] = 2;
+        temporal_up_switch[3] = false;
+        num_ref_pics[3] = 2;
+        pid_diff[3][0] = 1;
+        pid_diff[3][1] = 2;
+
+        temporal_idx[4] = 0;
+        temporal_up_switch[0] = false;
+        num_ref_pics[4] = 1;
+        pid_diff[4][0] = 4;
+
+        temporal_idx[5] = 2;
+        temporal_up_switch[1] = false;
+        num_ref_pics[5] = 2;
+        pid_diff[5][0] = 1;
+        pid_diff[5][1] = 2;
+
+        temporal_idx[6] = 1;
+        temporal_up_switch[2] = false;
+        num_ref_pics[6] = 2;
+        pid_diff[6][0] = 2;
+        pid_diff[6][1] = 4;
+
+        temporal_idx[7] = 2;
+        temporal_up_switch[3] = false;
+        num_ref_pics[7] = 2;
+        pid_diff[7][0] = 1;
+        pid_diff[7][1] = 2;
+        break;
       default:
         assert(false);
     }
@@ -143,6 +190,7 @@ struct GofInfoVP9 {
   bool temporal_up_switch[kMaxVp9FramesInGof];
   uint8_t num_ref_pics[kMaxVp9FramesInGof];
   uint8_t pid_diff[kMaxVp9FramesInGof][kMaxVp9RefPics];
+  uint16_t pid_start;
 };
 
 struct RTPVideoHeaderVP9 {
@@ -432,7 +480,6 @@ enum FecMaskType {
 // Struct containing forward error correction settings.
 struct FecProtectionParams {
   int fec_rate;
-  bool use_uep_protection;
   int max_fec_frames;
   FecMaskType fec_mask_type;
 };
@@ -445,25 +492,6 @@ class CallStatsObserver {
   virtual void OnRttUpdate(int64_t avg_rtt_ms, int64_t max_rtt_ms) = 0;
 
   virtual ~CallStatsObserver() {}
-};
-
-struct VideoContentMetrics {
-  VideoContentMetrics()
-      : motion_magnitude(0.0f),
-        spatial_pred_err(0.0f),
-        spatial_pred_err_h(0.0f),
-        spatial_pred_err_v(0.0f) {}
-
-  void Reset() {
-    motion_magnitude = 0.0f;
-    spatial_pred_err = 0.0f;
-    spatial_pred_err_h = 0.0f;
-    spatial_pred_err_v = 0.0f;
-  }
-  float motion_magnitude;
-  float spatial_pred_err;
-  float spatial_pred_err_h;
-  float spatial_pred_err_v;
 };
 
 /* This class holds up to 60 ms of super-wideband (32 kHz) stereo audio. It
@@ -482,7 +510,9 @@ struct VideoContentMetrics {
 class AudioFrame {
  public:
   // Stereo, 32 kHz, 60 ms (2 * 32 * 60)
-  static const size_t kMaxDataSizeSamples = 3840;
+  enum : size_t {
+    kMaxDataSizeSamples = 3840
+  };
 
   enum VADActivity {
     kVadActive = 0,
@@ -498,19 +528,15 @@ class AudioFrame {
   };
 
   AudioFrame();
-  virtual ~AudioFrame() {}
 
   // Resets all members to their default state (except does not modify the
   // contents of |data_|).
   void Reset();
 
-  // |interleaved_| is not changed by this method.
   void UpdateFrame(int id, uint32_t timestamp, const int16_t* data,
                    size_t samples_per_channel, int sample_rate_hz,
                    SpeechType speech_type, VADActivity vad_activity,
                    size_t num_channels = 1);
-
-  AudioFrame& Append(const AudioFrame& rhs);
 
   void CopyFrom(const AudioFrame& src);
 
@@ -518,7 +544,6 @@ class AudioFrame {
 
   AudioFrame& operator>>=(const int rhs);
   AudioFrame& operator+=(const AudioFrame& rhs);
-  AudioFrame& operator-=(const AudioFrame& rhs);
 
   int id_;
   // RTP timestamp of the first sample in the AudioFrame.
@@ -535,12 +560,13 @@ class AudioFrame {
   size_t num_channels_;
   SpeechType speech_type_;
   VADActivity vad_activity_;
-  bool interleaved_;
 
  private:
   RTC_DISALLOW_COPY_AND_ASSIGN(AudioFrame);
 };
 
+// TODO(henrik.lundin) Can we remove the call to data_()?
+// See https://bugs.chromium.org/p/webrtc/issues/detail?id=5647.
 inline AudioFrame::AudioFrame()
     : data_() {
   Reset();
@@ -558,7 +584,6 @@ inline void AudioFrame::Reset() {
   num_channels_ = 0;
   speech_type_ = kUndefined;
   vad_activity_ = kVadUnknown;
-  interleaved_ = true;
 }
 
 inline void AudioFrame::UpdateFrame(int id,
@@ -598,7 +623,6 @@ inline void AudioFrame::CopyFrom(const AudioFrame& src) {
   speech_type_ = src.speech_type_;
   vad_activity_ = src.vad_activity_;
   num_channels_ = src.num_channels_;
-  interleaved_ = src.interleaved_;
 
   const size_t length = samples_per_channel_ * num_channels_;
   assert(length <= kMaxDataSizeSamples);
@@ -619,30 +643,6 @@ inline AudioFrame& AudioFrame::operator>>=(const int rhs) {
   return *this;
 }
 
-inline AudioFrame& AudioFrame::Append(const AudioFrame& rhs) {
-  // Sanity check
-  assert((num_channels_ > 0) && (num_channels_ < 3));
-  assert(interleaved_ == rhs.interleaved_);
-  if ((num_channels_ > 2) || (num_channels_ < 1)) return *this;
-  if (num_channels_ != rhs.num_channels_) return *this;
-
-  if ((vad_activity_ == kVadActive) || rhs.vad_activity_ == kVadActive) {
-    vad_activity_ = kVadActive;
-  } else if (vad_activity_ == kVadUnknown || rhs.vad_activity_ == kVadUnknown) {
-    vad_activity_ = kVadUnknown;
-  }
-  if (speech_type_ != rhs.speech_type_) {
-    speech_type_ = kUndefined;
-  }
-
-  size_t offset = samples_per_channel_ * num_channels_;
-  for (size_t i = 0; i < rhs.samples_per_channel_ * rhs.num_channels_; i++) {
-    data_[offset + i] = rhs.data_[i];
-  }
-  samples_per_channel_ += rhs.samples_per_channel_;
-  return *this;
-}
-
 namespace {
 inline int16_t ClampToInt16(int32_t input) {
   if (input < -0x00008000) {
@@ -658,7 +658,6 @@ inline int16_t ClampToInt16(int32_t input) {
 inline AudioFrame& AudioFrame::operator+=(const AudioFrame& rhs) {
   // Sanity check
   assert((num_channels_ > 0) && (num_channels_ < 3));
-  assert(interleaved_ == rhs.interleaved_);
   if ((num_channels_ > 2) || (num_channels_ < 1)) return *this;
   if (num_channels_ != rhs.num_channels_) return *this;
 
@@ -691,29 +690,6 @@ inline AudioFrame& AudioFrame::operator+=(const AudioFrame& rhs) {
           static_cast<int32_t>(data_[i]) + static_cast<int32_t>(rhs.data_[i]);
       data_[i] = ClampToInt16(wrap_guard);
     }
-  }
-  return *this;
-}
-
-inline AudioFrame& AudioFrame::operator-=(const AudioFrame& rhs) {
-  // Sanity check
-  assert((num_channels_ > 0) && (num_channels_ < 3));
-  assert(interleaved_ == rhs.interleaved_);
-  if ((num_channels_ > 2) || (num_channels_ < 1)) return *this;
-
-  if ((samples_per_channel_ != rhs.samples_per_channel_) ||
-      (num_channels_ != rhs.num_channels_)) {
-    return *this;
-  }
-  if ((vad_activity_ != kVadPassive) || rhs.vad_activity_ != kVadPassive) {
-    vad_activity_ = kVadUnknown;
-  }
-  speech_type_ = kUndefined;
-
-  for (size_t i = 0; i < samples_per_channel_ * num_channels_; i++) {
-    int32_t wrap_guard =
-        static_cast<int32_t>(data_[i]) - static_cast<int32_t>(rhs.data_[i]);
-    data_[i] = ClampToInt16(wrap_guard);
   }
   return *this;
 }

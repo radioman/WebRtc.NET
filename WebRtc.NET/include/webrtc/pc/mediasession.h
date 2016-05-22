@@ -10,15 +10,14 @@
 
 // Types and classes used in media session descriptions.
 
-#ifndef TALK_SESSION_MEDIA_MEDIASESSION_H_
-#define TALK_SESSION_MEDIA_MEDIASESSION_H_
+#ifndef WEBRTC_PC_MEDIASESSION_H_
+#define WEBRTC_PC_MEDIASESSION_H_
 
 #include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
 
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/media/base/codec.h"
 #include "webrtc/media/base/cryptoparams.h"
 #include "webrtc/media/base/mediachannel.h"
@@ -77,18 +76,21 @@ extern const char kMediaProtocolTcpDtlsSctp[];
 const int kAutoBandwidth = -1;
 const int kBufferedModeDisabled = 0;
 
+// Default RTCP CNAME for unit tests.
+const char kDefaultRtcpCname[] = "DefaultRtcpCname";
+
 struct MediaSessionOptions {
-  MediaSessionOptions() :
-      recv_audio(true),
-      recv_video(false),
-      data_channel_type(DCT_NONE),
-      is_muc(false),
-      vad_enabled(true),  // When disabled, removes all CN codecs from SDP.
-      rtcp_mux_enabled(true),
-      bundle_enabled(false),
-      video_bandwidth(kAutoBandwidth),
-      data_bandwidth(kDataMaxBandwidth) {
-  }
+  MediaSessionOptions()
+      : recv_audio(true),
+        recv_video(false),
+        data_channel_type(DCT_NONE),
+        is_muc(false),
+        vad_enabled(true),  // When disabled, removes all CN codecs from SDP.
+        rtcp_mux_enabled(true),
+        bundle_enabled(false),
+        video_bandwidth(kAutoBandwidth),
+        data_bandwidth(kDataMaxBandwidth),
+        rtcp_cname(kDefaultRtcpCname) {}
 
   bool has_audio() const {
     return recv_audio || HasSendMediaStream(MEDIA_TYPE_AUDIO);
@@ -134,6 +136,7 @@ struct MediaSessionOptions {
   int data_bandwidth;
   // content name ("mid") => options.
   std::map<std::string, TransportOptions> transport_options;
+  std::string rtcp_cname;
 
   struct Stream {
     Stream(MediaType type,
@@ -294,10 +297,9 @@ class MediaContentDescription : public ContentDescription {
 template <class C>
 class MediaContentDescriptionImpl : public MediaContentDescription {
  public:
-  struct PreferenceSort {
-    bool operator()(C a, C b) { return a.preference > b.preference; }
-  };
+  typedef C CodecType;
 
+  // Codecs should be in preference order (most preferred codec first).
   const std::vector<C>& codecs() const { return codecs_; }
   void set_codecs(const std::vector<C>& codecs) { codecs_ = codecs; }
   virtual bool has_codecs() const { return !codecs_.empty(); }
@@ -330,9 +332,6 @@ class MediaContentDescriptionImpl : public MediaContentDescription {
     for (codec = codecs.begin(); codec != codecs.end(); ++codec) {
       AddCodec(*codec);
     }
-  }
-  void SortCodecs() {
-    std::sort(codecs_.begin(), codecs_.end(), PreferenceSort());
   }
 
  private:
@@ -533,6 +532,21 @@ const VideoContentDescription* GetFirstVideoContentDescription(
     const SessionDescription* sdesc);
 const DataContentDescription* GetFirstDataContentDescription(
     const SessionDescription* sdesc);
+// Non-const versions of the above functions.
+// Useful when modifying an existing description.
+ContentInfo* GetFirstMediaContent(ContentInfos& contents, MediaType media_type);
+ContentInfo* GetFirstAudioContent(ContentInfos& contents);
+ContentInfo* GetFirstVideoContent(ContentInfos& contents);
+ContentInfo* GetFirstDataContent(ContentInfos& contents);
+ContentInfo* GetFirstAudioContent(SessionDescription* sdesc);
+ContentInfo* GetFirstVideoContent(SessionDescription* sdesc);
+ContentInfo* GetFirstDataContent(SessionDescription* sdesc);
+AudioContentDescription* GetFirstAudioContentDescription(
+    SessionDescription* sdesc);
+VideoContentDescription* GetFirstVideoContentDescription(
+    SessionDescription* sdesc);
+DataContentDescription* GetFirstDataContentDescription(
+    SessionDescription* sdesc);
 
 void GetSupportedAudioCryptoSuites(std::vector<int>* crypto_suites);
 void GetSupportedVideoCryptoSuites(std::vector<int>* crypto_suites);
@@ -549,4 +563,4 @@ void GetDefaultSrtpCryptoSuiteNames(
 
 }  // namespace cricket
 
-#endif  // TALK_SESSION_MEDIA_MEDIASESSION_H_
+#endif  // WEBRTC_PC_MEDIASESSION_H_

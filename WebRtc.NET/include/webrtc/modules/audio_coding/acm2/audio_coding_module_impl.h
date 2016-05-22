@@ -23,6 +23,7 @@
 #include "webrtc/modules/audio_coding/acm2/acm_receiver.h"
 #include "webrtc/modules/audio_coding/acm2/acm_resampler.h"
 #include "webrtc/modules/audio_coding/acm2/codec_manager.h"
+#include "webrtc/modules/audio_coding/codecs/audio_encoder.h"
 
 namespace webrtc {
 
@@ -48,6 +49,9 @@ class AudioCodingModuleImpl final : public AudioCodingModule {
 
   void RegisterExternalSendCodec(
       AudioEncoder* external_speech_encoder) override;
+
+  void ModifyEncoder(
+      FunctionView<void(std::unique_ptr<AudioEncoder>*)> modifier) override;
 
   // Get current send codec.
   rtc::Optional<CodecInst> SendCodec() const override;
@@ -119,9 +123,10 @@ class AudioCodingModuleImpl final : public AudioCodingModule {
   // Get current playout frequency.
   int PlayoutFrequency() const override;
 
-  // Register possible receive codecs, can be called multiple times,
-  // for codecs, CNG, DTMF, RED.
   int RegisterReceiveCodec(const CodecInst& receive_codec) override;
+  int RegisterReceiveCodec(
+      const CodecInst& receive_codec,
+      FunctionView<std::unique_ptr<AudioDecoder>()> isac_factory) override;
 
   int RegisterExternalReceiveCodec(int rtp_payload_type,
                                    AudioDecoder* external_decoder,
@@ -153,11 +158,15 @@ class AudioCodingModuleImpl final : public AudioCodingModule {
   // Smallest latency NetEq will maintain.
   int LeastRequiredDelayMs() const override;
 
-  // Get playout timestamp.
-  int PlayoutTimestamp(uint32_t* timestamp) override;
+  RTC_DEPRECATED int32_t PlayoutTimestamp(uint32_t* timestamp) override;
+
+  rtc::Optional<uint32_t> PlayoutTimestamp() override;
 
   // Get 10 milliseconds of raw audio data to play out, and
   // automatic resample to the requested frequency if > 0.
+  int PlayoutData10Ms(int desired_freq_hz,
+                      AudioFrame* audio_frame,
+                      bool* muted) override;
   int PlayoutData10Ms(int desired_freq_hz, AudioFrame* audio_frame) override;
 
   /////////////////////////////////////////
@@ -213,6 +222,11 @@ class AudioCodingModuleImpl final : public AudioCodingModule {
     const std::string histogram_name_;
   };
 
+  int RegisterReceiveCodecUnlocked(
+      const CodecInst& codec,
+      FunctionView<std::unique_ptr<AudioDecoder>()> isac_factory)
+      EXCLUSIVE_LOCKS_REQUIRED(acm_crit_sect_);
+
   int Add10MsDataInternal(const AudioFrame& audio_frame, InputData* input_data)
       EXCLUSIVE_LOCKS_REQUIRED(acm_crit_sect_);
   int Encode(const InputData& input_data)
@@ -258,6 +272,9 @@ class AudioCodingModuleImpl final : public AudioCodingModule {
   // RegisterEncoder.
   std::unique_ptr<AudioEncoder> encoder_stack_ GUARDED_BY(acm_crit_sect_);
 
+  std::unique_ptr<AudioDecoder> isac_decoder_16k_ GUARDED_BY(acm_crit_sect_);
+  std::unique_ptr<AudioDecoder> isac_decoder_32k_ GUARDED_BY(acm_crit_sect_);
+
   // This is to keep track of CN instances where we can send DTMFs.
   uint8_t previous_pltype_ GUARDED_BY(acm_crit_sect_);
 
@@ -282,6 +299,10 @@ class AudioCodingModuleImpl final : public AudioCodingModule {
   AudioPacketizationCallback* packetization_callback_
       GUARDED_BY(callback_crit_sect_);
   ACMVADCallback* vad_callback_ GUARDED_BY(callback_crit_sect_);
+
+  int codec_histogram_bins_log_[static_cast<size_t>(
+      AudioEncoder::CodecType::kMaxLoggedAudioCodecTypes)];
+  int number_of_consecutive_empty_packets_;
 };
 
 }  // namespace acm2

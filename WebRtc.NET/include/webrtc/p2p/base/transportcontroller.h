@@ -12,9 +12,11 @@
 #define WEBRTC_P2P_BASE_TRANSPORTCONTROLLER_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "webrtc/base/asyncinvoker.h"
 #include "webrtc/base/sigslot.h"
 #include "webrtc/base/sslstreamadapter.h"
 #include "webrtc/p2p/base/candidate.h"
@@ -30,13 +32,13 @@ class TransportController : public sigslot::has_slots<>,
                             public rtc::MessageHandler {
  public:
   TransportController(rtc::Thread* signaling_thread,
-                      rtc::Thread* worker_thread,
+                      rtc::Thread* network_thread,
                       PortAllocator* port_allocator);
 
   virtual ~TransportController();
 
   rtc::Thread* signaling_thread() const { return signaling_thread_; }
-  rtc::Thread* worker_thread() const { return worker_thread_; }
+  rtc::Thread* network_thread() const { return network_thread_; }
 
   PortAllocator* port_allocator() const { return port_allocator_; }
 
@@ -58,8 +60,8 @@ class TransportController : public sigslot::has_slots<>,
       const std::string& transport_name,
       rtc::scoped_refptr<rtc::RTCCertificate>* certificate);
   // Caller owns returned certificate
-  bool GetRemoteSSLCertificate(const std::string& transport_name,
-                               rtc::SSLCertificate** cert);
+  std::unique_ptr<rtc::SSLCertificate> GetRemoteSSLCertificate(
+      const std::string& transport_name);
   bool SetLocalTransportDescription(const std::string& transport_name,
                                     const TransportDescription& tdesc,
                                     ContentAction action,
@@ -74,19 +76,23 @@ class TransportController : public sigslot::has_slots<>,
   bool AddRemoteCandidates(const std::string& transport_name,
                            const Candidates& candidates,
                            std::string* err);
+  bool RemoveRemoteCandidates(const Candidates& candidates, std::string* err);
   bool ReadyForRemoteCandidates(const std::string& transport_name);
   bool GetStats(const std::string& transport_name, TransportStats* stats);
 
   // Creates a channel if it doesn't exist. Otherwise, increments a reference
   // count and returns an existing channel.
-  virtual TransportChannel* CreateTransportChannel_w(
+  virtual TransportChannel* CreateTransportChannel_n(
       const std::string& transport_name,
       int component);
 
   // Decrements a channel's reference count, and destroys the channel if
   // nothing is referencing it.
-  virtual void DestroyTransportChannel_w(const std::string& transport_name,
+  virtual void DestroyTransportChannel_n(const std::string& transport_name,
                                          int component);
+
+  void use_quic() { quic_ = true; }
+  bool quic() const { return quic_; }
 
   // All of these signals are fired on the signalling thread.
 
@@ -108,16 +114,18 @@ class TransportController : public sigslot::has_slots<>,
   sigslot::signal2<const std::string&, const Candidates&>
       SignalCandidatesGathered;
 
+  sigslot::signal1<const Candidates&> SignalCandidatesRemoved;
+
   // for unit test
   const rtc::scoped_refptr<rtc::RTCCertificate>& certificate_for_testing();
 
  protected:
   // Protected and virtual so we can override it in unit tests.
-  virtual Transport* CreateTransport_w(const std::string& transport_name);
+  virtual Transport* CreateTransport_n(const std::string& transport_name);
 
   // For unit tests
   const std::map<std::string, Transport*>& transports() { return transports_; }
-  Transport* GetTransport_w(const std::string& transport_name);
+  Transport* GetTransport_n(const std::string& transport_name);
 
  private:
   void OnMessage(rtc::Message* pmsg) override;
@@ -145,53 +153,57 @@ class TransportController : public sigslot::has_slots<>,
     int ref_;
   };
 
-  std::vector<RefCountedChannel>::iterator FindChannel_w(
+  std::vector<RefCountedChannel>::iterator FindChannel_n(
       const std::string& transport_name,
       int component);
 
-  Transport* GetOrCreateTransport_w(const std::string& transport_name);
-  void DestroyTransport_w(const std::string& transport_name);
-  void DestroyAllTransports_w();
+  Transport* GetOrCreateTransport_n(const std::string& transport_name);
+  void DestroyTransport_n(const std::string& transport_name);
+  void DestroyAllTransports_n();
 
-  bool SetSslMaxProtocolVersion_w(rtc::SSLProtocolVersion version);
-  void SetIceConfig_w(const IceConfig& config);
-  void SetIceRole_w(IceRole ice_role);
-  bool GetSslRole_w(const std::string& transport_name, rtc::SSLRole* role);
-  bool SetLocalCertificate_w(
+  bool SetSslMaxProtocolVersion_n(rtc::SSLProtocolVersion version);
+  void SetIceConfig_n(const IceConfig& config);
+  void SetIceRole_n(IceRole ice_role);
+  bool GetSslRole_n(const std::string& transport_name, rtc::SSLRole* role);
+  bool SetLocalCertificate_n(
       const rtc::scoped_refptr<rtc::RTCCertificate>& certificate);
-  bool GetLocalCertificate_w(
+  bool GetLocalCertificate_n(
       const std::string& transport_name,
       rtc::scoped_refptr<rtc::RTCCertificate>* certificate);
-  bool GetRemoteSSLCertificate_w(const std::string& transport_name,
-                                 rtc::SSLCertificate** cert);
-  bool SetLocalTransportDescription_w(const std::string& transport_name,
+  std::unique_ptr<rtc::SSLCertificate> GetRemoteSSLCertificate_n(
+      const std::string& transport_name);
+  bool SetLocalTransportDescription_n(const std::string& transport_name,
                                       const TransportDescription& tdesc,
                                       ContentAction action,
                                       std::string* err);
-  bool SetRemoteTransportDescription_w(const std::string& transport_name,
+  bool SetRemoteTransportDescription_n(const std::string& transport_name,
                                        const TransportDescription& tdesc,
                                        ContentAction action,
                                        std::string* err);
-  void MaybeStartGathering_w();
-  bool AddRemoteCandidates_w(const std::string& transport_name,
+  void MaybeStartGathering_n();
+  bool AddRemoteCandidates_n(const std::string& transport_name,
                              const Candidates& candidates,
                              std::string* err);
-  bool ReadyForRemoteCandidates_w(const std::string& transport_name);
-  bool GetStats_w(const std::string& transport_name, TransportStats* stats);
+  bool RemoveRemoteCandidates_n(const Candidates& candidates, std::string* err);
+  bool ReadyForRemoteCandidates_n(const std::string& transport_name);
+  bool GetStats_n(const std::string& transport_name, TransportStats* stats);
 
   // Handlers for signals from Transport.
-  void OnChannelWritableState_w(TransportChannel* channel);
-  void OnChannelReceivingState_w(TransportChannel* channel);
-  void OnChannelGatheringState_w(TransportChannelImpl* channel);
-  void OnChannelCandidateGathered_w(TransportChannelImpl* channel,
+  void OnChannelWritableState_n(TransportChannel* channel);
+  void OnChannelReceivingState_n(TransportChannel* channel);
+  void OnChannelGatheringState_n(TransportChannelImpl* channel);
+  void OnChannelCandidateGathered_n(TransportChannelImpl* channel,
                                     const Candidate& candidate);
-  void OnChannelRoleConflict_w(TransportChannelImpl* channel);
-  void OnChannelConnectionRemoved_w(TransportChannelImpl* channel);
+  void OnChannelCandidatesRemoved(const Candidates& candidates);
+  void OnChannelCandidatesRemoved_n(TransportChannelImpl* channel,
+                                    const Candidates& candidates);
+  void OnChannelRoleConflict_n(TransportChannelImpl* channel);
+  void OnChannelConnectionRemoved_n(TransportChannelImpl* channel);
 
-  void UpdateAggregateStates_w();
+  void UpdateAggregateStates_n();
 
   rtc::Thread* const signaling_thread_ = nullptr;
-  rtc::Thread* const worker_thread_ = nullptr;
+  rtc::Thread* const network_thread_ = nullptr;
   typedef std::map<std::string, Transport*> TransportMap;
   TransportMap transports_;
 
@@ -212,6 +224,9 @@ class TransportController : public sigslot::has_slots<>,
   bool ice_role_switch_ = false;
   uint64_t ice_tiebreaker_ = rtc::CreateRandomId64();
   rtc::scoped_refptr<rtc::RTCCertificate> certificate_;
+  rtc::AsyncInvoker invoker_;
+  // True if QUIC is used instead of DTLS.
+  bool quic_ = false;
 };
 
 }  // namespace cricket

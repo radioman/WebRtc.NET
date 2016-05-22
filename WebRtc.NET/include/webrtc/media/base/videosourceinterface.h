@@ -20,8 +20,11 @@ namespace rtc {
 // should have when it is delivered to a certain sink.
 struct VideoSinkWants {
   // Tells the source whether the sink wants frames with rotation applied.
-  // By default, the rotation is applied by the source.
-  bool rotation_applied = true;
+  // By default, any rotation must be applied by the sink.
+  bool rotation_applied = false;
+
+  // Tells the source that the sink only wants black frames.
+  bool black_frames = false;
 
   // Tells the source the maximum number of pixels the sink wants.
   rtc::Optional<int> max_pixel_count;

@@ -18,39 +18,49 @@
 
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/modules/include/module.h"
-#include "webrtc/system_wrappers/include/tick_util.h"
 #include "webrtc/video/stream_synchronization.h"
 #include "webrtc/voice_engine/include/voe_video_sync.h"
 
 namespace webrtc {
 
+class Clock;
 class RtpRtcp;
-class VideoCodingModule;
+class VideoFrame;
 class ViEChannel;
 class VoEVideoSync;
 
+namespace vcm {
+class VideoReceiver;
+}  // namespace vcm
+
 class ViESyncModule : public Module {
  public:
-  explicit ViESyncModule(VideoCodingModule* vcm);
+  explicit ViESyncModule(vcm::VideoReceiver* vcm);
   ~ViESyncModule();
 
   void ConfigureSync(int voe_channel_id,
                      VoEVideoSync* voe_sync_interface,
                      RtpRtcp* video_rtcp_module,
-                     RtpReceiver* video_receiver);
+                     RtpReceiver* rtp_receiver);
 
   // Implements Module.
   int64_t TimeUntilNextProcess() override;
   void Process() override;
 
+  // Gets the sync offset between the current played out audio frame and the
+  // video |frame|. Returns true on success, false otherwise.
+  bool GetStreamSyncOffsetInMs(const VideoFrame& frame,
+                               int64_t* stream_offset_ms) const;
+
  private:
   rtc::CriticalSection data_cs_;
-  VideoCodingModule* const vcm_;
-  RtpReceiver* video_receiver_;
+  vcm::VideoReceiver* const video_receiver_;
+  Clock* const clock_;
+  RtpReceiver* rtp_receiver_;
   RtpRtcp* video_rtp_rtcp_;
   int voe_channel_id_;
   VoEVideoSync* voe_sync_interface_;
-  TickTime last_sync_time_;
+  int64_t last_sync_time_;
   std::unique_ptr<StreamSynchronization> sync_;
   StreamSynchronization::Measurements audio_measurement_;
   StreamSynchronization::Measurements video_measurement_;

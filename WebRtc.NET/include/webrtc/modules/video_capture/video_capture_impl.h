@@ -15,11 +15,11 @@
  * video_capture_impl.h
  */
 
+#include "webrtc/base/scoped_ref_ptr.h"
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
 #include "webrtc/common_video/rotation.h"
 #include "webrtc/modules/video_capture/video_capture.h"
 #include "webrtc/modules/video_capture/video_capture_config.h"
-#include "webrtc/system_wrappers/include/tick_util.h"
 #include "webrtc/video_frame.h"
 
 namespace webrtc
@@ -38,8 +38,9 @@ public:
      *   id              - unique identifier of this video capture module object
      *   deviceUniqueIdUTF8 -  name of the device. Available names can be found by using GetDeviceName
      */
-    static VideoCaptureModule* Create(const int32_t id,
-                                      const char* deviceUniqueIdUTF8);
+   static rtc::scoped_refptr<VideoCaptureModule> Create(
+       const int32_t id,
+       const char* deviceUniqueIdUTF8);
 
     /*
      *   Create a video capture module object used for external capture.
@@ -47,8 +48,9 @@ public:
      *   id              - unique identifier of this video capture module object
      *   externalCapture - [out] interface to call when a new frame is captured.
      */
-    static VideoCaptureModule* Create(const int32_t id,
-                                      VideoCaptureExternal*& externalCapture);
+   static rtc::scoped_refptr<VideoCaptureModule> Create(
+       const int32_t id,
+       VideoCaptureExternal*& externalCapture);
 
     static DeviceInfo* CreateDeviceInfo(const int32_t id);
 
@@ -113,12 +115,14 @@ protected:
     VideoCaptureCapability _requestedCapability; // Should be set by platform dependent code in StartCapture.
 private:
     void UpdateFrameCount();
-    uint32_t CalculateFrameRate(const TickTime& now);
+    uint32_t CalculateFrameRate(int64_t now_ns);
 
     CriticalSectionWrapper& _callBackCs;
 
-    TickTime _lastProcessTime; // last time the module process function was called.
-    TickTime _lastFrameRateCallbackTime; // last time the frame rate callback function was called.
+    // last time the module process function was called.
+    int64_t _lastProcessTimeNanos;
+    // last time the frame rate callback function was called.
+    int64_t _lastFrameRateCallbackTimeNanos;
     bool _frameRateCallBack; // true if EnableFrameRateCallback
     bool _noPictureAlarmCallBack; //true if EnableNoPictureAlarm
     VideoCaptureAlarm _captureAlarm; // current value of the noPictureAlarm
@@ -127,8 +131,9 @@ private:
     VideoCaptureDataCallback* _dataCallBack;
     VideoCaptureFeedBack* _captureCallBack;
 
-    TickTime _lastProcessFrameCount;
-    TickTime _incomingFrameTimes[kFrameRateCountHistorySize];// timestamp for local captured frames
+    int64_t _lastProcessFrameTimeNanos;
+    // timestamp for local captured frames
+    int64_t _incomingFrameTimesNanos[kFrameRateCountHistorySize];
     VideoRotation _rotateFrame;  // Set if the frame should be rotated by the
                                  // capture module.
 

@@ -11,9 +11,11 @@
 #ifndef WEBRTC_MODULES_AUDIO_CODING_INCLUDE_AUDIO_CODING_MODULE_H_
 #define WEBRTC_MODULES_AUDIO_CODING_INCLUDE_AUDIO_CODING_MODULE_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "webrtc/base/deprecation.h"
 #include "webrtc/base/optional.h"
 #include "webrtc/common_types.h"
 #include "webrtc/modules/audio_coding/include/audio_coding_module_typedefs.h"
@@ -206,6 +208,52 @@ class AudioCodingModule {
   // replace any previously registered speech encoder (internal or external).
   virtual void RegisterExternalSendCodec(
       AudioEncoder* external_speech_encoder) = 0;
+
+  // Just like std::function, FunctionView will wrap any callable and hide its
+  // actual type, exposing only its signature. But unlike std::function,
+  // FunctionView doesn't own its callable---it just points to it. Thus, it's a
+  // good choice mainly as a function argument when the callable argument will
+  // not be called again once the function has returned.
+  template <typename T>
+  class FunctionView;  // Undefined.
+
+  template <typename RetT, typename... ArgT>
+  class FunctionView<RetT(ArgT...)> final {
+   public:
+    // This constructor is implicit, so that callers won't have to convert
+    // lambdas to FunctionView<Blah(Blah, Blah)> explicitly. This is safe
+    // because FunctionView is only a reference to the real callable.
+    template <typename F>
+    FunctionView(F&& f)
+        : f_(&f), call_(Call<typename std::remove_reference<F>::type>) {}
+
+    RetT operator()(ArgT... args) const {
+      return call_(f_, std::forward<ArgT>(args)...);
+    }
+
+   private:
+    template <typename F>
+    static RetT Call(void* f, ArgT... args) {
+      return (*static_cast<F*>(f))(std::forward<ArgT>(args)...);
+    }
+    void* f_;
+    RetT (*call_)(void* f, ArgT... args);
+  };
+
+  // |modifier| is called exactly once with one argument: a pointer to the
+  // unique_ptr that holds the current encoder (which is null if there is no
+  // current encoder). For the duration of the call, |modifier| has exclusive
+  // access to the unique_ptr; it may call the encoder, steal the encoder and
+  // replace it with another encoder or with nullptr, etc.
+  virtual void ModifyEncoder(
+      FunctionView<void(std::unique_ptr<AudioEncoder>*)> modifier) = 0;
+
+  // Utility method for simply replacing the existing encoder with a new one.
+  void SetEncoder(std::unique_ptr<AudioEncoder> new_encoder) {
+    ModifyEncoder([&](std::unique_ptr<AudioEncoder>* encoder) {
+      *encoder = std::move(new_encoder);
+    });
+  }
 
   ///////////////////////////////////////////////////////////////////////////
   // int32_t SendCodec()
@@ -472,6 +520,13 @@ class AudioCodingModule {
   //
   virtual int RegisterReceiveCodec(const CodecInst& receive_codec) = 0;
 
+  // Register a decoder; call repeatedly to register multiple decoders. |df| is
+  // a decoder factory that returns an iSAC decoder; it will be called once if
+  // the decoder being registered is iSAC.
+  virtual int RegisterReceiveCodec(
+      const CodecInst& receive_codec,
+      FunctionView<std::unique_ptr<AudioDecoder>()> isac_factory) = 0;
+
   // Registers an external decoder. The name is only used to provide information
   // back to the caller about the decoder. Hence, the name is arbitrary, and may
   // be empty.
@@ -594,7 +649,6 @@ class AudioCodingModule {
   //
   virtual int LeastRequiredDelayMs() const = 0;
 
-  ///////////////////////////////////////////////////////////////////////////
   // int32_t PlayoutTimestamp()
   // The send timestamp of an RTP packet is associated with the decoded
   // audio of the packet in question. This function returns the timestamp of
@@ -607,8 +661,16 @@ class AudioCodingModule {
   //    0 if the output is a correct timestamp.
   //   -1 if failed to output the correct timestamp.
   //
-  // TODO(tlegrand): Change function to return the timestamp.
-  virtual int32_t PlayoutTimestamp(uint32_t* timestamp) = 0;
+  RTC_DEPRECATED virtual int32_t PlayoutTimestamp(uint32_t* timestamp) = 0;
+
+  ///////////////////////////////////////////////////////////////////////////
+  // int32_t PlayoutTimestamp()
+  // The send timestamp of an RTP packet is associated with the decoded
+  // audio of the packet in question. This function returns the timestamp of
+  // the latest audio obtained by calling PlayoutData10ms(), or empty if no
+  // valid timestamp is available.
+  //
+  virtual rtc::Optional<uint32_t> PlayoutTimestamp() = 0;
 
   ///////////////////////////////////////////////////////////////////////////
   // int32_t PlayoutData10Ms(
@@ -625,13 +687,24 @@ class AudioCodingModule {
   //                         and other relevant parameters, c.f.
   //                         module_common_types.h for the definition of
   //                         AudioFrame.
+  //   -muted              : if true, the sample data in audio_frame is not
+  //                         populated, and must be interpreted as all zero.
   //
   // Return value:
   //   -1 if the function fails,
   //    0 if the function succeeds.
   //
   virtual int32_t PlayoutData10Ms(int32_t desired_freq_hz,
-                                        AudioFrame* audio_frame) = 0;
+                                  AudioFrame* audio_frame,
+                                  bool* muted) = 0;
+
+  /////////////////////////////////////////////////////////////////////////////
+  // Same as above, but without the muted parameter. This methods should not be
+  // used if enable_fast_accelerate was set to true in NetEq::Config.
+  // TODO(henrik.lundin) Remove this method when downstream dependencies are
+  // ready.
+  virtual int32_t PlayoutData10Ms(int32_t desired_freq_hz,
+                                  AudioFrame* audio_frame) = 0;
 
   ///////////////////////////////////////////////////////////////////////////
   //   Codec specific

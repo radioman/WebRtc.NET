@@ -11,10 +11,11 @@
 #ifndef WEBRTC_API_VIDEOCAPTURERTRACKSOURCE_H_
 #define WEBRTC_API_VIDEOCAPTURERTRACKSOURCE_H_
 
+#include <memory>
+
 #include "webrtc/api/mediastreaminterface.h"
 #include "webrtc/api/videotracksource.h"
 #include "webrtc/base/asyncinvoker.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/sigslot.h"
 #include "webrtc/media/base/videocapturer.h"
 #include "webrtc/media/base/videocommon.h"
@@ -47,14 +48,14 @@ class VideoCapturerTrackSource : public VideoTrackSource,
       cricket::VideoCapturer* capturer,
       bool remote);
 
-  cricket::VideoCapturer* GetVideoCapturer() override {
-    return video_capturer_.get();
-  }
-
   bool is_screencast() const override {
     return video_capturer_->IsScreencast();
   }
-  bool needs_denoising() const override { return needs_denoising_; }
+  rtc::Optional<bool> needs_denoising() const override {
+    return needs_denoising_;
+  }
+
+  bool GetStats(Stats* stats) override;
 
   void Stop() override;
   void Restart() override;
@@ -71,11 +72,12 @@ class VideoCapturerTrackSource : public VideoTrackSource,
                      cricket::CaptureState capture_state);
 
   rtc::Thread* signaling_thread_;
+  rtc::Thread* worker_thread_;
   rtc::AsyncInvoker invoker_;
-  rtc::scoped_ptr<cricket::VideoCapturer> video_capturer_;
+  std::unique_ptr<cricket::VideoCapturer> video_capturer_;
   bool started_;
   cricket::VideoFormat format_;
-  bool needs_denoising_;
+  rtc::Optional<bool> needs_denoising_;
 };
 
 }  // namespace webrtc

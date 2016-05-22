@@ -7,8 +7,10 @@
 
 #include "webrtc/video_encoder.h"
 #include "webrtc/modules/video_coding/codecs/vp8/simulcast_encoder_adapter.h"
-#include "webrtc/media/engine/webrtcvideoencoderfactory.h"
 #include "webrtc/modules/video_coding/codecs/vp8/include/vp8.h"
+
+#include "webrtc/modules/video_capture/video_capture_factory.h"
+#include "webrtc/media/engine/webrtcvideocapturerfactory.h"
 
 const char kVideoLabel[] = "video_label";
 const char kStreamLabel[] = "stream_label";
@@ -164,10 +166,8 @@ void Conductor::OnOfferRequest(std::string sdp)
 bool Conductor::AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::string sdp)
 {
 	webrtc::SdpParseError error;
-	rtc::scoped_ptr<webrtc::IceCandidateInterface> candidate(
-		webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error));
-
-	if (!candidate.get())
+	webrtc::IceCandidateInterface * candidate = webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error);
+	if (!candidate)
 	{
 		LOG(WARNING) << "Can't parse received candidate message. "
 			<< "SdpParseError was: " << error.description;
@@ -177,7 +177,7 @@ bool Conductor::AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::st
 	if (!peer_connection_)
 		return false;
 
-	if (!peer_connection_->AddIceCandidate(candidate.get()))
+	if (!peer_connection_->AddIceCandidate(candidate))
 	{
 		LOG(WARNING) << "Failed to apply the received candidate";
 		return false;
@@ -197,37 +197,37 @@ void Conductor::OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize)
 
 bool Conductor::OpenVideoCaptureDevice()
 {
-	if (!capturer)
+	std::vector<std::string> device_names;
 	{
-		rtc::scoped_ptr<cricket::DeviceManagerInterface> dev_manager(cricket::DeviceManagerFactory::Create());
-		if (!dev_manager->Init())
+		std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo(0));
+		if (info)
 		{
-			LOG(LS_ERROR) << "Can't create device manager";
-			return false;
-		}
-
-		std::vector<cricket::Device> devs;
-		if (!dev_manager->GetVideoCaptureDevices(&devs))
-		{
-			LOG(LS_ERROR) << "Can't enumerate video devices";
-			return false;
-		}
-
-		for (auto dev : devs)
-		{
-			capturer = dev_manager->CreateVideoCapturer(dev);
-			if (capturer != nullptr)
-				return true;
-		}
-
-		if (capturer == nullptr)
-		{
-			LOG(LS_ERROR) << "Capturer is NULL!";
-			return false;
+			int num_devices = info->NumberOfDevices();
+			for (int i = 0; i < num_devices; ++i)
+			{
+				const uint32_t kSize = 256;
+				char name[kSize] = { 0 };
+				char id[kSize] = { 0 };
+				if (info->GetDeviceName(i, name, kSize, id, kSize) != -1)
+				{
+					device_names.push_back(name);
+				}
+			}
 		}
 	}
 
-	LOG(LS_ERROR) << "Capturer != NULL!";
+	cricket::WebRtcVideoDeviceCapturerFactory factory;
+	cricket::VideoCapturer * capturer = nullptr;
+	for (const auto& name : device_names)
+	{
+		capturer = factory.Create(cricket::Device(name, 0));
+		if (capturer)
+		{
+			LOG(LS_ERROR) << "Capturer != NULL!";
+			return true;
+		}
+	}
+
 	return false;
 }
 

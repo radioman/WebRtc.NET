@@ -24,7 +24,8 @@ enum PreservedErrno {
 };
 }  // namespace cricket
 
-#include "webrtc/base/buffer.h"
+#include "webrtc/base/copyonwritebuffer.h"
+#include "webrtc/base/gtest_prod_util.h"
 #include "webrtc/media/base/codec.h"
 #include "webrtc/media/base/mediachannel.h"
 #include "webrtc/media/base/mediaengine.h"
@@ -75,19 +76,13 @@ class SctpDataMediaChannel;
 class SctpDataEngine : public DataEngineInterface, public sigslot::has_slots<> {
  public:
   SctpDataEngine();
-  virtual ~SctpDataEngine();
+  ~SctpDataEngine() override;
 
-  virtual DataMediaChannel* CreateChannel(DataChannelType data_channel_type);
-
-  virtual const std::vector<DataCodec>& data_codecs() { return codecs_; }
-
-  static int SendThresholdCallback(struct socket* sock, uint32_t sb_free);
+  DataMediaChannel* CreateChannel(DataChannelType data_channel_type) override;
+  const std::vector<DataCodec>& data_codecs() override { return codecs_; }
 
  private:
-  static int usrsctp_engines_count;
-  std::vector<DataCodec> codecs_;
-
-  static SctpDataMediaChannel* GetChannelFromSocket(struct socket* sock);
+  const std::vector<DataCodec> codecs_;
 };
 
 // TODO(ldixon): Make into a special type of TypedMessageData.
@@ -144,10 +139,10 @@ class SctpDataMediaChannel : public DataMediaChannel,
   // sctp that will then post the network interface by OnMessage).
   // Returns true iff successful data somewhere on the send-queue/network.
   virtual bool SendData(const SendDataParams& params,
-                        const rtc::Buffer& payload,
+                        const rtc::CopyOnWriteBuffer& payload,
                         SendDataResult* result = NULL);
   // A packet is received from the network interface. Posted to OnMessage.
-  virtual void OnPacketReceived(rtc::Buffer* packet,
+  virtual void OnPacketReceived(rtc::CopyOnWriteBuffer* packet,
                                 const rtc::PacketTime& packet_time);
 
   // Exposed to allow Post call from c-callbacks.
@@ -155,17 +150,22 @@ class SctpDataMediaChannel : public DataMediaChannel,
 
   // Many of these things are unused by SCTP, but are needed to fulfill
   // the MediaChannel interface.
-  virtual void OnRtcpReceived(rtc::Buffer* packet,
+  virtual void OnRtcpReceived(rtc::CopyOnWriteBuffer* packet,
                               const rtc::PacketTime& packet_time) {}
   virtual void OnReadyToSend(bool ready) {}
 
   void OnSendThresholdCallback();
   // Helper for debugging.
-  void set_debug_name(const std::string& debug_name) {
+  void set_debug_name_for_testing(const char* debug_name) {
     debug_name_ = debug_name;
   }
-  const std::string& debug_name() const { return debug_name_; }
   const struct socket* socket() const { return sock_; }
+
+ private:
+  FRIEND_TEST_ALL_PREFIXES(SctpDataMediaChannelTest, EngineSignalsRightChannel);
+  static int SendThresholdCallback(struct socket* sock, uint32_t sb_free);
+  static SctpDataMediaChannel* GetChannelFromSocket(struct socket* sock);
+
  private:
   sockaddr_conn GetSctpSockAddr(int port);
 
@@ -192,12 +192,12 @@ class SctpDataMediaChannel : public DataMediaChannel,
   bool ResetStream(uint32_t ssrc);
 
   // Called by OnMessage to send packet on the network.
-  void OnPacketFromSctpToNetwork(rtc::Buffer* buffer);
+  void OnPacketFromSctpToNetwork(rtc::CopyOnWriteBuffer* buffer);
   // Called by OnMessage to decide what to do with the packet.
   void OnInboundPacketFromSctpToChannel(SctpInboundPacket* packet);
   void OnDataFromSctpToChannel(const ReceiveDataParams& params,
-                               rtc::Buffer* buffer);
-  void OnNotificationFromSctp(rtc::Buffer* buffer);
+                               const rtc::CopyOnWriteBuffer& buffer);
+  void OnNotificationFromSctp(const rtc::CopyOnWriteBuffer& buffer);
   void OnNotificationAssocChange(const sctp_assoc_change& change);
 
   void OnStreamResetEvent(const struct sctp_stream_reset_event* evt);
@@ -229,8 +229,8 @@ class SctpDataMediaChannel : public DataMediaChannel,
   StreamSet queued_reset_streams_;
   StreamSet sent_reset_streams_;
 
-  // A human-readable name for debugging messages.
-  std::string debug_name_;
+  // A static human-readable name for debugging messages.
+  const char* debug_name_;
 };
 
 }  // namespace cricket

@@ -16,8 +16,10 @@
 #include <utility>
 #include <vector>
 
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/modules/include/module.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "webrtc/modules/video_coding/include/video_coding_defines.h"
 
 namespace webrtc {
 // Forward declarations.
@@ -54,8 +56,6 @@ class RtpRtcp : public Module {
     *  intra_frame_callback - Called when the receiver request a intra frame.
     *  bandwidth_callback   - Called when we receive a changed estimate from
     *                         the receiver of out stream.
-    *  audio_messages       - Telephone events. May not be NULL; default
-    *                         callback will do nothing.
     *  remote_bitrate_estimator - Estimates the bandwidth available for a set of
     *                             streams from the same client.
     *  paced_sender             - Spread any bursts of packets into smaller
@@ -71,7 +71,6 @@ class RtpRtcp : public Module {
     TransportFeedbackObserver* transport_feedback_callback;
     RtcpRttStats* rtt_stats;
     RtcpPacketTypeCounterObserver* rtcp_packet_type_counter_observer;
-    RtpAudioFeedback* audio_messages;
     RemoteBitrateEstimator* remote_bitrate_estimator;
     RtpPacketSender* paced_sender;
     TransportSequenceNumberAllocator* transport_sequence_number_allocator;
@@ -79,7 +78,7 @@ class RtpRtcp : public Module {
     FrameCountObserver* send_frame_count_observer;
     SendSideDelayObserver* send_side_delay_observer;
     RtcEventLog* event_log;
-
+    SendPacketObserver* send_packet_observer;
     RTC_DISALLOW_COPY_AND_ASSIGN(Configuration);
   };
 
@@ -212,10 +211,10 @@ class RtpRtcp : public Module {
     */
     virtual void SetSequenceNumber(uint16_t seq) = 0;
 
-    // Returns true if the ssrc matched this module, false otherwise.
-    virtual bool SetRtpStateForSsrc(uint32_t ssrc,
-                                    const RtpState& rtp_state) = 0;
-    virtual bool GetRtpStateForSsrc(uint32_t ssrc, RtpState* rtp_state) = 0;
+    virtual void SetRtpState(const RtpState& rtp_state) = 0;
+    virtual void SetRtxState(const RtpState& rtp_state) = 0;
+    virtual RtpState GetRtpState() const = 0;
+    virtual RtpState GetRtxState() const = 0;
 
     /*
     *   Get SSRC
@@ -534,7 +533,18 @@ class RtpRtcp : public Module {
     *
     *   return -1 on failure else 0
     */
+    // TODO(philipel): Deprecate this and start using SendNack instead,
+    //                 mostly because we want a function that actually send
+    //                 NACK for the specified packets.
     virtual int32_t SendNACK(const uint16_t* nackList, uint16_t size) = 0;
+
+    /*
+    *   Send NACK for the packets specified.
+    *
+    *   Note: This assumes the caller keeps track of timing and doesn't rely on
+    *   the RTP module to do this.
+    */
+    virtual void SendNack(const std::vector<uint16_t>& sequence_numbers) = 0;
 
     /*
     *   Store the sent packets, needed to answer to a Negative acknowledgement
@@ -588,12 +598,6 @@ class RtpRtcp : public Module {
     *
     *   return -1 on failure else 0
     */
-    // DEPRECATED. Use SendREDPayloadType below that takes output parameter
-    // by pointer instead of by reference.
-    // TODO(danilchap): Remove this when all callers have been updated.
-    int32_t SendREDPayloadType(int8_t& payloadType) const {  // NOLINT
-      return SendREDPayloadType(&payloadType);
-    }
     virtual int32_t SendREDPayloadType(int8_t* payload_type) const = 0;
      /*
      * Store the audio level in dBov for header-extension-for-audio-level-
@@ -626,14 +630,6 @@ class RtpRtcp : public Module {
     /*
     *   Get generic FEC setting
     */
-    // DEPRECATED. Use GenericFECStatus below that takes output parameters
-    // by pointers instead of by references.
-    // TODO(danilchap): Remove this when all callers have been updated.
-    void GenericFECStatus(bool& enable,               // NOLINT
-                          uint8_t& payloadTypeRED,    // NOLINT
-                          uint8_t& payloadTypeFEC) {  // NOLINT
-      GenericFECStatus(&enable, &payloadTypeRED, &payloadTypeFEC);
-    }
     virtual void GenericFECStatus(bool* enable,
                                   uint8_t* payload_type_red,
                                   uint8_t* payload_type_fec) = 0;

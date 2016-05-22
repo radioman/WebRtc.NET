@@ -31,7 +31,7 @@ class DataChannelProviderInterface {
  public:
   // Sends the data to the transport.
   virtual bool SendData(const cricket::SendDataParams& params,
-                        const rtc::Buffer& payload,
+                        const rtc::CopyOnWriteBuffer& payload,
                         cricket::SendDataResult* result) = 0;
   // Connects to the transport signals.
   virtual bool ConnectDataChannel(DataChannel* data_channel) = 0;
@@ -143,7 +143,7 @@ class DataChannel : public DataChannelInterface,
   // Sigslots from cricket::DataChannel
   void OnDataReceived(cricket::DataChannel* channel,
                       const cricket::ReceiveDataParams& params,
-                      const rtc::Buffer& payload);
+                      const rtc::CopyOnWriteBuffer& payload);
   void OnStreamClosedRemotely(uint32_t sid);
 
   // The remote peer request that this channel should be closed.
@@ -236,8 +236,8 @@ class DataChannel : public DataChannelInterface,
   bool QueueSendDataMessage(const DataBuffer& buffer);
 
   void SendQueuedControlMessages();
-  void QueueControlMessage(const rtc::Buffer& buffer);
-  bool SendControlMessage(const rtc::Buffer& buffer);
+  void QueueControlMessage(const rtc::CopyOnWriteBuffer& buffer);
+  bool SendControlMessage(const rtc::CopyOnWriteBuffer& buffer);
 
   std::string label_;
   InternalDataChannelInit config_;
@@ -260,7 +260,7 @@ class DataChannel : public DataChannelInterface,
 };
 
 // Define proxy for DataChannelInterface.
-BEGIN_PROXY_MAP(DataChannel)
+BEGIN_SIGNALING_PROXY_MAP(DataChannel)
   PROXY_METHOD1(void, RegisterObserver, DataChannelObserver*)
   PROXY_METHOD0(void, UnregisterObserver)
   PROXY_CONSTMETHOD0(std::string, label)
@@ -275,7 +275,7 @@ BEGIN_PROXY_MAP(DataChannel)
   PROXY_CONSTMETHOD0(uint64_t, buffered_amount)
   PROXY_METHOD0(void, Close)
   PROXY_METHOD1(bool, Send, const DataBuffer&)
-END_PROXY()
+END_SIGNALING_PROXY()
 
 }  // namespace webrtc
 

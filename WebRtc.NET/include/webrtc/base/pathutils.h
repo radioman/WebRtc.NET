@@ -44,8 +44,13 @@ public:
   static char DefaultFolderDelimiter();
 
   Pathname();
+  Pathname(const Pathname&);
+  Pathname(Pathname&&);
   Pathname(const std::string& pathname);
   Pathname(const std::string& folder, const std::string& filename);
+
+  Pathname& operator=(const Pathname&);
+  Pathname& operator=(Pathname&&);
 
   // Set's the default folder delimiter for this Pathname
   char folder_delimiter() const { return folder_delimiter_; }

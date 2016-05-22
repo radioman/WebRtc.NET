@@ -43,8 +43,7 @@ int vp9_denoiser_filter_sse2(const uint8_t *sig, int sig_stride, const uint8_t *
 RTCD_EXTERN int (*vp9_denoiser_filter)(const uint8_t *sig, int sig_stride, const uint8_t *mc_avg, int mc_avg_stride, uint8_t *avg, int avg_stride, int increase_denoising, BLOCK_SIZE bs, int motion_magnitude);
 
 int vp9_diamond_search_sad_c(const struct macroblock *x, const struct search_site_config *cfg,  struct mv *ref_mv, struct mv *best_mv, int search_param, int sad_per_bit, int *num00, const struct vp9_variance_vtable *fn_ptr, const struct mv *center_mv);
-int vp9_diamond_search_sad_avx(const struct macroblock *x, const struct search_site_config *cfg,  struct mv *ref_mv, struct mv *best_mv, int search_param, int sad_per_bit, int *num00, const struct vp9_variance_vtable *fn_ptr, const struct mv *center_mv);
-RTCD_EXTERN int (*vp9_diamond_search_sad)(const struct macroblock *x, const struct search_site_config *cfg,  struct mv *ref_mv, struct mv *best_mv, int search_param, int sad_per_bit, int *num00, const struct vp9_variance_vtable *fn_ptr, const struct mv *center_mv);
+#define vp9_diamond_search_sad vp9_diamond_search_sad_c
 
 void vp9_fdct8x8_quant_c(const int16_t *input, int stride, tran_low_t *coeff_ptr, intptr_t n_coeffs, int skip_block, const int16_t *zbin_ptr, const int16_t *round_ptr, const int16_t *quant_ptr, const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan);
 void vp9_fdct8x8_quant_sse2(const int16_t *input, int stride, tran_low_t *coeff_ptr, intptr_t n_coeffs, int skip_block, const int16_t *zbin_ptr, const int16_t *round_ptr, const int16_t *quant_ptr, const int16_t *quant_shift_ptr, tran_low_t *qcoeff_ptr, tran_low_t *dqcoeff_ptr, const int16_t *dequant_ptr, uint16_t *eob_ptr, const int16_t *scan, const int16_t *iscan);
@@ -100,10 +99,6 @@ void vp9_mbpost_proc_down_c(uint8_t *dst, int pitch, int rows, int cols, int fli
 void vp9_mbpost_proc_down_xmm(uint8_t *dst, int pitch, int rows, int cols, int flimit);
 RTCD_EXTERN void (*vp9_mbpost_proc_down)(uint8_t *dst, int pitch, int rows, int cols, int flimit);
 
-void vp9_plane_add_noise_c(uint8_t *Start, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int Width, unsigned int Height, int Pitch);
-void vp9_plane_add_noise_wmt(uint8_t *Start, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int Width, unsigned int Height, int Pitch);
-RTCD_EXTERN void (*vp9_plane_add_noise)(uint8_t *Start, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int Width, unsigned int Height, int Pitch);
-
 void vp9_post_proc_down_and_across_c(const uint8_t *src_ptr, uint8_t *dst_ptr, int src_pixels_per_line, int dst_pixels_per_line, int rows, int cols, int flimit);
 void vp9_post_proc_down_and_across_xmm(const uint8_t *src_ptr, uint8_t *dst_ptr, int src_pixels_per_line, int dst_pixels_per_line, int rows, int cols, int flimit);
 RTCD_EXTERN void (*vp9_post_proc_down_and_across)(const uint8_t *src_ptr, uint8_t *dst_ptr, int src_pixels_per_line, int dst_pixels_per_line, int rows, int cols, int flimit);
@@ -140,8 +135,6 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_SSE2) vp9_block_error_fp = vp9_block_error_fp_sse2;
     vp9_denoiser_filter = vp9_denoiser_filter_c;
     if (flags & HAS_SSE2) vp9_denoiser_filter = vp9_denoiser_filter_sse2;
-    vp9_diamond_search_sad = vp9_diamond_search_sad_c;
-    if (flags & HAS_AVX) vp9_diamond_search_sad = vp9_diamond_search_sad_avx;
     vp9_fdct8x8_quant = vp9_fdct8x8_quant_c;
     if (flags & HAS_SSE2) vp9_fdct8x8_quant = vp9_fdct8x8_quant_sse2;
     if (flags & HAS_SSSE3) vp9_fdct8x8_quant = vp9_fdct8x8_quant_ssse3;
@@ -170,8 +163,6 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_SSE2) vp9_mbpost_proc_across_ip = vp9_mbpost_proc_across_ip_xmm;
     vp9_mbpost_proc_down = vp9_mbpost_proc_down_c;
     if (flags & HAS_SSE2) vp9_mbpost_proc_down = vp9_mbpost_proc_down_xmm;
-    vp9_plane_add_noise = vp9_plane_add_noise_c;
-    if (flags & HAS_SSE2) vp9_plane_add_noise = vp9_plane_add_noise_wmt;
     vp9_post_proc_down_and_across = vp9_post_proc_down_and_across_c;
     if (flags & HAS_SSE2) vp9_post_proc_down_and_across = vp9_post_proc_down_and_across_xmm;
     vp9_quantize_fp = vp9_quantize_fp_c;

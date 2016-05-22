@@ -16,12 +16,12 @@
 #include <set>
 
 #include "webrtc/base/criticalsection.h"
-#include "webrtc/base/mod_ops.h"
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/modules/include/module.h"
 #include "webrtc/modules/video_coding/include/video_coding_defines.h"
 #include "webrtc/modules/video_coding/packet.h"
 #include "webrtc/modules/video_coding/histogram.h"
+#include "webrtc/modules/video_coding/sequence_number_util.h"
 #include "webrtc/system_wrappers/include/clock.h"
 
 namespace webrtc {
@@ -32,9 +32,10 @@ class NackModule : public Module {
              NackSender* nack_sender,
              KeyFrameRequestSender* keyframe_request_sender);
 
-  void OnReceivedPacket(const VCMPacket& packet);
+  int OnReceivedPacket(const VCMPacket& packet);
   void ClearUpTo(uint16_t seq_num);
   void UpdateRtt(int64_t rtt_ms);
+  void Clear();
   void Stop();
 
   // Module implementation
@@ -58,11 +59,6 @@ class NackModule : public Module {
     int64_t sent_at_time;
     int retries;
   };
-
-  struct SeqNumComparator {
-    bool operator()(uint16_t s1, uint16_t s2) const { return AheadOf(s2, s1); }
-  };
-
   void AddPacketsToNack(uint16_t seq_num_start, uint16_t seq_num_end)
       EXCLUSIVE_LOCKS_REQUIRED(crit_);
 
@@ -86,13 +82,15 @@ class NackModule : public Module {
   NackSender* const nack_sender_;
   KeyFrameRequestSender* const keyframe_request_sender_;
 
-  std::map<uint16_t, NackInfo, SeqNumComparator> nack_list_ GUARDED_BY(crit_);
-  std::set<uint16_t, SeqNumComparator> keyframe_list_ GUARDED_BY(crit_);
+  std::map<uint16_t, NackInfo, DescendingSeqNumComp<uint16_t>> nack_list_
+      GUARDED_BY(crit_);
+  std::set<uint16_t, DescendingSeqNumComp<uint16_t>> keyframe_list_
+      GUARDED_BY(crit_);
   video_coding::Histogram reordering_histogram_ GUARDED_BY(crit_);
   bool running_ GUARDED_BY(crit_);
   bool initialized_ GUARDED_BY(crit_);
   int64_t rtt_ms_ GUARDED_BY(crit_);
-  uint16_t last_seq_num_ GUARDED_BY(crit_);
+  uint16_t newest_seq_num_ GUARDED_BY(crit_);
   int64_t next_process_time_ms_ GUARDED_BY(crit_);
 };
 

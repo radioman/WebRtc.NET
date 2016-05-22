@@ -11,6 +11,7 @@
 #ifndef WEBRTC_TEST_FAKE_NETWORK_PIPE_H_
 #define WEBRTC_TEST_FAKE_NETWORK_PIPE_H_
 
+#include <memory>
 #include <set>
 #include <string.h>
 #include <queue>
@@ -18,7 +19,6 @@
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/random.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -50,7 +50,7 @@ class NetworkPacket {
 
  private:
   // The packet data.
-  rtc::scoped_ptr<uint8_t[]> data_;
+  std::unique_ptr<uint8_t[]> data_;
   // Length of data_.
   size_t data_length_;
   // The time the packet was sent out on the network.

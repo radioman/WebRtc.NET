@@ -18,6 +18,7 @@
 
 #include "webrtc/api/mediastreaminterface.h"
 #include "webrtc/api/proxy.h"
+#include "webrtc/api/rtpparameters.h"
 #include "webrtc/base/refcount.h"
 #include "webrtc/base/scoped_ref_ptr.h"
 #include "webrtc/pc/mediasession.h"
@@ -51,12 +52,15 @@ class RtpSenderInterface : public rtc::RefCountInterface {
 
   virtual void Stop() = 0;
 
+  virtual RtpParameters GetParameters() const = 0;
+  virtual bool SetParameters(const RtpParameters& parameters) = 0;
+
  protected:
   virtual ~RtpSenderInterface() {}
 };
 
 // Define proxy for RtpSenderInterface.
-BEGIN_PROXY_MAP(RtpSender)
+BEGIN_SIGNALING_PROXY_MAP(RtpSender)
 PROXY_METHOD1(bool, SetTrack, MediaStreamTrackInterface*)
 PROXY_CONSTMETHOD0(rtc::scoped_refptr<MediaStreamTrackInterface>, track)
 PROXY_METHOD1(void, SetSsrc, uint32_t)
@@ -66,7 +70,9 @@ PROXY_CONSTMETHOD0(std::string, id)
 PROXY_METHOD1(void, set_stream_id, const std::string&)
 PROXY_CONSTMETHOD0(std::string, stream_id)
 PROXY_METHOD0(void, Stop)
-END_PROXY()
+PROXY_CONSTMETHOD0(RtpParameters, GetParameters);
+PROXY_METHOD1(bool, SetParameters, const RtpParameters&)
+END_SIGNALING_PROXY()
 
 }  // namespace webrtc
 

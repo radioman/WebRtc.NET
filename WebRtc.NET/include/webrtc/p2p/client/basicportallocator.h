@@ -11,13 +11,13 @@
 #ifndef WEBRTC_P2P_CLIENT_BASICPORTALLOCATOR_H_
 #define WEBRTC_P2P_CLIENT_BASICPORTALLOCATOR_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "webrtc/p2p/base/portallocator.h"
 #include "webrtc/base/messagequeue.h"
 #include "webrtc/base/network.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/thread.h"
 
 namespace cricket {
@@ -37,13 +37,6 @@ class BasicPortAllocator : public PortAllocator {
                      const rtc::SocketAddress& relay_server_ssl);
   virtual ~BasicPortAllocator();
 
-  void SetIceServers(
-      const ServerAddresses& stun_servers,
-      const std::vector<RelayServerConfig>& turn_servers) override {
-    stun_servers_ = stun_servers;
-    turn_servers_ = turn_servers;
-  }
-
   // Set to kDefaultNetworkIgnoreMask by default.
   void SetNetworkIgnoreMask(int network_ignore_mask) override {
     // TODO(phoglund): implement support for other types than loopback.
@@ -60,30 +53,20 @@ class BasicPortAllocator : public PortAllocator {
   // creates its own socket factory.
   rtc::PacketSocketFactory* socket_factory() { return socket_factory_; }
 
-  const ServerAddresses& stun_servers() const {
-    return stun_servers_;
-  }
-
-  const std::vector<RelayServerConfig>& turn_servers() const {
-    return turn_servers_;
-  }
-  virtual void AddTurnServer(const RelayServerConfig& turn_server) {
-    turn_servers_.push_back(turn_server);
-  }
-
   PortAllocatorSession* CreateSessionInternal(
       const std::string& content_name,
       int component,
       const std::string& ice_ufrag,
       const std::string& ice_pwd) override;
 
+  // Convenience method that adds a TURN server to the configuration.
+  void AddTurnServer(const RelayServerConfig& turn_server);
+
  private:
   void Construct();
 
   rtc::NetworkManager* network_manager_;
   rtc::PacketSocketFactory* socket_factory_;
-  ServerAddresses stun_servers_;
-  std::vector<RelayServerConfig> turn_servers_;
   bool allow_tcp_listen_;
   int network_ignore_mask_ = rtc::kDefaultNetworkIgnoreMask;
 };
@@ -109,8 +92,14 @@ class BasicPortAllocatorSession : public PortAllocatorSession,
   void StopGettingPorts() override;
   void ClearGettingPorts() override;
   bool IsGettingPorts() override { return running_; }
+  // These will all be cricket::Ports.
+  std::vector<PortInterface*> ReadyPorts() const override;
+  std::vector<Candidate> ReadyCandidates() const override;
+  bool CandidatesAllocationDone() const override;
 
  protected:
+  void UpdateIceParametersInternal() override;
+
   // Starts the process of getting the port configurations.
   virtual void GetPortConfigurations();
 
@@ -129,13 +118,11 @@ class BasicPortAllocatorSession : public PortAllocatorSession,
     : port_(port), sequence_(seq), state_(STATE_INIT) {
     }
 
-    Port* port() { return port_; }
-    AllocationSequence* sequence() { return sequence_; }
+    Port* port() const { return port_; }
+    AllocationSequence* sequence() const { return sequence_; }
     bool ready() const { return state_ == STATE_READY; }
-    bool complete() const {
-      // Returns true if candidate allocation has completed one way or another.
-      return ((state_ == STATE_COMPLETE) || (state_ == STATE_ERROR));
-    }
+    bool complete() const { return state_ == STATE_COMPLETE; }
+    bool error() const { return state_ == STATE_ERROR; }
 
     void set_ready() { ASSERT(state_ == STATE_INIT); state_ = STATE_READY; }
     void set_complete() {
@@ -175,17 +162,16 @@ class BasicPortAllocatorSession : public PortAllocatorSession,
   void OnPortError(Port* port);
   void OnProtocolEnabled(AllocationSequence* seq, ProtocolType proto);
   void OnPortDestroyed(PortInterface* port);
-  void OnShake();
   void MaybeSignalCandidatesAllocationDone();
   void OnPortAllocationComplete(AllocationSequence* seq);
   PortData* FindPort(Port* port);
   void GetNetworks(std::vector<rtc::Network*>* networks);
 
-  bool CheckCandidateFilter(const Candidate& c);
+  bool CheckCandidateFilter(const Candidate& c) const;
 
   BasicPortAllocator* allocator_;
   rtc::Thread* network_thread_;
-  rtc::scoped_ptr<rtc::PacketSocketFactory> owned_socket_factory_;
+  std::unique_ptr<rtc::PacketSocketFactory> owned_socket_factory_;
   rtc::PacketSocketFactory* socket_factory_;
   bool allocation_started_;
   bool network_manager_started_;
@@ -320,7 +306,7 @@ class AllocationSequence : public rtc::MessageHandler,
   State state_;
   uint32_t flags_;
   ProtocolList protocols_;
-  rtc::scoped_ptr<rtc::AsyncPacketSocket> udp_socket_;
+  std::unique_ptr<rtc::AsyncPacketSocket> udp_socket_;
   // There will be only one udp port per AllocationSequence.
   UDPPort* udp_port_;
   std::vector<TurnPort*> turn_ports_;

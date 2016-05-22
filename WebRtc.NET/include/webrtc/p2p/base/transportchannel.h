@@ -11,10 +11,13 @@
 #ifndef WEBRTC_P2P_BASE_TRANSPORTCHANNEL_H_
 #define WEBRTC_P2P_BASE_TRANSPORTCHANNEL_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/p2p/base/candidate.h"
+#include "webrtc/p2p/base/candidatepairinterface.h"
 #include "webrtc/p2p/base/transport.h"
 #include "webrtc/p2p/base/transportdescription.h"
 #include "webrtc/base/asyncpacketsocket.h"
@@ -128,8 +131,9 @@ class TransportChannel : public sigslot::has_slots<> {
   virtual rtc::scoped_refptr<rtc::RTCCertificate>
   GetLocalCertificate() const = 0;
 
-  // Gets a copy of the remote side's SSL certificate, owned by the caller.
-  virtual bool GetRemoteSSLCertificate(rtc::SSLCertificate** cert) const = 0;
+  // Gets a copy of the remote side's SSL certificate.
+  virtual std::unique_ptr<rtc::SSLCertificate> GetRemoteSSLCertificate()
+      const = 0;
 
   // Allows key material to be extracted for external encryption.
   virtual bool ExportKeyingMaterial(const std::string& label,
@@ -146,10 +150,18 @@ class TransportChannel : public sigslot::has_slots<> {
   // Signalled each time a packet is sent on this channel.
   sigslot::signal2<TransportChannel*, const rtc::SentPacket&> SignalSentPacket;
 
+  // Deprecated by SignalSelectedCandidatePairChanged
   // This signal occurs when there is a change in the way that packets are
   // being routed, i.e. to a different remote location. The candidate
   // indicates where and how we are currently sending media.
   sigslot::signal2<TransportChannel*, const Candidate&> SignalRouteChange;
+
+  // Signalled when the current selected candidate pair has changed.
+  // The first parameter is the transport channel that signals the event.
+  // The second parameter is the new selected candidate pair. The third
+  // parameter is the last packet id sent on the previous candidate pair.
+  sigslot::signal3<TransportChannel*, CandidatePairInterface*, int>
+      SignalSelectedCandidatePairChanged;
 
   // Invoked when the channel is being destroyed.
   sigslot::signal1<TransportChannel*> SignalDestroyed;

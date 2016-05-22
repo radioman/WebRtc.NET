@@ -11,6 +11,7 @@
 #ifndef WEBRTC_BASE_SSLSTREAMADAPTER_H_
 #define WEBRTC_BASE_SSLSTREAMADAPTER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -24,8 +25,12 @@ const int TLS_NULL_WITH_NULL_NULL = 0;
 
 // Constants for SRTP profiles.
 const int SRTP_INVALID_CRYPTO_SUITE = 0;
+#ifndef SRTP_AES128_CM_SHA1_80
 const int SRTP_AES128_CM_SHA1_80 = 0x0001;
+#endif
+#ifndef SRTP_AES128_CM_SHA1_32
 const int SRTP_AES128_CM_SHA1_32 = 0x0002;
+#endif
 
 // Cipher suite to use for SRTP. Typically a 80-bit HMAC will be used, except
 // in applications (voice) where the additional bandwidth may be significant.
@@ -154,12 +159,14 @@ class SSLStreamAdapter : public StreamAdapterInterface {
 
   // Retrieves the peer's X.509 certificate, if a connection has been
   // established. It returns the transmitted over SSL, including the entire
-  // chain. The returned certificate is owned by the caller.
-  virtual bool GetPeerCertificate(SSLCertificate** cert) const = 0;
+  // chain.
+  virtual std::unique_ptr<SSLCertificate> GetPeerCertificate() const = 0;
 
   // Retrieves the IANA registration id of the cipher suite used for the
   // connection (e.g. 0x2F for "TLS_RSA_WITH_AES_128_CBC_SHA").
   virtual bool GetSslCipherSuite(int* cipher_suite);
+
+  virtual int GetSslVersion() const = 0;
 
   // Key Exporter interface from RFC 5705
   // Arguments are:
@@ -189,11 +196,10 @@ class SSLStreamAdapter : public StreamAdapterInterface {
   static bool HaveDtlsSrtp();
   static bool HaveExporter();
 
-  // Returns the default Ssl cipher used between streams of this class
-  // for the given protocol version. This is used by the unit tests.
-  // TODO(guoweis): Move this away from a static class method.
-  static int GetDefaultSslCipherForTest(SSLProtocolVersion version,
-                                        KeyType key_type);
+  // Returns true iff the supplied cipher is deemed to be strong.
+  // TODO(torbjorng): Consider removing the KeyType argument.
+  static bool IsAcceptableCipher(int cipher, KeyType key_type);
+  static bool IsAcceptableCipher(const std::string& cipher, KeyType key_type);
 
   // TODO(guoweis): Move this away from a static class method. Currently this is
   // introduced such that any caller could depend on sslstreamadapter.h without

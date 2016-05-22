@@ -18,6 +18,7 @@
 #include <map>
 
 #include "webrtc/modules/include/module.h"
+#include "webrtc/modules/pacing/paced_sender.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 
 namespace webrtc {
@@ -26,6 +27,8 @@ class CriticalSectionWrapper;
 class RtcEventLog;
 struct PacketInfo;
 
+// Deprecated
+// TODO(perkj): Remove BitrateObserver when no implementations use it.
 class BitrateObserver {
   // Observer class for bitrate changes announced due to change in bandwidth
   // estimate or due to bitrate allocation changes. Fraction loss and rtt is
@@ -46,16 +49,26 @@ class BitrateController : public Module {
   // estimation and divide the available bitrate between all its registered
   // BitrateObservers.
  public:
-  static const int kDefaultStartBitrateKbps = 300;
+  static const int kDefaultStartBitratebps = 300000;
 
+  // Deprecated:
+  // TODO(perkj): BitrateObserver has been deprecated and is not used in WebRTC.
+  // Remove this method once other other projects does not use it.
   static BitrateController* CreateBitrateController(Clock* clock,
                                                     BitrateObserver* observer);
+  static BitrateController* CreateBitrateController(Clock* clock);
+
   virtual ~BitrateController() {}
 
   virtual RtcpBandwidthObserver* CreateRtcpBandwidthObserver() = 0;
 
+  // Deprecated
   virtual void SetStartBitrate(int start_bitrate_bps) = 0;
+  // Deprecated
   virtual void SetMinMaxBitrate(int min_bitrate_bps, int max_bitrate_bps) = 0;
+  virtual void SetBitrates(int start_bitrate_bps,
+                           int min_bitrate_bps,
+                           int max_bitrate_bps) = 0;
 
   virtual void UpdateDelayBasedEstimate(uint32_t bitrate_bps) = 0;
 
@@ -66,6 +79,10 @@ class BitrateController : public Module {
   virtual bool AvailableBandwidth(uint32_t* bandwidth) const = 0;
 
   virtual void SetReservedBitrate(uint32_t reserved_bitrate_bps) = 0;
+
+  virtual bool GetNetworkParameters(uint32_t* bitrate,
+                                    uint8_t* fraction_loss,
+                                    int64_t* rtt) = 0;
 };
 }  // namespace webrtc
 #endif  // WEBRTC_MODULES_BITRATE_CONTROLLER_INCLUDE_BITRATE_CONTROLLER_H_

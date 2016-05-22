@@ -11,6 +11,8 @@
 #ifndef WEBRTC_MODULES_VIDEO_CODING_TIMING_H_
 #define WEBRTC_MODULES_VIDEO_CODING_TIMING_H_
 
+#include <memory>
+
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/modules/video_coding/codec_timer.h"
 #include "webrtc/system_wrappers/include/critical_section_wrapper.h"
@@ -26,7 +28,7 @@ class VCMTiming {
   // The primary timing component should be passed
   // if this is the dual timing component.
   explicit VCMTiming(Clock* clock, VCMTiming* master_timing = NULL);
-  ~VCMTiming();
+  virtual ~VCMTiming();
 
   // Resets the timing to the initial state.
   void Reset();
@@ -67,11 +69,11 @@ class VCMTiming {
   // Returns the receiver system time when the frame with timestamp
   // frame_timestamp should be rendered, assuming that the system time currently
   // is now_ms.
-  int64_t RenderTimeMs(uint32_t frame_timestamp, int64_t now_ms) const;
+  virtual int64_t RenderTimeMs(uint32_t frame_timestamp, int64_t now_ms) const;
 
   // Returns the maximum time in ms that we can wait for a frame to become
   // complete before we must pass it to the decoder.
-  uint32_t MaxWaitingTime(int64_t render_time_ms, int64_t now_ms) const;
+  virtual uint32_t MaxWaitingTime(int64_t render_time_ms, int64_t now_ms) const;
 
   // Returns the current target delay which is required delay + decode time +
   // render delay.
@@ -94,7 +96,7 @@ class VCMTiming {
   enum { kDelayMaxChangeMsPerS = 100 };
 
  protected:
-  int32_t MaxDecodeTimeMs(FrameType frame_type = kVideoFrameDelta) const
+  int64_t RequiredDecodeTimeMs() const
       EXCLUSIVE_LOCKS_REQUIRED(crit_sect_);
   int64_t RenderTimeMsInternal(uint32_t frame_timestamp, int64_t now_ms) const
       EXCLUSIVE_LOCKS_REQUIRED(crit_sect_);
@@ -107,7 +109,7 @@ class VCMTiming {
   Clock* const clock_;
   bool master_ GUARDED_BY(crit_sect_);
   TimestampExtrapolator* ts_extrapolator_ GUARDED_BY(crit_sect_);
-  VCMCodecTimer codec_timer_ GUARDED_BY(crit_sect_);
+  std::unique_ptr<VCMCodecTimer> codec_timer_ GUARDED_BY(crit_sect_);
   uint32_t render_delay_ms_ GUARDED_BY(crit_sect_);
   uint32_t min_playout_delay_ms_ GUARDED_BY(crit_sect_);
   uint32_t jitter_delay_ms_ GUARDED_BY(crit_sect_);

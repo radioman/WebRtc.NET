@@ -15,11 +15,12 @@
 #include <vector>
 
 #include "webrtc/base/basictypes.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet.h"
-#include "webrtc/modules/rtp_rtcp/source/rtcp_utility.h"
 
 namespace webrtc {
 namespace rtcp {
+class CommonHeader;
 // Source Description (SDES) (RFC 3550).
 class Sdes : public RtcpPacket {
  public:
@@ -33,8 +34,7 @@ class Sdes : public RtcpPacket {
   ~Sdes() override;
 
   // Parse assumes header is already parsed and validated.
-  bool Parse(const RTCPUtility::RtcpCommonHeader& header,
-             const uint8_t* payload);  // Size of the payload is in the header.
+  bool Parse(const CommonHeader& packet);
 
   bool WithCName(uint32_t ssrc, const std::string& cname);
 

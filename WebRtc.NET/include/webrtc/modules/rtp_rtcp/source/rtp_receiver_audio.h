@@ -13,7 +13,7 @@
 
 #include <set>
 
-#include "webrtc/base/scoped_ptr.h"
+#include "webrtc/base/onetimeevent.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_receiver.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "webrtc/modules/rtp_rtcp/source/rtp_receiver_strategy.h"
@@ -22,27 +22,24 @@
 
 namespace webrtc {
 
-class CriticalSectionWrapper;
-
 // Handles audio RTP packets. This class is thread-safe.
 class RTPReceiverAudio : public RTPReceiverStrategy,
                          public TelephoneEventHandler {
  public:
-  RTPReceiverAudio(RtpData* data_callback,
-                   RtpAudioFeedback* incoming_messages_callback);
+  explicit RTPReceiverAudio(RtpData* data_callback);
   virtual ~RTPReceiverAudio() {}
 
   // The following three methods implement the TelephoneEventHandler interface.
   // Forward DTMFs to decoder for playout.
-  void SetTelephoneEventForwardToDecoder(bool forward_to_decoder);
+  void SetTelephoneEventForwardToDecoder(bool forward_to_decoder) override;
 
   // Is forwarding of outband telephone events turned on/off?
-  bool TelephoneEventForwardToDecoder() const;
+  bool TelephoneEventForwardToDecoder() const override;
 
   // Is TelephoneEvent configured with payload type payload_type
-  bool TelephoneEventPayloadType(const int8_t payload_type) const;
+  bool TelephoneEventPayloadType(const int8_t payload_type) const override;
 
-  TelephoneEventHandler* GetTelephoneEventHandler() { return this; }
+  TelephoneEventHandler* GetTelephoneEventHandler() override { return this; }
 
   // Returns true if CNG is configured with payload type payload_type. If so,
   // the frequency and cng_payload_type_has_changed are filled in.
@@ -120,7 +117,7 @@ class RTPReceiverAudio : public RTPReceiverStrategy,
   uint8_t num_energy_;
   uint8_t current_remote_energy_[kRtpCsrcSize];
 
-  RtpAudioFeedback* cb_audio_feedback_;
+  ThreadUnsafeOneTimeEvent first_packet_received_;
 };
 }  // namespace webrtc
 

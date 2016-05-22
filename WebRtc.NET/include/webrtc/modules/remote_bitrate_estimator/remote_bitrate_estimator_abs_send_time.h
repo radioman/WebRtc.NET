@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "webrtc/base/checks.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/rate_statistics.h"
 #include "webrtc/base/thread_checker.h"
@@ -67,8 +68,7 @@ struct Cluster {
 
 class RemoteBitrateEstimatorAbsSendTime : public RemoteBitrateEstimator {
  public:
-  RemoteBitrateEstimatorAbsSendTime(RemoteBitrateObserver* observer,
-                                    Clock* clock);
+  explicit RemoteBitrateEstimatorAbsSendTime(RemoteBitrateObserver* observer);
   virtual ~RemoteBitrateEstimatorAbsSendTime() {}
 
   void IncomingPacketFeedbackVector(
@@ -121,7 +121,7 @@ class RemoteBitrateEstimatorAbsSendTime : public RemoteBitrateEstimator {
   rtc::ThreadChecker network_thread_;
   RemoteBitrateObserver* const observer_;
   std::unique_ptr<InterArrival> inter_arrival_;
-  OveruseEstimator estimator_;
+  std::unique_ptr<OveruseEstimator> estimator_;
   OveruseDetector detector_;
   RateStatistics incoming_bitrate_;
   std::vector<int> recent_propagation_delta_ms_;
@@ -131,11 +131,9 @@ class RemoteBitrateEstimatorAbsSendTime : public RemoteBitrateEstimator {
   int64_t first_packet_time_ms_;
   int64_t last_update_ms_;
 
-  rtc::ThreadChecker process_thread_;
   rtc::CriticalSection crit_;
   Ssrcs ssrcs_ GUARDED_BY(&crit_);
   AimdRateControl remote_rate_ GUARDED_BY(&crit_);
-  Clock* const clock_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(RemoteBitrateEstimatorAbsSendTime);
 };

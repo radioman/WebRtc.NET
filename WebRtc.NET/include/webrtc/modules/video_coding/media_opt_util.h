@@ -18,7 +18,6 @@
 
 #include "webrtc/base/exp_filter.h"
 #include "webrtc/modules/video_coding/internal_defines.h"
-#include "webrtc/modules/video_coding/qm_select.h"
 #include "webrtc/system_wrappers/include/trace.h"
 #include "webrtc/typedefs.h"
 
@@ -44,6 +43,10 @@ enum FilterPacketLossMode {
 // Thresholds for hybrid NACK/FEC
 // common to media optimization and the jitter buffer.
 const int64_t kLowRttNackMs = 20;
+
+// If the RTT is higher than this an extra RTT wont be added to to the jitter
+// buffer delay.
+const int kMaxRttDelayThreshold = 500;
 
 struct VCMProtectionParameters {
   VCMProtectionParameters()
@@ -138,9 +141,6 @@ class VCMProtectionMethod {
 
   virtual int MaxFramesFec() const { return 1; }
 
-  // Updates content metrics
-  void UpdateContentMetrics(const VideoContentMetrics* contentMetrics);
-
  protected:
   uint8_t _effectivePacketLoss;
   uint8_t _protectionFactorK;
@@ -149,7 +149,6 @@ class VCMProtectionMethod {
   float _scaleProtKey;
   int32_t _maxPayloadSize;
 
-  VCMQmRobustness* _qmRobustness;
   bool _useUepProtectionK;
   bool _useUepProtectionD;
   float _corrFecCost;

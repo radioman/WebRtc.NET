@@ -28,11 +28,16 @@ class DecisionLogicFax : public DecisionLogic {
                    DecoderDatabase* decoder_database,
                    const PacketBuffer& packet_buffer,
                    DelayManager* delay_manager,
-                   BufferLevelFilter* buffer_level_filter)
-      : DecisionLogic(fs_hz, output_size_samples, playout_mode,
-                      decoder_database, packet_buffer, delay_manager,
-                      buffer_level_filter) {
-  }
+                   BufferLevelFilter* buffer_level_filter,
+                   const TickTimer* tick_timer)
+      : DecisionLogic(fs_hz,
+                      output_size_samples,
+                      playout_mode,
+                      decoder_database,
+                      packet_buffer,
+                      delay_manager,
+                      buffer_level_filter,
+                      tick_timer) {}
 
  protected:
   // Returns the operation that should be done next. |sync_buffer| and |expand|
@@ -50,7 +55,8 @@ class DecisionLogicFax : public DecisionLogic {
                                     const RTPHeader* packet_header,
                                     Modes prev_mode,
                                     bool play_dtmf,
-                                    bool* reset_decoder) override;
+                                    bool* reset_decoder,
+                                    size_t generated_noise_samples) override;
 
  private:
   RTC_DISALLOW_COPY_AND_ASSIGN(DecisionLogicFax);

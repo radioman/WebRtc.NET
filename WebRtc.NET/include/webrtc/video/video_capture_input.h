@@ -11,6 +11,7 @@
 #ifndef WEBRTC_VIDEO_VIDEO_CAPTURE_INPUT_H_
 #define WEBRTC_VIDEO_VIDEO_CAPTURE_INPUT_H_
 
+#include <memory>
 #include <vector>
 
 #include "webrtc/base/criticalsection.h"
@@ -32,13 +33,12 @@ namespace webrtc {
 class Config;
 class OveruseFrameDetector;
 class SendStatisticsProxy;
-class VideoRenderer;
 
 namespace internal {
 class VideoCaptureInput : public webrtc::VideoCaptureInput {
  public:
   VideoCaptureInput(rtc::Event* capture_event,
-                    VideoRenderer* local_renderer,
+                    rtc::VideoSinkInterface<VideoFrame>* local_renderer,
                     SendStatisticsProxy* send_stats_proxy,
                     OveruseFrameDetector* overuse_detector);
   ~VideoCaptureInput();
@@ -50,11 +50,11 @@ class VideoCaptureInput : public webrtc::VideoCaptureInput {
  private:
   rtc::CriticalSection crit_;
 
-  VideoRenderer* const local_renderer_;
+  rtc::VideoSinkInterface<VideoFrame>* const local_renderer_;
   SendStatisticsProxy* const stats_proxy_;
   rtc::Event* const capture_event_;
 
-  VideoFrame captured_frame_ GUARDED_BY(crit_);
+  std::unique_ptr<VideoFrame> captured_frame_ GUARDED_BY(crit_);
   Clock* const clock_;
   // Used to make sure incoming time stamp is increasing for every frame.
   int64_t last_captured_timestamp_;

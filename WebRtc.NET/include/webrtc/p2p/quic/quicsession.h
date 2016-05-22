@@ -11,6 +11,7 @@
 #ifndef WEBRTC_P2P_QUIC_QUICSESSION_H_
 #define WEBRTC_P2P_QUIC_QUICSESSION_H_
 
+#include <memory>
 #include <string>
 
 #include "net/quic/quic_crypto_client_stream.h"
@@ -29,7 +30,7 @@ namespace cricket {
 // reading/writing of data using QUIC packets.
 class QuicSession : public net::QuicSession, public sigslot::has_slots<> {
  public:
-  QuicSession(scoped_ptr<net::QuicConnection> connection,
+  QuicSession(std::unique_ptr<net::QuicConnection> connection,
               const net::QuicConfig& config);
   ~QuicSession() override;
 
@@ -43,23 +44,23 @@ class QuicSession : public net::QuicSession, public sigslot::has_slots<> {
   net::QuicCryptoStream* GetCryptoStream() override {
     return crypto_stream_.get();
   }
-  // TODO(mikescarlett): Verify whether outgoing streams should be owned by
-  // caller. It appears these are deleted in the net::QuicSession destructor,
-  // but Chromium's documentation says this should not happen.
   ReliableQuicStream* CreateOutgoingDynamicStream(
       net::SpdyPriority priority) override;
 
   // QuicSession optional overrides.
   void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
+  void CloseStream(net::QuicStreamId stream_id) override;
 
   // QuicConnectionVisitorInterface overrides.
-  void OnConnectionClosed(net::QuicErrorCode error, bool from_peer) override;
+  void OnConnectionClosed(net::QuicErrorCode error,
+                          const std::string& error_details,
+                          net::ConnectionCloseSource source) override;
 
   // Exports keying material for SRTP.
   bool ExportKeyingMaterial(base::StringPiece label,
                             base::StringPiece context,
                             size_t result_len,
-                            string* result);
+                            std::string* result);
 
   // Decrypts an incoming QUIC packet to a data stream.
   bool OnReadPacket(const char* data, size_t data_len);
@@ -81,10 +82,12 @@ class QuicSession : public net::QuicSession, public sigslot::has_slots<> {
   ReliableQuicStream* CreateIncomingDynamicStream(
       net::QuicStreamId id) override;
 
-  virtual ReliableQuicStream* CreateDataStream(net::QuicStreamId id);
+  virtual ReliableQuicStream* CreateDataStream(net::QuicStreamId id,
+                                               net::SpdyPriority priority);
 
  private:
-  scoped_ptr<net::QuicCryptoStream> crypto_stream_;
+  std::unique_ptr<net::QuicCryptoStream> crypto_stream_;
+  net::QuicClock clock_;  // For recording packet receipt time
 
   RTC_DISALLOW_COPY_AND_ASSIGN(QuicSession);
 };

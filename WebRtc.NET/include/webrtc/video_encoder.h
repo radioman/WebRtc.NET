@@ -31,6 +31,7 @@ class EncodedImageCallback {
   virtual ~EncodedImageCallback() {}
 
   // Callback function which is called when an image has been encoded.
+  // TODO(perkj): Change this to return void.
   virtual int32_t Encoded(const EncodedImage& encoded_image,
                           const CodecSpecificInfo* codec_specific_info,
                           const RTPFragmentationHeader* fragmentation) = 0;
@@ -124,7 +125,6 @@ class VideoEncoder {
 
   virtual int32_t SetPeriodicKeyFrames(bool enable) { return -1; }
   virtual void OnDroppedFrame() {}
-  virtual int GetTargetFramerate() { return -1; }
   virtual bool SupportsNativeHandle() const { return false; }
   virtual const char* ImplementationName() const { return "unknown"; }
 };
@@ -152,7 +152,6 @@ class VideoEncoderSoftwareFallbackWrapper : public VideoEncoder {
 
   int32_t SetRates(uint32_t bitrate, uint32_t framerate) override;
   void OnDroppedFrame() override;
-  int GetTargetFramerate() override;
   bool SupportsNativeHandle() const override;
   const char* ImplementationName() const override;
 

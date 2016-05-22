@@ -45,7 +45,6 @@ class RtpReceiver {
   // Creates an audio-enabled RTP receiver.
   static RtpReceiver* CreateAudioReceiver(
       Clock* clock,
-      RtpAudioFeedback* incoming_audio_feedback,
       RtpData* incoming_payload_callback,
       RtpFeedback* incoming_messages_callback,
       RTPPayloadRegistry* rtp_payload_registry);
@@ -75,12 +74,6 @@ class RtpReceiver {
                                  size_t payload_length,
                                  PayloadUnion payload_specific,
                                  bool in_order) = 0;
-
-  // Returns the currently configured NACK method.
-  virtual NACKMethod NACK() const = 0;
-
-  // Turn negative acknowledgement (NACK) requests on/off.
-  virtual void SetNACKStatus(const NACKMethod method) = 0;
 
   // Gets the last received timestamp. Returns true if a packet has been
   // received, false otherwise.

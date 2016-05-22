@@ -57,7 +57,6 @@ class FakeAudioProcessing : public webrtc::AudioProcessing {
     experimental_ns_enabled_ = config.Get<webrtc::ExperimentalNs>().enabled;
   }
 
-  WEBRTC_STUB_CONST(input_sample_rate_hz, ());
   WEBRTC_STUB_CONST(proc_sample_rate_hz, ());
   WEBRTC_STUB_CONST(proc_split_sample_rate_hz, ());
   size_t num_input_channels() const override { return 0; }
@@ -79,7 +78,6 @@ class FakeAudioProcessing : public webrtc::AudioProcessing {
                const webrtc::StreamConfig& input_config,
                const webrtc::StreamConfig& output_config,
                float* const* dest));
-  WEBRTC_STUB(AnalyzeReverseStream, (webrtc::AudioFrame* frame));
   WEBRTC_STUB(ProcessReverseStream, (webrtc::AudioFrame * frame));
   WEBRTC_STUB(AnalyzeReverseStream, (
       const float* const* data,
@@ -123,79 +121,37 @@ class FakeAudioProcessing : public webrtc::AudioProcessing {
 class FakeWebRtcVoiceEngine
     : public webrtc::VoEAudioProcessing,
       public webrtc::VoEBase, public webrtc::VoECodec,
-      public webrtc::VoEHardware,
-      public webrtc::VoENetwork, public webrtc::VoERTP_RTCP,
+      public webrtc::VoEHardware, public webrtc::VoERTP_RTCP,
       public webrtc::VoEVolumeControl {
  public:
   struct Channel {
-    explicit Channel()
-        : external_transport(false),
-          playout(false),
-          volume_scale(1.0),
-          vad(false),
-          codec_fec(false),
-          max_encoding_bandwidth(0),
-          opus_dtx(false),
-          red(false),
-          nack(false),
-          cn8_type(13),
-          cn16_type(105),
-          red_type(117),
-          nack_max_packets(0),
-          send_ssrc(0),
-          associate_send_channel(-1),
-          recv_codecs(),
-          neteq_capacity(-1),
-          neteq_fast_accelerate(false) {
+    Channel() {
       memset(&send_codec, 0, sizeof(send_codec));
     }
-    bool external_transport;
-    bool playout;
-    float volume_scale;
-    bool vad;
-    bool codec_fec;
-    int max_encoding_bandwidth;
-    bool opus_dtx;
-    bool red;
-    bool nack;
-    int cn8_type;
-    int cn16_type;
-    int red_type;
-    int nack_max_packets;
-    uint32_t send_ssrc;
-    int associate_send_channel;
+    bool playout = false;
+    float volume_scale = 1.0f;
+    bool vad = false;
+    bool codec_fec = false;
+    int max_encoding_bandwidth = 0;
+    bool opus_dtx = false;
+    bool red = false;
+    bool nack = false;
+    int cn8_type = 13;
+    int cn16_type = 105;
+    int red_type = 117;
+    int nack_max_packets = 0;
+    uint32_t send_ssrc = 0;
+    int associate_send_channel = -1;
     std::vector<webrtc::CodecInst> recv_codecs;
     webrtc::CodecInst send_codec;
-    webrtc::PacketTime last_rtp_packet_time;
-    std::list<std::string> packets;
-    int neteq_capacity;
-    bool neteq_fast_accelerate;
+    int neteq_capacity = -1;
+    bool neteq_fast_accelerate = false;
   };
 
-  FakeWebRtcVoiceEngine()
-      : inited_(false),
-        last_channel_(-1),
-        fail_create_channel_(false),
-        num_set_send_codecs_(0),
-        ec_enabled_(false),
-        ec_metrics_enabled_(false),
-        cng_enabled_(false),
-        ns_enabled_(false),
-        agc_enabled_(false),
-        highpass_filter_enabled_(false),
-        stereo_swapping_enabled_(false),
-        typing_detection_enabled_(false),
-        ec_mode_(webrtc::kEcDefault),
-        aecm_mode_(webrtc::kAecmSpeakerphone),
-        ns_mode_(webrtc::kNsDefault),
-        agc_mode_(webrtc::kAgcDefault),
-        observer_(NULL),
-        playout_fail_channel_(-1),
-        recording_sample_rate_(-1),
-        playout_sample_rate_(-1) {
+  FakeWebRtcVoiceEngine() {
     memset(&agc_config_, 0, sizeof(agc_config_));
   }
-  ~FakeWebRtcVoiceEngine() {
+  ~FakeWebRtcVoiceEngine() override {
     RTC_CHECK(channels_.empty());
   }
 
@@ -231,10 +187,6 @@ class FakeWebRtcVoiceEngine
   int GetNACKMaxPackets(int channel) {
     return channels_[channel]->nack_max_packets;
   }
-  const webrtc::PacketTime& GetLastRtpPacketTime(int channel) {
-    RTC_DCHECK(channels_.find(channel) != channels_.end());
-    return channels_[channel]->last_rtp_packet_time;
-  }
   int GetSendCNPayloadType(int channel, bool wideband) {
     return (wideband) ?
         channels_[channel]->cn16_type :
@@ -242,22 +194,6 @@ class FakeWebRtcVoiceEngine
   }
   int GetSendREDPayloadType(int channel) {
     return channels_[channel]->red_type;
-  }
-  bool CheckPacket(int channel, const void* data, size_t len) {
-    bool result = !CheckNoPacket(channel);
-    if (result) {
-      std::string packet = channels_[channel]->packets.front();
-      result = (packet == std::string(static_cast<const char*>(data), len));
-      channels_[channel]->packets.pop_front();
-    }
-    return result;
-  }
-  bool CheckNoPacket(int channel) {
-    return channels_[channel]->packets.empty();
-  }
-  void TriggerCallbackOnError(int channel_num, int err_code) {
-    RTC_DCHECK(observer_ != NULL);
-    observer_->CallbackOnError(channel_num, err_code);
   }
   void set_playout_fail_channel(int channel) {
     playout_fail_channel_ = channel;
@@ -290,11 +226,8 @@ class FakeWebRtcVoiceEngine
   WEBRTC_STUB(Release, ());
 
   // webrtc::VoEBase
-  WEBRTC_FUNC(RegisterVoiceEngineObserver, (
-      webrtc::VoiceEngineObserver& observer)) {
-    observer_ = &observer;
-    return 0;
-  }
+  WEBRTC_STUB(RegisterVoiceEngineObserver, (
+      webrtc::VoiceEngineObserver& observer));
   WEBRTC_STUB(DeRegisterVoiceEngineObserver, ());
   WEBRTC_FUNC(Init, (webrtc::AudioDeviceModule* adm,
                      webrtc::AudioProcessing* audioproc)) {
@@ -307,6 +240,9 @@ class FakeWebRtcVoiceEngine
   }
   webrtc::AudioProcessing* audio_processing() override {
     return &audio_processing_;
+  }
+  webrtc::AudioDeviceModule* audio_device_module() override {
+    return nullptr;
   }
   WEBRTC_FUNC(CreateChannel, ()) {
     webrtc::Config empty_config;
@@ -354,7 +290,7 @@ class FakeWebRtcVoiceEngine
     channels_[channel]->associate_send_channel = accociate_send_channel;
     return 0;
   }
-  webrtc::RtcEventLog* GetEventLog() { return nullptr; }
+  webrtc::RtcEventLog* GetEventLog() override { return nullptr; }
 
   // webrtc::VoECodec
   WEBRTC_STUB(NumOfCodecs, ());
@@ -500,62 +436,16 @@ class FakeWebRtcVoiceEngine
   WEBRTC_STUB(SetPlayoutDevice, (int));
   WEBRTC_STUB(SetAudioDeviceLayer, (webrtc::AudioLayers));
   WEBRTC_STUB(GetAudioDeviceLayer, (webrtc::AudioLayers&));
-  WEBRTC_FUNC(SetRecordingSampleRate, (unsigned int samples_per_sec)) {
-    recording_sample_rate_ = samples_per_sec;
-    return 0;
-  }
-  WEBRTC_FUNC_CONST(RecordingSampleRate, (unsigned int* samples_per_sec)) {
-    *samples_per_sec = recording_sample_rate_;
-    return 0;
-  }
-  WEBRTC_FUNC(SetPlayoutSampleRate, (unsigned int samples_per_sec)) {
-    playout_sample_rate_ = samples_per_sec;
-    return 0;
-  }
-  WEBRTC_FUNC_CONST(PlayoutSampleRate, (unsigned int* samples_per_sec)) {
-    *samples_per_sec = playout_sample_rate_;
-    return 0;
-  }
+  WEBRTC_STUB(SetRecordingSampleRate, (unsigned int samples_per_sec));
+  WEBRTC_STUB_CONST(RecordingSampleRate, (unsigned int* samples_per_sec));
+  WEBRTC_STUB(SetPlayoutSampleRate, (unsigned int samples_per_sec));
+  WEBRTC_STUB_CONST(PlayoutSampleRate, (unsigned int* samples_per_sec));
   WEBRTC_STUB(EnableBuiltInAEC, (bool enable));
-  virtual bool BuiltInAECIsAvailable() const { return false; }
+  bool BuiltInAECIsAvailable() const override { return false; }
   WEBRTC_STUB(EnableBuiltInAGC, (bool enable));
-  virtual bool BuiltInAGCIsAvailable() const { return false; }
+  bool BuiltInAGCIsAvailable() const override { return false; }
   WEBRTC_STUB(EnableBuiltInNS, (bool enable));
-  virtual bool BuiltInNSIsAvailable() const { return false; }
-
-  // webrtc::VoENetwork
-  WEBRTC_FUNC(RegisterExternalTransport, (int channel,
-                                          webrtc::Transport& transport)) {
-    WEBRTC_CHECK_CHANNEL(channel);
-    channels_[channel]->external_transport = true;
-    return 0;
-  }
-  WEBRTC_FUNC(DeRegisterExternalTransport, (int channel)) {
-    WEBRTC_CHECK_CHANNEL(channel);
-    channels_[channel]->external_transport = false;
-    return 0;
-  }
-  WEBRTC_FUNC(ReceivedRTPPacket, (int channel, const void* data,
-                                  size_t length)) {
-    WEBRTC_CHECK_CHANNEL(channel);
-    if (!channels_[channel]->external_transport) return -1;
-    channels_[channel]->packets.push_back(
-        std::string(static_cast<const char*>(data), length));
-    return 0;
-  }
-  WEBRTC_FUNC(ReceivedRTPPacket, (int channel, const void* data,
-                                  size_t length,
-                                  const webrtc::PacketTime& packet_time)) {
-    WEBRTC_CHECK_CHANNEL(channel);
-    if (ReceivedRTPPacket(channel, data, length) == -1) {
-      return -1;
-    }
-    channels_[channel]->last_rtp_packet_time = packet_time;
-    return 0;
-  }
-
-  WEBRTC_STUB(ReceivedRTCPPacket, (int channel, const void* data,
-                                   size_t length));
+  bool BuiltInNSIsAvailable() const override { return false; }
 
   // webrtc::VoERTP_RTCP
   WEBRTC_FUNC(SetLocalSSRC, (int channel, unsigned int ssrc)) {
@@ -729,17 +619,17 @@ class FakeWebRtcVoiceEngine
                                              int reportingThreshold,
                                              int penaltyDecay,
                                              int typeEventDelay));
-  int EnableHighPassFilter(bool enable) {
+  int EnableHighPassFilter(bool enable) override {
     highpass_filter_enabled_ = enable;
     return 0;
   }
-  bool IsHighPassFilterEnabled() {
+  bool IsHighPassFilterEnabled() override {
     return highpass_filter_enabled_;
   }
-  bool IsStereoChannelSwappingEnabled() {
+  bool IsStereoChannelSwappingEnabled() override {
     return stereo_swapping_enabled_;
   }
-  void EnableStereoChannelSwapping(bool enable) {
+  void EnableStereoChannelSwapping(bool enable) override {
     stereo_swapping_enabled_ = enable;
   }
   int GetNetEqCapacity() const {
@@ -754,28 +644,25 @@ class FakeWebRtcVoiceEngine
   }
 
  private:
-  bool inited_;
-  int last_channel_;
+  bool inited_ = false;
+  int last_channel_ = -1;
   std::map<int, Channel*> channels_;
-  bool fail_create_channel_;
-  int num_set_send_codecs_;  // how many times we call SetSendCodec().
-  bool ec_enabled_;
-  bool ec_metrics_enabled_;
-  bool cng_enabled_;
-  bool ns_enabled_;
-  bool agc_enabled_;
-  bool highpass_filter_enabled_;
-  bool stereo_swapping_enabled_;
-  bool typing_detection_enabled_;
-  webrtc::EcModes ec_mode_;
-  webrtc::AecmModes aecm_mode_;
-  webrtc::NsModes ns_mode_;
-  webrtc::AgcModes agc_mode_;
+  bool fail_create_channel_ = false;
+  int num_set_send_codecs_ = 0;  // how many times we call SetSendCodec().
+  bool ec_enabled_ = false;
+  bool ec_metrics_enabled_ = false;
+  bool cng_enabled_ = false;
+  bool ns_enabled_ = false;
+  bool agc_enabled_ = false;
+  bool highpass_filter_enabled_ = false;
+  bool stereo_swapping_enabled_ = false;
+  bool typing_detection_enabled_ = false;
+  webrtc::EcModes ec_mode_ = webrtc::kEcDefault;
+  webrtc::AecmModes aecm_mode_ = webrtc::kAecmSpeakerphone;
+  webrtc::NsModes ns_mode_ = webrtc::kNsDefault;
+  webrtc::AgcModes agc_mode_ = webrtc::kAgcDefault;
   webrtc::AgcConfig agc_config_;
-  webrtc::VoiceEngineObserver* observer_;
-  int playout_fail_channel_;
-  int recording_sample_rate_;
-  int playout_sample_rate_;
+  int playout_fail_channel_ = -1;
   FakeAudioProcessing audio_processing_;
 };
 

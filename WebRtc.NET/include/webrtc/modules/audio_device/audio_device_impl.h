@@ -47,11 +47,6 @@ class AudioDeviceModuleImpl : public AudioDeviceModule {
   int64_t TimeUntilNextProcess() override;
   void Process() override;
 
-  // Factory methods (resource allocation/deallocation)
-  static AudioDeviceModule* Create(
-      const int32_t id,
-      const AudioLayer audioLayer = kPlatformDefaultAudio);
-
   // Retrieve the currently utilized audio layer
   int32_t ActiveAudioLayer(AudioLayer* audioLayer) const override;
 

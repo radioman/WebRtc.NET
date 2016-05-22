@@ -13,6 +13,7 @@
 
 #include <deque>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -20,7 +21,6 @@
 #include "webrtc/base/ipaddress.h"
 #include "webrtc/base/networkmonitor.h"
 #include "webrtc/base/messagehandler.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/sigslot.h"
 
 #if defined(WEBRTC_POSIX)
@@ -37,6 +37,11 @@ class Network;
 class NetworkMonitorInterface;
 class Thread;
 
+static const uint16_t kNetworkCostMax = 999;
+static const uint16_t kNetworkCostHigh = 900;
+static const uint16_t kNetworkCostUnknown = 50;
+static const uint16_t kNetworkCostLow = 10;
+static const uint16_t kNetworkCostMin = 0;
 
 // By default, ignore loopback interfaces on the host.
 const int kDefaultNetworkIgnoreMask = ADAPTER_TYPE_LOOPBACK;
@@ -160,6 +165,8 @@ class NetworkManagerBase : public NetworkManager {
  private:
   friend class NetworkTest;
 
+  Network* GetNetworkFromAddress(const rtc::IPAddress& ip) const;
+
   EnumerationPermission enumeration_permission_;
 
   NetworkList networks_;
@@ -168,11 +175,16 @@ class NetworkManagerBase : public NetworkManager {
   NetworkMap networks_map_;
   bool ipv6_enabled_;
 
-  rtc::scoped_ptr<rtc::Network> ipv4_any_address_network_;
-  rtc::scoped_ptr<rtc::Network> ipv6_any_address_network_;
+  std::unique_ptr<rtc::Network> ipv4_any_address_network_;
+  std::unique_ptr<rtc::Network> ipv6_any_address_network_;
 
   IPAddress default_local_ipv4_address_;
   IPAddress default_local_ipv6_address_;
+  // We use 16 bits to save the bandwidth consumption when sending the network
+  // id over the Internet. It is OK that the 16-bit integer overflows to get a
+  // network id 0 because we only compare the network ids in the old and the new
+  // best connections in the transport channel.
+  uint16_t next_available_network_id_ = 1;
 };
 
 // Basic implementation of the NetworkManager interface that gets list
@@ -242,12 +254,14 @@ class BasicNetworkManager : public NetworkManagerBase,
   // Only updates the networks; does not reschedule the next update.
   void UpdateNetworksOnce();
 
+  AdapterType GetAdapterTypeFromName(const char* network_name) const;
+
   Thread* thread_;
   bool sent_first_update_;
   int start_count_;
   std::vector<std::string> network_ignore_list_;
   bool ignore_non_default_routes_;
-  scoped_ptr<NetworkMonitorInterface> network_monitor_;
+  std::unique_ptr<NetworkMonitorInterface> network_monitor_;
 };
 
 // Represents a Unix-type network interface, with a name and single address.
@@ -266,6 +280,7 @@ class Network {
   ~Network();
 
   sigslot::signal1<const Network*> SignalInactive;
+  sigslot::signal1<const Network*> SignalTypeChanged;
 
   const DefaultLocalAddressProvider* default_local_address_provider() {
     return default_local_address_provider_;
@@ -337,7 +352,32 @@ class Network {
   void set_ignored(bool ignored) { ignored_ = ignored; }
 
   AdapterType type() const { return type_; }
-  void set_type(AdapterType type) { type_ = type; }
+  void set_type(AdapterType type) {
+    if (type_ == type) {
+      return;
+    }
+    type_ = type;
+    SignalTypeChanged(this);
+  }
+
+  uint16_t GetCost() const {
+    switch (type_) {
+      case rtc::ADAPTER_TYPE_ETHERNET:
+      case rtc::ADAPTER_TYPE_LOOPBACK:
+        return kNetworkCostMin;
+      case rtc::ADAPTER_TYPE_WIFI:
+      case rtc::ADAPTER_TYPE_VPN:
+        return kNetworkCostLow;
+      case rtc::ADAPTER_TYPE_CELLULAR:
+        return kNetworkCostHigh;
+      default:
+        return kNetworkCostUnknown;
+    }
+  }
+  // A unique id assigned by the network manager, which may be signaled
+  // to the remote side in the candidate.
+  uint16_t id() const { return id_; }
+  void set_id(uint16_t id) { id_ = id; }
 
   int preference() const { return preference_; }
   void set_preference(int preference) { preference_ = preference; }
@@ -372,6 +412,7 @@ class Network {
   AdapterType type_;
   int preference_;
   bool active_ = true;
+  uint16_t id_ = 0;
 
   friend class NetworkManager;
 };

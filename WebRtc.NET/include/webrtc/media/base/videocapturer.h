@@ -19,18 +19,15 @@
 #include <vector>
 
 #include "webrtc/base/basictypes.h"
+#include "webrtc/base/constructormagic.h"
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/media/base/videosourceinterface.h"
-#include "webrtc/base/rollingaccumulator.h"
 #include "webrtc/base/sigslot.h"
-#include "webrtc/base/timing.h"
 #include "webrtc/base/thread_checker.h"
-#include "webrtc/media/base/mediachannel.h"
 #include "webrtc/media/base/videoadapter.h"
 #include "webrtc/media/base/videobroadcaster.h"
 #include "webrtc/media/base/videocommon.h"
 #include "webrtc/media/base/videoframefactory.h"
-#include "webrtc/media/devices/devicemanager.h"
 
 
 namespace cricket {
@@ -42,7 +39,6 @@ enum CaptureState {
                  // still fail to start.
   CS_RUNNING,    // The capturer has been started successfully and is now
                  // capturing.
-  CS_PAUSED,     // The capturer has been paused.
   CS_FAILED,     // The capturer failed to start.
 };
 
@@ -152,7 +148,6 @@ class VideoCapturer : public sigslot::has_slots<>,
   //   CS_STARTING:  The capturer is trying to start. Success or failure will
   //                 be notified via the |SignalStateChange| callback.
   //   CS_RUNNING:   if the capturer is started and capturing.
-  //   CS_PAUSED:    Will never be returned.
   //   CS_FAILED:    if the capturer failes to start..
   //   CS_NO_DEVICE: if the capturer has no device and fails to start.
   virtual CaptureState Start(const VideoFormat& capture_format) = 0;
@@ -165,13 +160,6 @@ class VideoCapturer : public sigslot::has_slots<>,
     return capture_format_.get();
   }
 
-  // Pause the video capturer.
-  // DEPRECATED
-  // TODO(perkj): Remove once Chrome remoting doesn't override this method.
-  virtual bool Pause(bool paused) {
-    RTC_NOTREACHED();
-    return false;
-  }
   // Stop the video capturer.
   virtual void Stop() = 0;
   // Check if the video capturer is running.
@@ -222,13 +210,7 @@ class VideoCapturer : public sigslot::has_slots<>,
   // Takes ownership.
   void set_frame_factory(VideoFrameFactory* frame_factory);
 
-  // Gets statistics for tracked variables recorded since the last call to
-  // GetStats.  Note that calling GetStats resets any gathered data so it
-  // should be called only periodically to log statistics.
-  void GetStats(VariableInfo<int>* adapt_drop_stats,
-                VariableInfo<int>* effect_drop_stats,
-                VariableInfo<double>* frame_time_stats,
-                VideoFormat* last_captured_frame_format);
+  bool GetInputSize(int* width, int* height);
 
   // Implements VideoSourceInterface
   void AddOrUpdateSink(rtc::VideoSinkInterface<cricket::VideoFrame>* sink,
@@ -236,12 +218,6 @@ class VideoCapturer : public sigslot::has_slots<>,
   void RemoveSink(rtc::VideoSinkInterface<cricket::VideoFrame>* sink) override;
 
  protected:
-  // Signal the captured and possibly adapted frame to downstream consumers
-  // such as the encoder.
-  // TODO(perkj): Remove once it is not used by remoting in Chrome.
-  sigslot::signal2<VideoCapturer*, const VideoFrame*,
-                    sigslot::multi_threaded_local> SignalVideoFrame;
-
   // OnSinkWantsChanged can be overridden to change the default behavior
   // when a sink changes its VideoSinkWants by calling AddOrUpdateSink.
   virtual void OnSinkWantsChanged(const rtc::VideoSinkWants& wants);
@@ -250,11 +226,12 @@ class VideoCapturer : public sigslot::has_slots<>,
   void OnFrameCaptured(VideoCapturer* video_capturer,
                        const CapturedFrame* captured_frame);
 
-  // Callback attached to SignalVideoFrame.
-  // TODO(perkj): Remove once SignalVideoFrame is removed.
+  // Called when a frame has been captured and converted to a VideoFrame.
+  // OnFrame can be called directly by an implementation that does not use
+  // SignalFrameCaptured or OnFrameCaptured.
   void OnFrame(VideoCapturer* capturer, const VideoFrame* frame);
 
-  CoordinatedVideoAdapter* video_adapter() { return &video_adapter_; }
+  VideoAdapter* video_adapter() { return &video_adapter_; }
 
   void SetCaptureState(CaptureState state);
 
@@ -269,12 +246,6 @@ class VideoCapturer : public sigslot::has_slots<>,
 
   void SetCaptureFormat(const VideoFormat* format) {
     capture_format_.reset(format ? new VideoFormat(*format) : NULL);
-    if (capture_format_) {
-      ASSERT(capture_format_->interval > 0 &&
-             "Capture format expected to have positive interval.");
-      // Video adapter really only cares about capture format interval.
-      video_adapter_.SetInputFormat(*capture_format_);
-    }
   }
 
   void SetSupportedFormats(const std::vector<VideoFormat>& formats);
@@ -297,14 +268,7 @@ class VideoCapturer : public sigslot::has_slots<>,
   // Returns true if format doesn't fulfill all applied restrictions.
   bool ShouldFilterFormat(const VideoFormat& format) const;
 
-  void UpdateStats(const CapturedFrame* captured_frame);
-
-  // Helper function to save statistics on the current data from a
-  // RollingAccumulator into stats.
-  template<class T>
-  static void GetVariableSnapshot(
-      const rtc::RollingAccumulator<T>& data,
-      VariableInfo<T>* stats);
+  void UpdateInputSize(const CapturedFrame* captured_frame);
 
   rtc::ThreadChecker thread_checker_;
   std::string id_;
@@ -315,26 +279,19 @@ class VideoCapturer : public sigslot::has_slots<>,
   std::unique_ptr<VideoFormat> max_format_;
   std::vector<VideoFormat> filtered_supported_formats_;
 
-  int ratio_w_;  // View resolution. e.g. 1280 x 720.
-  int ratio_h_;
   bool enable_camera_list_;
-  bool square_pixel_aspect_ratio_;  // Enable scaling to square pixels.
   int scaled_width_;  // Current output size from ComputeScale.
   int scaled_height_;
 
   rtc::VideoBroadcaster broadcaster_;
   bool enable_video_adapter_;
-  CoordinatedVideoAdapter video_adapter_;
+  VideoAdapter video_adapter_;
 
-  rtc::Timing frame_length_time_reporter_;
   rtc::CriticalSection frame_stats_crit_;
-
-  int adapt_frame_drops_;
-  rtc::RollingAccumulator<int> adapt_frame_drops_data_;
-  double previous_frame_time_;
-  rtc::RollingAccumulator<double> frame_time_data_;
-  // The captured frame format before potential adapation.
-  VideoFormat last_captured_frame_format_;
+  // The captured frame size before potential adapation.
+  bool input_size_valid_ GUARDED_BY(frame_stats_crit_) = false;
+  int input_width_ GUARDED_BY(frame_stats_crit_);
+  int input_height_ GUARDED_BY(frame_stats_crit_);
 
   // Whether capturer should apply rotation to the frame before signaling it.
   bool apply_rotation_;

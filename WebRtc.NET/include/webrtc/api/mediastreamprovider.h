@@ -11,16 +11,17 @@
 #ifndef WEBRTC_API_MEDIASTREAMPROVIDER_H_
 #define WEBRTC_API_MEDIASTREAMPROVIDER_H_
 
+#include <memory>
+
+#include "webrtc/api/rtpsenderinterface.h"
 #include "webrtc/base/basictypes.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/media/base/videosinkinterface.h"
+#include "webrtc/media/base/videosourceinterface.h"
 
 namespace cricket {
 
 class AudioSource;
-class VideoCapturer;
 class VideoFrame;
-class VideoRenderer;
 struct AudioOptions;
 struct VideoOptions;
 
@@ -60,7 +61,16 @@ class AudioProviderInterface {
   // passed to the provider.
   virtual void SetRawAudioSink(
       uint32_t ssrc,
-      rtc::scoped_ptr<webrtc::AudioSinkInterface> sink) = 0;
+      std::unique_ptr<webrtc::AudioSinkInterface> sink) = 0;
+
+  virtual RtpParameters GetAudioRtpSendParameters(uint32_t ssrc) const = 0;
+  virtual bool SetAudioRtpSendParameters(uint32_t ssrc,
+                                         const RtpParameters& parameters) = 0;
+
+  virtual RtpParameters GetAudioRtpReceiveParameters(uint32_t ssrc) const = 0;
+  virtual bool SetAudioRtpReceiveParameters(
+      uint32_t ssrc,
+      const RtpParameters& parameters) = 0;
 
  protected:
   virtual ~AudioProviderInterface() {}
@@ -70,8 +80,9 @@ class AudioProviderInterface {
 // of a video track connected to a certain PeerConnection.
 class VideoProviderInterface {
  public:
-  virtual bool SetCaptureDevice(uint32_t ssrc,
-                                cricket::VideoCapturer* camera) = 0;
+  virtual bool SetSource(
+      uint32_t ssrc,
+      rtc::VideoSourceInterface<cricket::VideoFrame>* source) = 0;
   // Enable/disable the video playout of a remote video track with |ssrc|.
   virtual void SetVideoPlayout(
       uint32_t ssrc,
@@ -81,6 +92,15 @@ class VideoProviderInterface {
   virtual void SetVideoSend(uint32_t ssrc,
                             bool enable,
                             const cricket::VideoOptions* options) = 0;
+
+  virtual RtpParameters GetVideoRtpSendParameters(uint32_t ssrc) const = 0;
+  virtual bool SetVideoRtpSendParameters(uint32_t ssrc,
+                                         const RtpParameters& parameters) = 0;
+
+  virtual RtpParameters GetVideoRtpReceiveParameters(uint32_t ssrc) const = 0;
+  virtual bool SetVideoRtpReceiveParameters(
+      uint32_t ssrc,
+      const RtpParameters& parameters) = 0;
 
  protected:
   virtual ~VideoProviderInterface() {}

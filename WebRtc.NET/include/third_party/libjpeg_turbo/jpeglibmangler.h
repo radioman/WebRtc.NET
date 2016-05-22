@@ -156,6 +156,7 @@
 #define jpeg_start_decompress chromium_jpeg_start_decompress
 #define jpeg_read_scanlines chromium_jpeg_read_scanlines
 #define jpeg_skip_scanlines chromium_jpeg_skip_scanlines
+#define jpeg_crop_scanline chromium_jpeg_crop_scanline
 #define jpeg_finish_decompress chromium_jpeg_finish_decompress
 #define jpeg_read_raw_data chromium_jpeg_read_raw_data
 #define jpeg_has_multiple_scans chromium_jpeg_has_multiple_scans

@@ -12,7 +12,6 @@
 #define WEBRTC_BASE_NETWORKMONITOR_H_
 
 #include "webrtc/base/logging.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/base/sigslot.h"
 #include "webrtc/base/thread.h"
 
@@ -46,6 +45,7 @@ class NetworkBinderInterface {
   // This is needed because some operating systems (like Android) require a
   // special bind call to put packets on a non-default network interface.
   virtual int BindSocketToNetwork(int socket_fd, const IPAddress& address) = 0;
+  virtual ~NetworkBinderInterface() {}
 };
 
 /*

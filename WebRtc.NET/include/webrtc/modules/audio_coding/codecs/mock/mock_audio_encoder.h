@@ -11,6 +11,8 @@
 #ifndef WEBRTC_MODULES_AUDIO_CODING_CODECS_MOCK_MOCK_AUDIO_ENCODER_H_
 #define WEBRTC_MODULES_AUDIO_CODING_CODECS_MOCK_MOCK_AUDIO_ENCODER_H_
 
+#include <string>
+
 #include "webrtc/base/array_view.h"
 #include "webrtc/modules/audio_coding/codecs/audio_encoder.h"
 
@@ -18,12 +20,15 @@
 
 namespace webrtc {
 
-class MockAudioEncoderBase : public AudioEncoder {
+class MockAudioEncoder : public AudioEncoder {
  public:
-  ~MockAudioEncoderBase() override { Die(); }
+  // TODO(nisse): Valid overrides commented out, because the gmock
+  // methods don't use any override declarations, and we want to avoid
+  // warnings from -Winconsistent-missing-override. See
+  // http://crbug.com/428099.
+  ~MockAudioEncoder() /* override */ { Die(); }
   MOCK_METHOD0(Die, void());
   MOCK_METHOD1(Mark, void(std::string desc));
-  MOCK_CONST_METHOD0(MaxEncodedBytes, size_t());
   MOCK_CONST_METHOD0(SampleRateHz, int());
   MOCK_CONST_METHOD0(NumChannels, size_t());
   MOCK_CONST_METHOD0(RtpTimestampRateHz, int());
@@ -39,10 +44,7 @@ class MockAudioEncoderBase : public AudioEncoder {
   MOCK_METHOD1(SetTargetBitrate, void(int target_bps));
   MOCK_METHOD1(SetMaxBitrate, void(int max_bps));
   MOCK_METHOD1(SetMaxPayloadSize, void(int max_payload_size_bytes));
-};
 
-class MockAudioEncoder final : public MockAudioEncoderBase {
- public:
   // Note, we explicitly chose not to create a mock for the Encode method.
   MOCK_METHOD3(EncodeImpl,
                EncodedInfo(uint32_t timestamp,
@@ -53,11 +55,11 @@ class MockAudioEncoder final : public MockAudioEncoderBase {
    public:
     // Creates a functor that will return |info| and adjust the rtc::Buffer
     // given as input to it, so it is info.encoded_bytes larger.
-    FakeEncoding(const AudioEncoder::EncodedInfo& info);
+    explicit FakeEncoding(const AudioEncoder::EncodedInfo& info);
 
     // Shorthand version of the constructor above, for when only setting
     // encoded_bytes in the EncodedInfo object matters.
-    FakeEncoding(size_t encoded_bytes);
+    explicit FakeEncoding(size_t encoded_bytes);
 
     AudioEncoder::EncodedInfo operator()(uint32_t timestamp,
                                          rtc::ArrayView<const int16_t> audio,
@@ -80,41 +82,12 @@ class MockAudioEncoder final : public MockAudioEncoderBase {
     // Shorthand version of the constructor above, for when you wish to append
     // the whole payload and do not care about any EncodedInfo attribute other
     // than encoded_bytes.
-    CopyEncoding(rtc::ArrayView<const uint8_t> payload);
+    explicit CopyEncoding(rtc::ArrayView<const uint8_t> payload);
 
     AudioEncoder::EncodedInfo operator()(uint32_t timestamp,
                                          rtc::ArrayView<const int16_t> audio,
                                          rtc::Buffer* encoded);
-   private:
-    AudioEncoder::EncodedInfo info_;
-    rtc::ArrayView<const uint8_t> payload_;
-  };
 
-};
-
-class MockAudioEncoderDeprecated final : public MockAudioEncoderBase {
- public:
-  // Note, we explicitly chose not to create a mock for the Encode method.
-  MOCK_METHOD4(EncodeInternal,
-               EncodedInfo(uint32_t timestamp,
-                           rtc::ArrayView<const int16_t> audio,
-                           size_t max_encoded_bytes,
-                           uint8_t* encoded));
-
-  // A functor like MockAudioEncoder::CopyEncoding above, but which has the
-  // deprecated Encode signature. Currently only used in one test and should be
-  // removed once that backwards compatibility is.
-  class CopyEncoding {
-   public:
-    CopyEncoding(AudioEncoder::EncodedInfo info,
-                 rtc::ArrayView<const uint8_t> payload);
-
-    CopyEncoding(rtc::ArrayView<const uint8_t> payload);
-
-    AudioEncoder::EncodedInfo operator()(uint32_t timestamp,
-                                         rtc::ArrayView<const int16_t> audio,
-                                         size_t max_bytes_encoded,
-                                         uint8_t* encoded);
    private:
     AudioEncoder::EncodedInfo info_;
     rtc::ArrayView<const uint8_t> payload_;

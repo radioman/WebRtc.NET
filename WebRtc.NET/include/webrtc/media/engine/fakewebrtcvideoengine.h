@@ -21,7 +21,6 @@
 #include "webrtc/base/stringutils.h"
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/media/base/codec.h"
-#include "webrtc/media/engine/fakewebrtccommon.h"
 #include "webrtc/media/engine/webrtcvideodecoderfactory.h"
 #include "webrtc/media/engine/webrtcvideoencoderfactory.h"
 #include "webrtc/modules/video_coding/include/video_error_codes.h"
@@ -39,13 +38,12 @@ static const int kMaxVideoBitrate = 1000;
 // renderer for a channel or it is adding a renderer for a capturer.
 static const int kViEChannelIdBase = 0;
 static const int kViEChannelIdMax = 1000;
+static const int kEventTimeoutMs = 10000;
 
 // Fake class for mocking out webrtc::VideoDecoder
 class FakeWebRtcVideoDecoder : public webrtc::VideoDecoder {
  public:
-  FakeWebRtcVideoDecoder()
-      : num_frames_received_(0) {
-  }
+  FakeWebRtcVideoDecoder() : num_frames_received_(0) {}
 
   virtual int32_t InitDecode(const webrtc::VideoCodec*, int32_t) {
     return WEBRTC_VIDEO_CODEC_OK;
@@ -121,15 +119,19 @@ class FakeWebRtcVideoDecoderFactory : public WebRtcVideoDecoderFactory {
 // Fake class for mocking out webrtc::VideoEnoder
 class FakeWebRtcVideoEncoder : public webrtc::VideoEncoder {
  public:
-  FakeWebRtcVideoEncoder() : num_frames_encoded_(0) {}
+  FakeWebRtcVideoEncoder()
+      : init_encode_event_(false, false), num_frames_encoded_(0) {}
 
   virtual int32_t InitEncode(const webrtc::VideoCodec* codecSettings,
                              int32_t numberOfCores,
                              size_t maxPayloadSize) {
     rtc::CritScope lock(&crit_);
     codec_settings_ = *codecSettings;
+    init_encode_event_.Set();
     return WEBRTC_VIDEO_CODEC_OK;
   }
+
+  bool WaitForInitEncode() { return init_encode_event_.Wait(kEventTimeoutMs); }
 
   webrtc::VideoCodec GetCodecSettings() {
     rtc::CritScope lock(&crit_);
@@ -141,6 +143,7 @@ class FakeWebRtcVideoEncoder : public webrtc::VideoEncoder {
                          const std::vector<webrtc::FrameType>* frame_types) {
     rtc::CritScope lock(&crit_);
     ++num_frames_encoded_;
+    init_encode_event_.Set();
     return WEBRTC_VIDEO_CODEC_OK;
   }
 
@@ -166,6 +169,7 @@ class FakeWebRtcVideoEncoder : public webrtc::VideoEncoder {
 
  private:
   rtc::CriticalSection crit_;
+  rtc::Event init_encode_event_;
   int num_frames_encoded_ GUARDED_BY(crit_);
   webrtc::VideoCodec codec_settings_ GUARDED_BY(crit_);
 };
@@ -174,32 +178,45 @@ class FakeWebRtcVideoEncoder : public webrtc::VideoEncoder {
 class FakeWebRtcVideoEncoderFactory : public WebRtcVideoEncoderFactory {
  public:
   FakeWebRtcVideoEncoderFactory()
-      : num_created_encoders_(0), encoders_have_internal_sources_(false) {}
+      : created_video_encoder_event_(false, false),
+        num_created_encoders_(0),
+        encoders_have_internal_sources_(false) {}
 
-  virtual webrtc::VideoEncoder* CreateVideoEncoder(
-      webrtc::VideoCodecType type) {
+  webrtc::VideoEncoder* CreateVideoEncoder(
+      webrtc::VideoCodecType type) override {
+    rtc::CritScope lock(&crit_);
     if (supported_codec_types_.count(type) == 0) {
       return NULL;
     }
     FakeWebRtcVideoEncoder* encoder = new FakeWebRtcVideoEncoder();
     encoders_.push_back(encoder);
     num_created_encoders_++;
+    created_video_encoder_event_.Set();
     return encoder;
   }
 
-  virtual void DestroyVideoEncoder(webrtc::VideoEncoder* encoder) {
+  bool WaitForCreatedVideoEncoders(int num_encoders) {
+    while (created_video_encoder_event_.Wait(kEventTimeoutMs)) {
+      if (GetNumCreatedEncoders() >= num_encoders)
+        return true;
+    }
+    return false;
+  }
+
+  void DestroyVideoEncoder(webrtc::VideoEncoder* encoder) override {
+    rtc::CritScope lock(&crit_);
     encoders_.erase(
         std::remove(encoders_.begin(), encoders_.end(), encoder),
         encoders_.end());
     delete encoder;
   }
 
-  virtual const std::vector<WebRtcVideoEncoderFactory::VideoCodec>& codecs()
-      const {
+  const std::vector<WebRtcVideoEncoderFactory::VideoCodec>& codecs()
+      const override {
     return codecs_;
   }
 
-  virtual bool EncoderTypeHasInternalSource(
+  bool EncoderTypeHasInternalSource(
       webrtc::VideoCodecType type) const override {
     return encoders_have_internal_sources_;
   }
@@ -216,18 +233,22 @@ class FakeWebRtcVideoEncoderFactory : public WebRtcVideoEncoderFactory {
   }
 
   int GetNumCreatedEncoders() {
+    rtc::CritScope lock(&crit_);
     return num_created_encoders_;
   }
 
-  const std::vector<FakeWebRtcVideoEncoder*>& encoders() {
+  const std::vector<FakeWebRtcVideoEncoder*> encoders() {
+    rtc::CritScope lock(&crit_);
     return encoders_;
   }
 
  private:
+  rtc::CriticalSection crit_;
+  rtc::Event created_video_encoder_event_;
   std::set<webrtc::VideoCodecType> supported_codec_types_;
   std::vector<WebRtcVideoEncoderFactory::VideoCodec> codecs_;
-  std::vector<FakeWebRtcVideoEncoder*> encoders_;
-  int num_created_encoders_;
+  std::vector<FakeWebRtcVideoEncoder*> encoders_ GUARDED_BY(crit_);
+  int num_created_encoders_ GUARDED_BY(crit_);
   bool encoders_have_internal_sources_;
 };
 

@@ -20,12 +20,14 @@
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/modules/include/module_common_types.h"
+#include "webrtc/modules/utility/include/process_thread.h"
 #include "webrtc/modules/video_coding/include/video_coding.h"
 #include "webrtc/modules/video_coding/include/video_coding_defines.h"
 #include "webrtc/modules/video_coding/decoding_state.h"
 #include "webrtc/modules/video_coding/inter_frame_delay.h"
 #include "webrtc/modules/video_coding/jitter_buffer_common.h"
 #include "webrtc/modules/video_coding/jitter_estimator.h"
+#include "webrtc/modules/video_coding/nack_module.h"
 #include "webrtc/system_wrappers/include/critical_section_wrapper.h"
 #include "webrtc/typedefs.h"
 
@@ -104,7 +106,10 @@ class Vp9SsMap {
 
 class VCMJitterBuffer {
  public:
-  VCMJitterBuffer(Clock* clock, std::unique_ptr<EventWrapper> event);
+  VCMJitterBuffer(Clock* clock,
+                  std::unique_ptr<EventWrapper> event,
+                  NackSender* nack_sender = nullptr,
+                  KeyFrameRequestSender* keyframe_request_sender = nullptr);
 
   ~VCMJitterBuffer();
 
@@ -207,11 +212,10 @@ class VCMJitterBuffer {
   int64_t LastDecodedTimestamp() const;
   VCMDecodeErrorMode decode_error_mode() const { return decode_error_mode_; }
 
-  // Used to compute time of complete continuous frames. Returns the timestamps
-  // corresponding to the start and end of the continuous complete buffer.
-  void RenderBufferSize(uint32_t* timestamp_start, uint32_t* timestamp_end);
-
   void RegisterStatsCallback(VCMReceiveStatisticsCallback* callback);
+
+  int64_t TimeUntilNextProcess();
+  void Process();
 
  private:
   class SequenceNumberLessThan {
@@ -383,6 +387,9 @@ class VCMJitterBuffer {
   // average_packets_per_frame converges fast if we have fewer than this many
   // frames.
   int frame_counter_;
+
+  std::unique_ptr<NackModule> nack_module_;
+
   RTC_DISALLOW_COPY_AND_ASSIGN(VCMJitterBuffer);
 };
 }  // namespace webrtc

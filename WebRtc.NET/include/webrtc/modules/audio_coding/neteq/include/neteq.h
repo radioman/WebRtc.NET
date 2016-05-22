@@ -16,6 +16,7 @@
 #include <string>
 
 #include "webrtc/base/constructormagic.h"
+#include "webrtc/base/optional.h"
 #include "webrtc/common_types.h"
 #include "webrtc/modules/audio_coding/neteq/audio_decoder_impl.h"
 #include "webrtc/typedefs.h"
@@ -92,6 +93,7 @@ class NetEq {
     BackgroundNoiseMode background_noise_mode;
     NetEqPlayoutMode playout_mode;
     bool enable_fast_accelerate;
+    bool enable_muted_state = false;
   };
 
   enum ReturnCodes {
@@ -156,12 +158,16 @@ class NetEq {
                                uint32_t receive_timestamp) = 0;
 
   // Instructs NetEq to deliver 10 ms of audio data. The data is written to
-  // |audio_frame|. All data in |audio_frame| is wiped; |data_|, |interleaved_|,
-  // |num_channels_|, |samples_per_channel_|, |speech_type_|, and
+  // |audio_frame|. All data in |audio_frame| is wiped; |data_|, |speech_type_|,
+  // |num_channels_|, |sample_rate_hz_|, |samples_per_channel_|, and
   // |vad_activity_| are updated upon success. If an error is returned, some
   // fields may not have been updated.
+  // If muted state is enabled (through Config::enable_muted_state), |muted|
+  // may be set to true after a prolonged expand period. When this happens, the
+  // |data_| in |audio_frame| is not written, but should be interpreted as being
+  // all zeros.
   // Returns kOK on success, or kFail in case of an error.
-  virtual int GetAudio(AudioFrame* audio_frame) = 0;
+  virtual int GetAudio(AudioFrame* audio_frame, bool* muted) = 0;
 
   // Associates |rtp_payload_type| with |codec| and |codec_name|, and stores the
   // information in the codec database. Returns 0 on success, -1 on failure.
@@ -243,9 +249,9 @@ class NetEq {
   // Disables post-decode VAD.
   virtual void DisableVad() = 0;
 
-  // Gets the RTP timestamp for the last sample delivered by GetAudio().
-  // Returns true if the RTP timestamp is valid, otherwise false.
-  virtual bool GetPlayoutTimestamp(uint32_t* timestamp) = 0;
+  // Returns the RTP timestamp for the last sample delivered by GetAudio().
+  // The return value will be empty if no valid timestamp is available.
+  virtual rtc::Optional<uint32_t> GetPlayoutTimestamp() const = 0;
 
   // Returns the sample rate in Hz of the audio produced in the last GetAudio
   // call. If GetAudio has not been called yet, the configured sample rate

@@ -16,11 +16,6 @@
 
 #include "webrtc/base/checks.h"
 
-#define MOD_OPS_ASSERT_TYPE_IS_UNSIGNED(T)              \
-  static_assert(std::numeric_limits<T>::is_integer &&   \
-                    !std::numeric_limits<T>::is_signed, \
-                "Type must be of unsigned integer.")
-
 namespace webrtc {
 
 template <unsigned long M>                                    // NOLINT
@@ -42,7 +37,7 @@ inline unsigned long Subtract(unsigned long a, unsigned long b) {  // NOLINT
   return a - sub;
 }
 
-// Calculates the forward difference between two numbers.
+// Calculates the forward difference between two wrapping numbers.
 //
 // Example:
 // uint8_t x = 253;
@@ -64,13 +59,23 @@ inline unsigned long Subtract(unsigned long a, unsigned long b) {  // NOLINT
 // #################################################
 // -->----->                              |----->---
 //
+template <typename T, T M>
+inline T ForwardDiff(T a, T b) {
+  static_assert(std::is_unsigned<T>::value,
+                "Type must be an unsigned integer.");
+  RTC_DCHECK_LT(a, M);
+  RTC_DCHECK_LT(b, M);
+  return a <= b ? b - a : M - (a - b);
+}
+
 template <typename T>
 inline T ForwardDiff(T a, T b) {
-  MOD_OPS_ASSERT_TYPE_IS_UNSIGNED(T);
+  static_assert(std::is_unsigned<T>::value,
+                "Type must be an unsigned integer.");
   return b - a;
 }
 
-// Calculates the reverse difference between two numbers.
+// Calculates the reverse difference between two wrapping numbers.
 //
 // Example:
 // uint8_t x = 253;
@@ -92,30 +97,37 @@ inline T ForwardDiff(T a, T b) {
 // #################################################
 // ---<-----|                             |<-----<--
 //
+template <typename T, T M>
+inline T ReverseDiff(T a, T b) {
+  static_assert(std::is_unsigned<T>::value,
+                "Type must be an unsigned integer.");
+  RTC_DCHECK_LT(a, M);
+  RTC_DCHECK_LT(b, M);
+  return b <= a ? a - b : M - (b - a);
+}
+
 template <typename T>
 inline T ReverseDiff(T a, T b) {
-  MOD_OPS_ASSERT_TYPE_IS_UNSIGNED(T);
+  static_assert(std::is_unsigned<T>::value,
+                "Type must be an unsigned integer.");
   return a - b;
 }
 
-// Test if the sequence number a is ahead or at sequence number b.
-// If the two sequence numbers are at max distance from each other
-// then the sequence number with highest value is considered to
-// be ahead.
-template <typename T>
-inline bool AheadOrAt(T a, T b) {
-  MOD_OPS_ASSERT_TYPE_IS_UNSIGNED(T);
-  const T maxDist = std::numeric_limits<T>::max() / 2 + T(1);
-  if (a - b == maxDist)
-    return b < a;
-  return ForwardDiff(b, a) < maxDist;
+// Calculates the minimum distance between to wrapping numbers.
+//
+// The minimum distance is defined as min(ForwardDiff(a, b), ReverseDiff(a, b))
+template <typename T, T M>
+inline T MinDiff(T a, T b) {
+  static_assert(std::is_unsigned<T>::value,
+                "Type must be an unsigned integer.");
+  return std::min(ForwardDiff<T, M>(a, b), ReverseDiff<T, M>(a, b));
 }
 
-// Test if sequence number a is ahead of sequence number b.
 template <typename T>
-inline bool AheadOf(T a, T b) {
-  MOD_OPS_ASSERT_TYPE_IS_UNSIGNED(T);
-  return a != b && AheadOrAt(a, b);
+inline T MinDiff(T a, T b) {
+  static_assert(std::is_unsigned<T>::value,
+                "Type must be an unsigned integer.");
+  return std::min(ForwardDiff(a, b), ReverseDiff(a, b));
 }
 
 }  // namespace webrtc

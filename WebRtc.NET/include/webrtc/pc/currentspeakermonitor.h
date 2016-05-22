@@ -11,8 +11,8 @@
 // CurrentSpeakerMonitor monitors the audio levels for a session and determines
 // which participant is currently speaking.
 
-#ifndef TALK_SESSION_MEDIA_CURRENTSPEAKERMONITOR_H_
-#define TALK_SESSION_MEDIA_CURRENTSPEAKERMONITOR_H_
+#ifndef WEBRTC_PC_CURRENTSPEAKERMONITOR_H_
+#define WEBRTC_PC_CURRENTSPEAKERMONITOR_H_
 
 #include <map>
 
@@ -45,7 +45,7 @@ class AudioSourceContext {
 // It's recommended that the audio monitor be started with a 100 ms period.
 class CurrentSpeakerMonitor : public sigslot::has_slots<> {
  public:
-  CurrentSpeakerMonitor(AudioSourceContext* audio_source_context);
+  explicit CurrentSpeakerMonitor(AudioSourceContext* audio_source_context);
   ~CurrentSpeakerMonitor();
 
   void Start();
@@ -54,7 +54,7 @@ class CurrentSpeakerMonitor : public sigslot::has_slots<> {
   // Used by tests.  Note that the actual minimum time between switches
   // enforced by the monitor will be the given value plus or minus the
   // resolution of the system clock.
-  void set_min_time_between_switches(uint32_t min_time_between_switches);
+  void set_min_time_between_switches(int min_time_between_switches);
 
   // This is fired when the current speaker changes, and provides his audio
   // SSRC.  This only fires after the audio monitor on the underlying
@@ -86,10 +86,10 @@ class CurrentSpeakerMonitor : public sigslot::has_slots<> {
   uint32_t current_speaker_ssrc_;
   // To prevent overswitching, switching is disabled for some time after a
   // switch is made.  This gives us the earliest time a switch is permitted.
-  uint32_t earliest_permitted_switch_time_;
-  uint32_t min_time_between_switches_;
+  int64_t earliest_permitted_switch_time_;
+  int min_time_between_switches_;
 };
 
-}
+}  // namespace cricket
 
-#endif  // TALK_SESSION_MEDIA_CURRENTSPEAKERMONITOR_H_
+#endif  // WEBRTC_PC_CURRENTSPEAKERMONITOR_H_

@@ -129,7 +129,7 @@ typedef struct VP9EncoderConfig {
   int height;  // height of data passed to the compressor
   unsigned int input_bit_depth;  // Input bit depth.
   double init_framerate;  // set to passed in framerate
-  int64_t target_bandwidth;  // bandwidth to be used in kilobits per second
+  int64_t target_bandwidth;  // bandwidth to be used in bits per second
 
   int noise_sensitivity;  // pre processing blur: recommendation 0
   int sharpness;  // sharpening output: recommendation 0:
@@ -498,6 +498,9 @@ typedef struct VP9_COMP {
   int use_skin_detection;
 
   NOISE_ESTIMATE noise_estimate;
+
+  // Count on how many consecutive times a block uses small/zeromv for encoding.
+  uint8_t *consec_zero_mv;
 
   // VAR_BASED_PARTITION thresholds
   // 0 - threshold_64x64; 1 - threshold_32x32;

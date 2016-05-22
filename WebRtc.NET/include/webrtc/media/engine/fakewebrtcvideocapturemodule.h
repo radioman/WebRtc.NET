@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "webrtc/media/base/testutils.h"
-#include "webrtc/media/engine/fakewebrtcdeviceinfo.h"
 #include "webrtc/media/engine/webrtcvideocapturer.h"
 
 class FakeWebRtcVcmFactory;
@@ -29,6 +28,7 @@ class FakeWebRtcVideoCaptureModule : public webrtc::VideoCaptureModule {
         running_(false),
         delay_(0) {
   }
+  ~FakeWebRtcVideoCaptureModule();
   int64_t TimeUntilNextProcess() override { return 0; }
   void Process() override {}
   void RegisterCaptureDataCallback(
@@ -84,19 +84,19 @@ class FakeWebRtcVideoCaptureModule : public webrtc::VideoCaptureModule {
       const webrtc::VideoCodec& codec) override {
     return NULL;  // not implemented
   }
-  int32_t AddRef() const override { return 0; }
-  int32_t Release() const override {
-    delete this;
-    return 0;
-  }
 
   void SendFrame(int w, int h) {
     if (!running_) return;
-    webrtc::VideoFrame sample;
-    // Setting stride based on width.
-    sample.CreateEmptyFrame(w, h, w, (w + 1) / 2, (w + 1) / 2);
+
+    rtc::scoped_refptr<webrtc::I420Buffer> buffer =
+        new rtc::RefCountedObject<webrtc::I420Buffer>(w, h);
+    // Initialize memory to satisfy DrMemory tests. See
+    // https://bugs.chromium.org/p/libyuv/issues/detail?id=377
+    buffer->InitializeData();
     if (callback_) {
-      callback_->OnIncomingCapturedFrame(id_, sample);
+      callback_->OnIncomingCapturedFrame(
+          id_,
+          webrtc::VideoFrame(buffer, 0, 0, webrtc::kVideoRotation_0));
     }
   }
 
@@ -105,9 +105,6 @@ class FakeWebRtcVideoCaptureModule : public webrtc::VideoCaptureModule {
   }
 
  private:
-  // Ref-counted, use Release() instead.
-  ~FakeWebRtcVideoCaptureModule();
-
   FakeWebRtcVcmFactory* factory_;
   int id_;
   webrtc::VideoCaptureDataCallback* callback_;

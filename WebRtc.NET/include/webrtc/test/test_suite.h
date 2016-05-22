@@ -17,8 +17,9 @@
 // instantiate this class in your main function and call its Run method to run
 // any gtest based tests that are linked into your executable.
 
+#include <memory>
+
 #include "webrtc/base/constructormagic.h"
-#include "webrtc/base/scoped_ptr.h"
 
 namespace webrtc {
 namespace test {
@@ -41,7 +42,7 @@ class TestSuite {
   RTC_DISALLOW_COPY_AND_ASSIGN(TestSuite);
 
  private:
-  rtc::scoped_ptr<TraceToStderr> trace_to_stderr_;
+  std::unique_ptr<TraceToStderr> trace_to_stderr_;
 };
 
 }  // namespace test

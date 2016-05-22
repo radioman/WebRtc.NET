@@ -196,11 +196,6 @@ int vp8_mbuverror_mmx(struct macroblock *mb);
 int vp8_mbuverror_xmm(struct macroblock *mb);
 RTCD_EXTERN int (*vp8_mbuverror)(struct macroblock *mb);
 
-void vp8_plane_add_noise_c(unsigned char *s, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int w, unsigned int h, int pitch);
-void vp8_plane_add_noise_mmx(unsigned char *s, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int w, unsigned int h, int pitch);
-void vp8_plane_add_noise_wmt(unsigned char *s, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int w, unsigned int h, int pitch);
-RTCD_EXTERN void (*vp8_plane_add_noise)(unsigned char *s, char *noise, char blackclamp[16], char whiteclamp[16], char bothclamp[16], unsigned int w, unsigned int h, int pitch);
-
 void vp8_post_proc_down_and_across_mb_row_c(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int cols, unsigned char *flimits, int size);
 void vp8_post_proc_down_and_across_mb_row_sse2(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int cols, unsigned char *flimits, int size);
 RTCD_EXTERN void (*vp8_post_proc_down_and_across_mb_row)(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int cols, unsigned char *flimits, int size);
@@ -363,9 +358,6 @@ static void setup_rtcd_internal(void)
     vp8_mbuverror = vp8_mbuverror_c;
     if (flags & HAS_MMX) vp8_mbuverror = vp8_mbuverror_mmx;
     if (flags & HAS_SSE2) vp8_mbuverror = vp8_mbuverror_xmm;
-    vp8_plane_add_noise = vp8_plane_add_noise_c;
-    if (flags & HAS_MMX) vp8_plane_add_noise = vp8_plane_add_noise_mmx;
-    if (flags & HAS_SSE2) vp8_plane_add_noise = vp8_plane_add_noise_wmt;
     vp8_post_proc_down_and_across_mb_row = vp8_post_proc_down_and_across_mb_row_c;
     if (flags & HAS_SSE2) vp8_post_proc_down_and_across_mb_row = vp8_post_proc_down_and_across_mb_row_sse2;
     vp8_refining_search_sad = vp8_refining_search_sad_c;

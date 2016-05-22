@@ -16,8 +16,8 @@
 #include <utility>
 #include <vector>
 
+#include "webrtc/base/criticalsection.h"
 #include "webrtc/base/gtest_prod_util.h"
-#include "webrtc/base/scoped_ptr.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp.h"
 #include "webrtc/modules/rtp_rtcp/source/packet_loss_stats.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_receiver.h"
@@ -75,8 +75,10 @@ class ModuleRtpRtcpImpl : public RtpRtcp {
   // Set SequenceNumber, default is a random number.
   void SetSequenceNumber(uint16_t seq) override;
 
-  bool SetRtpStateForSsrc(uint32_t ssrc, const RtpState& rtp_state) override;
-  bool GetRtpStateForSsrc(uint32_t ssrc, RtpState* rtp_state) override;
+  void SetRtpState(const RtpState& rtp_state) override;
+  void SetRtxState(const RtpState& rtp_state) override;
+  RtpState GetRtpState() const override;
+  RtpState GetRtxState() const override;
 
   uint32_t SSRC() const override;
 
@@ -200,7 +202,7 @@ class ModuleRtpRtcpImpl : public RtpRtcp {
 
   void SetTMMBRStatus(bool enable) override;
 
-  int32_t SetTMMBN(const TMMBRSet* bounding_set);
+  void SetTMMBN(const std::vector<rtcp::TmmbItem>* bounding_set);
 
   uint16_t MaxPayloadLength() const override;
 
@@ -219,7 +221,10 @@ class ModuleRtpRtcpImpl : public RtpRtcp {
   int SetSelectiveRetransmissions(uint8_t settings) override;
 
   // Send a Negative acknowledgment packet.
+  // TODO(philipel): Deprecate SendNACK and use SendNack instead.
   int32_t SendNACK(const uint16_t* nack_list, uint16_t size) override;
+
+  void SendNack(const std::vector<uint16_t>& sequence_numbers) override;
 
   // Store the sent packets, needed to answer to a negative acknowledgment
   // requests.
@@ -359,7 +364,7 @@ class ModuleRtpRtcpImpl : public RtpRtcp {
   PacketLossStats receive_loss_stats_;
 
   // The processed RTT from RtcpRttStats.
-  rtc::scoped_ptr<CriticalSectionWrapper> critical_section_rtt_;
+  rtc::CriticalSection critical_section_rtt_;
   int64_t rtt_ms_;
 };
 

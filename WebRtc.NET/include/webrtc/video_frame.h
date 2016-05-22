@@ -65,19 +65,8 @@ class VideoFrame {
   // reference to the video buffer also retained by |videoFrame|.
   void ShallowCopy(const VideoFrame& videoFrame);
 
-  // Release frame buffer and reset time stamps.
-  void Reset();
-
-  // Get pointer to buffer per plane.
-  uint8_t* buffer(PlaneType type);
-  // Overloading with const.
-  const uint8_t* buffer(PlaneType type) const;
-
   // Get allocated size per plane.
   int allocated_size(PlaneType type) const;
-
-  // Get allocated stride per plane.
-  int stride(PlaneType type) const;
 
   // Get frame width.
   int width() const;
@@ -125,13 +114,12 @@ class VideoFrame {
   // Return true if underlying plane buffers are of zero size, false if not.
   bool IsZeroSize() const;
 
-  // Return the handle of the underlying video frame. This is used when the
-  // frame is backed by a texture. The object should be destroyed when it is no
-  // longer in use, so the underlying resource can be freed.
-  void* native_handle() const;
-
-  // Return the underlying buffer.
-  rtc::scoped_refptr<webrtc::VideoFrameBuffer> video_frame_buffer() const;
+  // Return the underlying buffer. Never nullptr for a properly
+  // initialized VideoFrame.
+  // Creating a new reference breaks the HasOneRef and IsMutable
+  // logic. So return a const ref to our reference.
+  const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& video_frame_buffer()
+      const;
 
   // Set the underlying buffer.
   void set_video_frame_buffer(
@@ -161,6 +149,7 @@ class EncodedImage {
   static size_t GetBufferPaddingBytes(VideoCodecType codec_type);
 
   EncodedImage() : EncodedImage(nullptr, 0, 0) {}
+
   EncodedImage(uint8_t* buffer, size_t length, size_t size)
       : _buffer(buffer), _length(length), _size(size) {}
 
@@ -186,6 +175,7 @@ class EncodedImage {
   uint8_t* _buffer;
   size_t _length;
   size_t _size;
+  VideoRotation rotation_ = kVideoRotation_0;
   bool _completeFrame = false;
   AdaptReason adapt_reason_;
   int qp_ = -1;  // Quantizer value.

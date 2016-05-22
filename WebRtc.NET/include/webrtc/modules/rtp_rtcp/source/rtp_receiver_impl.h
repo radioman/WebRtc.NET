@@ -11,11 +11,12 @@
 #ifndef WEBRTC_MODULES_RTP_RTCP_SOURCE_RTP_RECEIVER_IMPL_H_
 #define WEBRTC_MODULES_RTP_RTCP_SOURCE_RTP_RECEIVER_IMPL_H_
 
-#include "webrtc/base/scoped_ptr.h"
+#include <memory>
+
+#include "webrtc/base/criticalsection.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_receiver.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "webrtc/modules/rtp_rtcp/source/rtp_receiver_strategy.h"
-#include "webrtc/system_wrappers/include/critical_section_wrapper.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -26,7 +27,6 @@ class RtpReceiverImpl : public RtpReceiver {
   // want callbacks to do nothing). This class takes ownership of the media
   // receiver but nothing else.
   RtpReceiverImpl(Clock* clock,
-                  RtpAudioFeedback* incoming_audio_messages_callback,
                   RtpFeedback* incoming_messages_callback,
                   RTPPayloadRegistry* rtp_payload_registry,
                   RTPReceiverStrategy* rtp_media_receiver);
@@ -46,11 +46,6 @@ class RtpReceiverImpl : public RtpReceiver {
                          size_t payload_length,
                          PayloadUnion payload_specific,
                          bool in_order) override;
-
-  NACKMethod NACK() const override;
-
-  // Turn negative acknowledgement requests on/off.
-  void SetNACKStatus(const NACKMethod method) override;
 
   // Returns the last received timestamp.
   bool Timestamp(uint32_t* timestamp) const override;
@@ -76,11 +71,11 @@ class RtpReceiverImpl : public RtpReceiver {
 
   Clock* clock_;
   RTPPayloadRegistry* rtp_payload_registry_;
-  rtc::scoped_ptr<RTPReceiverStrategy> rtp_media_receiver_;
+  std::unique_ptr<RTPReceiverStrategy> rtp_media_receiver_;
 
   RtpFeedback* cb_rtp_feedback_;
 
-  rtc::scoped_ptr<CriticalSectionWrapper> critical_section_rtp_receiver_;
+  rtc::CriticalSection critical_section_rtp_receiver_;
   int64_t last_receive_time_;
   size_t last_received_payload_length_;
 
@@ -92,8 +87,6 @@ class RtpReceiverImpl : public RtpReceiver {
   uint32_t last_received_timestamp_;
   int64_t last_received_frame_time_ms_;
   uint16_t last_received_sequence_number_;
-
-  NACKMethod nack_method_;
 };
 }  // namespace webrtc
 #endif  // WEBRTC_MODULES_RTP_RTCP_SOURCE_RTP_RECEIVER_IMPL_H_
