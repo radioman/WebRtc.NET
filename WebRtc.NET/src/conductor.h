@@ -116,6 +116,10 @@ private:
 	std::map<std::string, rtc::scoped_refptr<webrtc::MediaStreamInterface> > active_streams_;
 
 	std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
+
+public:
+	int caputureFps;
+	bool barcodeEnabled;
 };
 
 #endif  // WEBRTC_NET_CONDUCTOR_H_

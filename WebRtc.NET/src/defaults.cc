@@ -28,9 +28,12 @@ public:
 	{
 		// Read the first frame and start the message pump. The pump runs until
 		// Stop() is called externally or Quit() is called by OnMessage().
-		int waiting_time_ms = 0;
+		
 		if (capturer_)
 		{
+			waiting_time_ms = (rtc::kNumMillisecsPerSec / capturer_->con->caputureFps);
+			waiting_time_ms *= 0.9;
+
 			capturer_->ReadFrame(true);
 			PostDelayed(waiting_time_ms, this);
 			Thread::Run();
@@ -43,7 +46,6 @@ public:
 	// Override virtual method of parent MessageHandler. Context: Worker Thread.
 	virtual void OnMessage(rtc::Message* /*pmsg*/)
 	{
-		int waiting_time_ms = 200;
 		if (capturer_)
 		{
 			capturer_->ReadFrame(false);
@@ -66,6 +68,7 @@ private:
 	YuvFramesCapturer2* capturer_;
 	mutable rtc::CriticalSection crit_;
 	bool finished_;
+	int waiting_time_ms;
 
 	RTC_DISALLOW_COPY_AND_ASSIGN(YuvFramesThread);
 };
@@ -84,17 +87,6 @@ YuvFramesCapturer2::YuvFramesCapturer2(Conductor & c)
 	startThread_(NULL),
 	con(&c)
 {
-	Init();
-}
-
-YuvFramesCapturer2::~YuvFramesCapturer2()
-{
-	Stop();
-	delete[] static_cast<char*>(captured_frame_.data);
-}
-
-void YuvFramesCapturer2::Init()
-{
 	int size = width_ * height_;
 	int qsize = size / 4;
 	frame_generator_ = new cricket::YuvFrameGenerator(width_, height_, true);
@@ -108,13 +100,19 @@ void YuvFramesCapturer2::Init()
 	captured_frame_.data_size = frame_data_size_;
 
 	// Enumerate the supported formats. We have only one supported format.
-	cricket::VideoFormat format(width_, height_, cricket::VideoFormat::FpsToInterval(5), cricket::FOURCC_IYUV);
+	cricket::VideoFormat format(width_, height_, cricket::VideoFormat::FpsToInterval(con->caputureFps), cricket::FOURCC_IYUV);
 	std::vector<cricket::VideoFormat> supported;
 	supported.push_back(format);
 	SetSupportedFormats(supported);
 
 	set_enable_video_adapter(false);
 	//set_square_pixel_aspect_ratio(false);
+}
+
+YuvFramesCapturer2::~YuvFramesCapturer2()
+{
+	Stop();
+	delete[] static_cast<char*>(captured_frame_.data);
 }
 
 cricket::CaptureState YuvFramesCapturer2::Start(const cricket::VideoFormat& capture_format)
@@ -193,7 +191,12 @@ void YuvFramesCapturer2::ReadFrame(bool first_frame)
 	//else
 	{
 		captured_frame_.time_stamp = rtc::TimeNanos();
-		//frame_generator_->GenerateNextFrame((uint8_t*)captured_frame_.data, GetBarcodeValue());
+
+		if (con->barcodeEnabled)
+		{
+			frame_generator_->GenerateNextFrame((uint8_t*)captured_frame_.data, GetBarcodeValue());
+		}
+		else
 		{
 			con->OnFillBuffer((uint8_t*)captured_frame_.data, captured_frame_.data_size);
 		}
@@ -202,8 +205,7 @@ void YuvFramesCapturer2::ReadFrame(bool first_frame)
 
 int32_t YuvFramesCapturer2::GetBarcodeValue()
 {
-	if (barcode_reference_timestamp_millis_ == -1 ||
-		frame_index_ % barcode_interval_ != 0)
+	if (barcode_reference_timestamp_millis_ == -1 || frame_index_ % barcode_interval_ != 0)
 	{
 		return -1;
 	}

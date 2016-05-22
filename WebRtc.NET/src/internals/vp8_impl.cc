@@ -705,7 +705,7 @@ namespace webrtc
 			configurations_[0].rc_dropframe_thresh > 0 &&
 			codec_.codecSpecific.VP8.automaticResizeOn;
 
-		//quality_scaler_enabled_ = false;
+		quality_scaler_enabled_ = false;
 
 		return InitAndSetControlSettings();
 	}

@@ -13,10 +13,7 @@ class YuvFramesCapturer2 : public cricket::VideoCapturer
 {
 public:
 	YuvFramesCapturer2(Conductor & c);
-	//YuvFramesCapturer2(int width, int height);
 	virtual ~YuvFramesCapturer2();
-
-	void Init();
 
 	// Override virtual methods of parent class VideoCapturer.
 	virtual cricket::CaptureState Start(const cricket::VideoFormat& capture_format);

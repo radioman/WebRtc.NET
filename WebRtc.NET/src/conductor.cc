@@ -22,6 +22,8 @@ Conductor::Conductor()
 	onFailure = nullptr;
 	onIceCandidate = nullptr;
 	capturer = nullptr;
+	caputureFps = 5;
+	barcodeEnabled = false;
 }
 
 Conductor::~Conductor()
