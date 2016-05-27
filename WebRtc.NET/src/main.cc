@@ -124,6 +124,8 @@
 #include "webrtc/base/win32socketinit.h"
 #include "webrtc/base/win32socketserver.h"
 
+bool CFG_quality_scaler_enabled_ = false;
+
 void _InitializeSSL()
 {
 	rtc::EnsureWinsockInit();

@@ -31,6 +31,8 @@
 #include "webrtc/modules/video_coding/codecs/vp8/temporal_layers.h"
 #include "webrtc/system_wrappers/include/clock.h"
 
+#include "internals.h"
+
 namespace webrtc
 {
 	namespace
@@ -705,7 +707,7 @@ namespace webrtc
 			configurations_[0].rc_dropframe_thresh > 0 &&
 			codec_.codecSpecific.VP8.automaticResizeOn;
 
-		quality_scaler_enabled_ = false;
+		quality_scaler_enabled_ = CFG_quality_scaler_enabled_;
 
 		return InitAndSetControlSettings();
 	}
@@ -1135,22 +1137,28 @@ namespace webrtc
 					case VPX_CODEC_CX_FRAME_PKT:
 					{
 						size_t length = encoded_images_[encoder_idx]._length;
-						if (pkt->data.frame.sz + length >
-							encoded_images_[encoder_idx]._size)
+
+						if (pkt->data.frame.sz + length > encoded_images_[encoder_idx]._size)
 						{
 							uint8_t* buffer = new uint8_t[pkt->data.frame.sz + length];
+							
 							memcpy(buffer, encoded_images_[encoder_idx]._buffer, length);
+							
 							delete[] encoded_images_[encoder_idx]._buffer;
 							encoded_images_[encoder_idx]._buffer = buffer;
+							
 							encoded_images_[encoder_idx]._size = pkt->data.frame.sz + length;
 						}
 						memcpy(&encoded_images_[encoder_idx]._buffer[length],
-							   pkt->data.frame.buf, pkt->data.frame.sz);
+							   pkt->data.frame.buf, pkt->data.frame.sz);						
+
 						frag_info.fragmentationOffset[part_idx] = length;
 						frag_info.fragmentationLength[part_idx] = pkt->data.frame.sz;
 						frag_info.fragmentationPlType[part_idx] = 0;  // not known here
 						frag_info.fragmentationTimeDiff[part_idx] = 0;
+						
 						encoded_images_[encoder_idx]._length += pkt->data.frame.sz;
+						
 						assert(length <= encoded_images_[encoder_idx]._size);
 						++part_idx;
 						break;
@@ -1161,6 +1169,8 @@ namespace webrtc
 				// End of frame
 				if ((pkt->data.frame.flags & VPX_FRAME_IS_FRAGMENT) == 0)
 				{
+					//_EncodeInternal(encoded_images_[encoder_idx]._buffer, encoded_images_[encoder_idx]._length);
+
 					// check if encoded frame is a key frame
 					if (pkt->data.frame.flags & VPX_FRAME_IS_KEY)
 					{
@@ -1174,8 +1184,7 @@ namespace webrtc
 				}
 			}
 			encoded_images_[encoder_idx]._timeStamp = input_image.timestamp();
-			encoded_images_[encoder_idx].capture_time_ms_ =
-				input_image.render_time_ms();
+			encoded_images_[encoder_idx].capture_time_ms_ =	input_image.render_time_ms();
 			encoded_images_[encoder_idx].rotation_ = input_image.rotation();
 
 			int qp = -1;
@@ -1189,20 +1198,20 @@ namespace webrtc
 				{
 					TRACE_COUNTER_ID1("webrtc", "EncodedFrameSize", encoder_idx,
 									  encoded_images_[encoder_idx]._length);
-					encoded_images_[encoder_idx]._encodedHeight =
-						codec_.simulcastStream[stream_idx].height;
-					encoded_images_[encoder_idx]._encodedWidth =
-						codec_.simulcastStream[stream_idx].width;
-					encoded_images_[encoder_idx]
-						.adapt_reason_.quality_resolution_downscales =
+					encoded_images_[encoder_idx]._encodedHeight =codec_.simulcastStream[stream_idx].height;
+					encoded_images_[encoder_idx]._encodedWidth =codec_.simulcastStream[stream_idx].width;
+				
+					encoded_images_[encoder_idx].adapt_reason_.quality_resolution_downscales =
 						quality_scaler_enabled_ ? quality_scaler_.downscale_shift() : -1;
+
 					// Report once per frame (lowest stream always sent).
 					encoded_images_[encoder_idx].adapt_reason_.bw_resolutions_disabled =
 						(stream_idx == 0) ? bw_resolutions_disabled : -1;
+
 					int qp_128 = -1;
-					vpx_codec_control(&encoders_[encoder_idx], VP8E_GET_LAST_QUANTIZER,
-									  &qp_128);
+					vpx_codec_control(&encoders_[encoder_idx], VP8E_GET_LAST_QUANTIZER, &qp_128);
 					encoded_images_[encoder_idx].qp_ = qp_128;
+
 					encoded_complete_callback_->Encoded(encoded_images_[encoder_idx],
 														&codec_specific, &frag_info);
 				}

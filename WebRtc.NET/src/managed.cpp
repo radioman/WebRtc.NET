@@ -18,6 +18,11 @@ using namespace msclr::interop;
 
 [assembly:System::Runtime::Versioning::TargetFrameworkAttribute(L".NETFramework,Version=v4.0", FrameworkDisplayName = L".NET Framework 4")];
 
+void _EncodeInternal(unsigned char * data, unsigned int size)
+{
+	//Util::OnFillBuffer(data, size);
+}
+
 namespace WebRtc
 {
 	namespace NET

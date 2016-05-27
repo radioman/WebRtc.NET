@@ -8,6 +8,7 @@ using System.Threading;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using System.IO;
 
 namespace WebRtc.NET.Utils
 {
@@ -18,8 +19,27 @@ namespace WebRtc.NET.Utils
         //static byte[] yuv;
         //static Bitmap m_Bitmap;
 
+        static UInt64 i = 0;
+
         public unsafe static void OnFillBuffer(byte * pData, long lDataLen)
         {
+            Trace.WriteLine(++i + ": _EncodeInternal: " + lDataLen);
+
+            using (var f = File.Open("dump.bin", FileMode.OpenOrCreate, FileAccess.ReadWrite))
+            {
+                f.Seek(0, SeekOrigin.End);
+
+                using (var b = new BinaryWriter(f))
+                {
+                    b.Write((int)lDataLen);
+
+                    using (UnmanagedMemoryStream ms = new UnmanagedMemoryStream(pData, lDataLen))
+                    {
+                        ms.CopyTo(f);
+                    }
+                }
+            }
+
             //if (m_Bitmap == null)
             //{
             //    m_Bitmap = new Bitmap(@"D:\Dev\comDemo\Filters\logo.bmp");
