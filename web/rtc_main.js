@@ -249,6 +249,12 @@ function dumpStat(o) {
             if (o.droppedFrames !== undefined) s += " Dropped frames: " + o.droppedFrames;
             if (o.jitter !== undefined) s += " Jitter: " + o.jitter;
         }
+        if (o.googFrameRateReceived !== undefined) {
+            s += "<br>googFrameRateReceived: " + o.googFrameRateReceived + " fps";
+            s += " googJitterBufferMs: " + o.googJitterBufferMs;
+            s += "<br>googCurrentDelayMs: " + o.googCurrentDelayMs;
+            s += " googDecodeMs: " + o.googDecodeMs;
+        }
     }
     return s;
 }
