@@ -11,6 +11,7 @@
 #ifndef WEBRTC_MEDIA_BASE_MEDIACHANNEL_H_
 #define WEBRTC_MEDIA_BASE_MEDIACHANNEL_H_
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,6 +27,7 @@
 #include "webrtc/base/sigslot.h"
 #include "webrtc/base/socket.h"
 #include "webrtc/base/window.h"
+#include "webrtc/config.h"
 #include "webrtc/media/base/codec.h"
 #include "webrtc/media/base/mediaconstants.h"
 #include "webrtc/media/base/streamparams.h"
@@ -52,8 +54,6 @@ class VideoFrame;
 struct RtpHeader;
 struct VideoFormat;
 
-const int kMinRtpHeaderExtensionId = 1;
-const int kMaxRtpHeaderExtensionId = 255;
 const int kScreencastDefaultFps = 5;
 
 template <class T>
@@ -158,6 +158,7 @@ struct AudioOptions {
     SetFrom(&delay_agnostic_aec, change.delay_agnostic_aec);
     SetFrom(&experimental_ns, change.experimental_ns);
     SetFrom(&intelligibility_enhancer, change.intelligibility_enhancer);
+    SetFrom(&level_control, change.level_control);
     SetFrom(&tx_agc_target_dbov, change.tx_agc_target_dbov);
     SetFrom(&tx_agc_digital_compression_gain,
             change.tx_agc_digital_compression_gain);
@@ -169,27 +170,30 @@ struct AudioOptions {
 
   bool operator==(const AudioOptions& o) const {
     return echo_cancellation == o.echo_cancellation &&
-        auto_gain_control == o.auto_gain_control &&
-        noise_suppression == o.noise_suppression &&
-        highpass_filter == o.highpass_filter &&
-        stereo_swapping == o.stereo_swapping &&
-        audio_jitter_buffer_max_packets == o.audio_jitter_buffer_max_packets &&
-        audio_jitter_buffer_fast_accelerate ==
-            o.audio_jitter_buffer_fast_accelerate &&
-        typing_detection == o.typing_detection &&
-        aecm_generate_comfort_noise == o.aecm_generate_comfort_noise &&
-        experimental_agc == o.experimental_agc &&
-        extended_filter_aec == o.extended_filter_aec &&
-        delay_agnostic_aec == o.delay_agnostic_aec &&
-        experimental_ns == o.experimental_ns &&
-        intelligibility_enhancer == o.intelligibility_enhancer &&
-        adjust_agc_delta == o.adjust_agc_delta &&
-        tx_agc_target_dbov == o.tx_agc_target_dbov &&
-        tx_agc_digital_compression_gain == o.tx_agc_digital_compression_gain &&
-        tx_agc_limiter == o.tx_agc_limiter &&
-        recording_sample_rate == o.recording_sample_rate &&
-        playout_sample_rate == o.playout_sample_rate &&
-        combined_audio_video_bwe == o.combined_audio_video_bwe;
+           auto_gain_control == o.auto_gain_control &&
+           noise_suppression == o.noise_suppression &&
+           highpass_filter == o.highpass_filter &&
+           stereo_swapping == o.stereo_swapping &&
+           audio_jitter_buffer_max_packets ==
+               o.audio_jitter_buffer_max_packets &&
+           audio_jitter_buffer_fast_accelerate ==
+               o.audio_jitter_buffer_fast_accelerate &&
+           typing_detection == o.typing_detection &&
+           aecm_generate_comfort_noise == o.aecm_generate_comfort_noise &&
+           experimental_agc == o.experimental_agc &&
+           extended_filter_aec == o.extended_filter_aec &&
+           delay_agnostic_aec == o.delay_agnostic_aec &&
+           experimental_ns == o.experimental_ns &&
+           intelligibility_enhancer == o.intelligibility_enhancer &&
+           level_control == o.level_control &&
+           adjust_agc_delta == o.adjust_agc_delta &&
+           tx_agc_target_dbov == o.tx_agc_target_dbov &&
+           tx_agc_digital_compression_gain ==
+               o.tx_agc_digital_compression_gain &&
+           tx_agc_limiter == o.tx_agc_limiter &&
+           recording_sample_rate == o.recording_sample_rate &&
+           playout_sample_rate == o.playout_sample_rate &&
+           combined_audio_video_bwe == o.combined_audio_video_bwe;
   }
   bool operator!=(const AudioOptions& o) const { return !(*this == o); }
 
@@ -213,6 +217,7 @@ struct AudioOptions {
     ost << ToStringIfSet("delay_agnostic_aec", delay_agnostic_aec);
     ost << ToStringIfSet("experimental_ns", experimental_ns);
     ost << ToStringIfSet("intelligibility_enhancer", intelligibility_enhancer);
+    ost << ToStringIfSet("level_control", level_control);
     ost << ToStringIfSet("tx_agc_target_dbov", tx_agc_target_dbov);
     ost << ToStringIfSet("tx_agc_digital_compression_gain",
         tx_agc_digital_compression_gain);
@@ -248,6 +253,7 @@ struct AudioOptions {
   rtc::Optional<bool> delay_agnostic_aec;
   rtc::Optional<bool> experimental_ns;
   rtc::Optional<bool> intelligibility_enhancer;
+  rtc::Optional<bool> level_control;
   // Note that tx_agc_* only applies to non-experimental AGC.
   rtc::Optional<uint16_t> tx_agc_target_dbov;
   rtc::Optional<uint16_t> tx_agc_digital_compression_gain;
@@ -321,16 +327,10 @@ struct VideoOptions {
   }
 };
 
+// TODO(isheriff): Remove this once client usage is fixed to use RtpExtension.
 struct RtpHeaderExtension {
   RtpHeaderExtension() : id(0) {}
-  RtpHeaderExtension(const std::string& u, int i) : uri(u), id(i) {}
-
-  bool operator==(const RtpHeaderExtension& ext) const {
-    // id is a reserved word in objective-c. Therefore the id attribute has to
-    // be a fully qualified name in order to compile on IOS.
-    return this->id == ext.id &&
-        uri == ext.uri;
-  }
+  RtpHeaderExtension(const std::string& uri, int id) : uri(uri), id(id) {}
 
   std::string ToString() const {
     std::ostringstream ost;
@@ -343,21 +343,7 @@ struct RtpHeaderExtension {
 
   std::string uri;
   int id;
-  // TODO(juberti): SendRecv direction;
 };
-
-// Returns the named header extension if found among all extensions, NULL
-// otherwise.
-inline const RtpHeaderExtension* FindHeaderExtension(
-    const std::vector<RtpHeaderExtension>& extensions,
-    const std::string& name) {
-  for (std::vector<RtpHeaderExtension>::const_iterator it = extensions.begin();
-       it != extensions.end(); ++it) {
-    if (it->uri == name)
-      return &(*it);
-  }
-  return NULL;
-}
 
 class MediaChannel : public sigslot::has_slots<> {
  public:
@@ -373,7 +359,7 @@ class MediaChannel : public sigslot::has_slots<> {
     virtual ~NetworkInterface() {}
   };
 
-  MediaChannel(const MediaConfig& config)
+  explicit MediaChannel(const MediaConfig& config)
       : enable_dscp_(config.enable_dscp), network_interface_(NULL) {}
   MediaChannel() : enable_dscp_(false), network_interface_(NULL) {}
   virtual ~MediaChannel() {}
@@ -842,7 +828,7 @@ struct RtpParameters {
   }
 
   std::vector<Codec> codecs;
-  std::vector<RtpHeaderExtension> extensions;
+  std::vector<webrtc::RtpExtension> extensions;
   // TODO(pthatcher): Add streams.
   RtcpParameters rtcp;
   virtual ~RtpParameters() = default;
@@ -907,7 +893,8 @@ class VoiceMediaChannel : public MediaChannel {
   };
 
   VoiceMediaChannel() {}
-  VoiceMediaChannel(const MediaConfig& config) : MediaChannel(config) {}
+  explicit VoiceMediaChannel(const MediaConfig& config)
+      : MediaChannel(config) {}
   virtual ~VoiceMediaChannel() {}
   virtual bool SetSendParameters(const AudioSendParameters& params) = 0;
   virtual bool SetRecvParameters(const AudioRecvParameters& params) = 0;
@@ -991,7 +978,8 @@ class VideoMediaChannel : public MediaChannel {
   };
 
   VideoMediaChannel() {}
-  VideoMediaChannel(const MediaConfig& config) : MediaChannel(config) {}
+  explicit VideoMediaChannel(const MediaConfig& config)
+      : MediaChannel(config) {}
   virtual ~VideoMediaChannel() {}
 
   virtual bool SetSendParameters(const VideoSendParameters& params) = 0;
@@ -1009,18 +997,17 @@ class VideoMediaChannel : public MediaChannel {
   virtual bool GetSendCodec(VideoCodec* send_codec) = 0;
   // Starts or stops transmission (and potentially capture) of local video.
   virtual bool SetSend(bool send) = 0;
-  // Configure stream for sending.
-  virtual bool SetVideoSend(uint32_t ssrc,
-                            bool enable,
-                            const VideoOptions* options) = 0;
+  // Configure stream for sending and register a source.
+  // The |ssrc| must correspond to a registered send stream.
+  virtual bool SetVideoSend(
+      uint32_t ssrc,
+      bool enable,
+      const VideoOptions* options,
+      rtc::VideoSourceInterface<cricket::VideoFrame>* source) = 0;
   // Sets the sink object to be used for the specified stream.
   // If SSRC is 0, the renderer is used for the 'default' stream.
   virtual bool SetSink(uint32_t ssrc,
                        rtc::VideoSinkInterface<cricket::VideoFrame>* sink) = 0;
-  // Register a source. The |ssrc| must correspond to a registered send stream.
-  virtual void SetSource(
-      uint32_t ssrc,
-      rtc::VideoSourceInterface<cricket::VideoFrame>* source) = 0;
   // Gets quality stats for the channel.
   virtual bool GetStats(VideoMediaInfo* info) = 0;
 };

@@ -19,7 +19,7 @@
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/call.h"
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
-#include "webrtc/video/encoded_frame_callback_adapter.h"
+#include "webrtc/modules/video_coding/protection_bitrate_calculator.h"
 #include "webrtc/video/encoder_state_feedback.h"
 #include "webrtc/video/payload_router.h"
 #include "webrtc/video/send_delay_stats.h"
@@ -39,6 +39,7 @@ class ProcessThread;
 class RtpRtcp;
 class ViEEncoder;
 class VieRemb;
+class RtcEventLog;
 
 namespace vcm {
 class VideoSender;
@@ -50,7 +51,7 @@ class VideoSendStream : public webrtc::VideoSendStream,
                         public webrtc::CpuOveruseObserver,
                         public webrtc::BitrateAllocatorObserver,
                         public webrtc::VCMProtectionCallback,
-                        protected webrtc::EncodedImageCallback {
+                        public EncodedImageCallback {
  public:
   VideoSendStream(int num_cpu_cores,
                   ProcessThread* module_process_thread,
@@ -59,6 +60,7 @@ class VideoSendStream : public webrtc::VideoSendStream,
                   BitrateAllocator* bitrate_allocator,
                   SendDelayStats* send_delay_stats,
                   VieRemb* remb,
+                  RtcEventLog* event_log,
                   const VideoSendStream::Config& config,
                   const VideoEncoderConfig& encoder_config,
                   const std::map<uint32_t, RtpState>& suspended_ssrcs);
@@ -85,10 +87,11 @@ class VideoSendStream : public webrtc::VideoSendStream,
   int GetPaddingNeededBps() const;
 
   // Implements BitrateAllocatorObserver.
-  void OnBitrateUpdated(uint32_t bitrate_bps,
-                        uint8_t fraction_loss,
-                        int64_t rtt) override;
+  uint32_t OnBitrateUpdated(uint32_t bitrate_bps,
+                            uint8_t fraction_loss,
+                            int64_t rtt) override;
 
+ protected:
   // Implements webrtc::VCMProtectionCallback.
   int ProtectionRequest(const FecProtectionParams* delta_params,
                         const FecProtectionParams* key_params,
@@ -99,8 +102,7 @@ class VideoSendStream : public webrtc::VideoSendStream,
  private:
   struct EncoderSettings {
     VideoCodec video_codec;
-    int min_transmit_bitrate_bps;
-    std::vector<VideoStream> streams;
+    VideoEncoderConfig config;
   };
 
   // Implements EncodedImageCallback. The implementation routes encoded frames
@@ -117,7 +119,6 @@ class VideoSendStream : public webrtc::VideoSendStream,
   void ConfigureSsrcs();
 
   SendStatisticsProxy stats_proxy_;
-  EncodedFrameCallbackAdapter encoded_frame_proxy_;
   const VideoSendStream::Config config_;
   std::map<uint32_t, RtpState> suspended_ssrcs_;
 
@@ -135,12 +136,30 @@ class VideoSendStream : public webrtc::VideoSendStream,
   rtc::Event encoder_wakeup_event_;
   volatile int stop_encoder_thread_;
   rtc::CriticalSection encoder_settings_crit_;
-  rtc::Optional<EncoderSettings> pending_encoder_settings_
+  std::unique_ptr<EncoderSettings> pending_encoder_settings_
       GUARDED_BY(encoder_settings_crit_);
+  uint32_t encoder_max_bitrate_bps_ GUARDED_BY(encoder_settings_crit_);
+  uint32_t encoder_target_rate_bps_ GUARDED_BY(encoder_settings_crit_);
+
+  enum class State {
+    kStopped,  // VideoSendStream::Start has not yet been called.
+    kStarted,  // VideoSendStream::Start has been called.
+    // VideoSendStream::Start has been called but the encoder have timed out.
+    kEncoderTimedOut,
+  };
+  rtc::Optional<State> pending_state_change_ GUARDED_BY(encoder_settings_crit_);
+
+  // Only used on the encoder thread.
+  rtc::ThreadChecker encoder_thread_checker_;
+  State state_ ACCESS_ON(&encoder_thread_checker_);
+  std::unique_ptr<EncoderSettings> current_encoder_settings_
+      ACCESS_ON(&encoder_thread_checker_);
 
   OveruseFrameDetector overuse_detector_;
   ViEEncoder vie_encoder_;
   EncoderStateFeedback encoder_feedback_;
+  ProtectionBitrateCalculator protection_bitrate_calculator_;
+
   vcm::VideoSender* const video_sender_;
 
   const std::unique_ptr<RtcpBandwidthObserver> bandwidth_observer_;

@@ -29,11 +29,12 @@ class PeerConnectionDelegateAdapter : public PeerConnectionObserver {
   void OnSignalingChange(
       PeerConnectionInterface::SignalingState new_state) override;
 
-  void OnAddStream(MediaStreamInterface *stream) override;
+  void OnAddStream(rtc::scoped_refptr<MediaStreamInterface> stream) override;
 
-  void OnRemoveStream(MediaStreamInterface *stream) override;
+  void OnRemoveStream(rtc::scoped_refptr<MediaStreamInterface> stream) override;
 
-  void OnDataChannel(DataChannelInterface *data_channel) override;
+  void OnDataChannel(
+      rtc::scoped_refptr<DataChannelInterface> data_channel) override;
 
   void OnRenegotiationNeeded() override;
 
@@ -44,6 +45,9 @@ class PeerConnectionDelegateAdapter : public PeerConnectionObserver {
       PeerConnectionInterface::IceGatheringState new_state) override;
 
   void OnIceCandidate(const IceCandidateInterface *candidate) override;
+
+  void OnIceCandidatesRemoved(
+      const std::vector<cricket::Candidate>& candidates) override;
 
  private:
   __weak RTCPeerConnection *peer_connection_;

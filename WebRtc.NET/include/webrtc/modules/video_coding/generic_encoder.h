@@ -18,6 +18,7 @@
 #include "webrtc/modules/video_coding/include/video_coding_defines.h"
 
 #include "webrtc/base/criticalsection.h"
+#include "webrtc/base/race_checker.h"
 
 namespace webrtc {
 class CriticalSectionWrapper;
@@ -58,7 +59,6 @@ class VCMGenericEncoder {
 
  public:
   VCMGenericEncoder(VideoEncoder* encoder,
-                    VideoEncoderRateObserver* rate_observer,
                     VCMEncodedFrameCallback* encoded_frame_callback,
                     bool internal_source);
   ~VCMGenericEncoder();
@@ -82,8 +82,9 @@ class VCMGenericEncoder {
   bool SupportsNativeHandle() const;
 
  private:
-  VideoEncoder* const encoder_;
-  VideoEncoderRateObserver* const rate_observer_;
+  rtc::RaceChecker race_checker_;
+
+  VideoEncoder* const encoder_ GUARDED_BY(race_checker_);
   VCMEncodedFrameCallback* const vcm_encoded_frame_callback_;
   const bool internal_source_;
   rtc::CriticalSection params_lock_;

@@ -31,8 +31,7 @@ struct AecCore;
 
 class AudioFrame;
 
-template<typename T>
-class Beamformer;
+class NonlinearBeamformer;
 
 class StreamConfig;
 class ProcessingConfig;
@@ -89,6 +88,14 @@ struct RefinedAdaptiveFilter {
   explicit RefinedAdaptiveFilter(bool enabled) : enabled(enabled) {}
   static const ConfigOptionID identifier =
       ConfigOptionID::kAecRefinedAdaptiveFilter;
+  bool enabled;
+};
+
+// Enables the adaptive level controller.
+struct LevelControl {
+  LevelControl() : enabled(false) {}
+  explicit LevelControl(bool enabled) : enabled(enabled) {}
+  static const ConfigOptionID identifier = ConfigOptionID::kLevelControl;
   bool enabled;
 };
 
@@ -267,7 +274,7 @@ class AudioProcessing {
   static AudioProcessing* Create(const Config& config);
   // Only for testing.
   static AudioProcessing* Create(const Config& config,
-                                 Beamformer<float>* beamformer);
+                                 NonlinearBeamformer* beamformer);
   virtual ~AudioProcessing() {}
 
   // Initializes internal states, while retaining all user settings. This

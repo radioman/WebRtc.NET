@@ -46,7 +46,7 @@ class PacedSender : public Module, public RtpPacketSender {
                                   int probe_cluster_id) = 0;
     // Called when it's a good time to send a padding data.
     // Returns the number of bytes sent.
-    virtual size_t TimeToSendPadding(size_t bytes) = 0;
+    virtual size_t TimeToSendPadding(size_t bytes, int probe_cluster_id) = 0;
 
    protected:
     virtual ~PacketSender() {}
@@ -89,13 +89,15 @@ class PacedSender : public Module, public RtpPacketSender {
   // |bitrate_bps| * kDefaultPaceMultiplier.
   virtual void SetEstimatedBitrate(uint32_t bitrate_bps);
 
-  // Sets the bitrate that has been allocated for encoders.
-  // |allocated_bitrate| might be higher that the estimated available network
-  // bitrate and if so, the pacer will send with |allocated_bitrate|.
-  // Padding packets will be utilized to reach |padding_bitrate| unless enough
-  // media packets are available.
-  void SetAllocatedSendBitrate(int allocated_bitrate_bps,
-                               int padding_bitrate_bps);
+  // Sets the minimum send bitrate and maximum padding bitrate requested by send
+  // streams.
+  // |min_send_bitrate_bps| might be higher that the estimated available network
+  // bitrate and if so, the pacer will send with |min_send_bitrate_bps|.
+  // |max_padding_bitrate_bps| might be higher than the estimate available
+  // network bitrate and if so, the pacer will send padding packets to reach
+  // the min of the estimated available bitrate and |max_padding_bitrate_bps|.
+  void SetSendBitrateLimits(int min_send_bitrate_bps,
+                            int max_padding_bitrate_bps);
 
   // Returns true if we send the packet now, else it will add the packet
   // information to the queue and call TimeToSendPacket when it's time to send.
@@ -133,7 +135,8 @@ class PacedSender : public Module, public RtpPacketSender {
 
   bool SendPacket(const paced_sender::Packet& packet, int probe_cluster_id)
       EXCLUSIVE_LOCKS_REQUIRED(critsect_);
-  void SendPadding(size_t padding_needed) EXCLUSIVE_LOCKS_REQUIRED(critsect_);
+  void SendPadding(size_t padding_needed, int probe_cluster_id)
+      EXCLUSIVE_LOCKS_REQUIRED(critsect_);
 
   Clock* const clock_;
   PacketSender* const packet_sender_;
@@ -156,6 +159,7 @@ class PacedSender : public Module, public RtpPacketSender {
   // order to meet pace time constraint).
   uint32_t estimated_bitrate_bps_ GUARDED_BY(critsect_);
   uint32_t min_send_bitrate_kbps_ GUARDED_BY(critsect_);
+  uint32_t max_padding_bitrate_kbps_ GUARDED_BY(critsect_);
   uint32_t pacing_bitrate_kbps_ GUARDED_BY(critsect_);
 
   int64_t time_last_update_us_ GUARDED_BY(critsect_);

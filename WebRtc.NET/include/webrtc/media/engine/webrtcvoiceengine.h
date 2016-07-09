@@ -38,6 +38,26 @@ class AudioSource;
 class VoEWrapper;
 class WebRtcVoiceMediaChannel;
 
+struct SendCodecSpec {
+  SendCodecSpec() {
+    webrtc::CodecInst empty_inst = {0};
+    codec_inst = empty_inst;
+    codec_inst.pltype = -1;
+  }
+  bool operator==(const SendCodecSpec& rhs) const;
+  bool operator!=(const SendCodecSpec& rhs) const;
+
+  bool nack_enabled = false;
+  bool transport_cc_enabled = false;
+  bool enable_codec_fec = false;
+  bool enable_opus_dtx = false;
+  int opus_max_playback_rate = 0;
+  int red_payload_type = -1;
+  int cng_payload_type = -1;
+  int cng_plfreq = -1;
+  webrtc::CodecInst codec_inst;
+};
+
 // WebRtcVoiceEngine is a class to be used with CompositeMediaEngine.
 // It uses the WebRtc VoiceEngine library for audio handling.
 class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
@@ -46,9 +66,14 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
   // Exposed for the WVoE/MC unit test.
   static bool ToCodecInst(const AudioCodec& in, webrtc::CodecInst* out);
 
-  explicit WebRtcVoiceEngine(webrtc::AudioDeviceModule* adm);
+  WebRtcVoiceEngine(
+      webrtc::AudioDeviceModule* adm,
+      const rtc::scoped_refptr<webrtc::AudioDecoderFactory>& decoder_factory);
   // Dependency injection for testing.
-  WebRtcVoiceEngine(webrtc::AudioDeviceModule* adm, VoEWrapper* voe_wrapper);
+  WebRtcVoiceEngine(
+      webrtc::AudioDeviceModule* adm,
+      const rtc::scoped_refptr<webrtc::AudioDecoderFactory>& decoder_factory,
+      VoEWrapper* voe_wrapper);
   ~WebRtcVoiceEngine() override;
 
   rtc::scoped_refptr<webrtc::AudioState> GetAudioState() const;
@@ -56,11 +81,10 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
                                    const MediaConfig& config,
                                    const AudioOptions& options);
 
-  bool GetOutputVolume(int* level);
-  bool SetOutputVolume(int level);
   int GetInputLevel();
 
-  const std::vector<AudioCodec>& codecs();
+  const std::vector<AudioCodec>& send_codecs() const;
+  const std::vector<AudioCodec>& recv_codecs() const;
   RtpCapabilities GetCapabilities() const;
 
   // For tracking WebRtc channels. Needed because we have to pause them
@@ -85,14 +109,6 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
   // Stops AEC dump.
   void StopAecDump();
 
-  // Starts recording an RtcEventLog using an existing file until the log file
-  // reaches the maximum filesize or the StopRtcEventLog function is called.
-  // If the value of max_size_bytes is <= 0, no limit is used.
-  bool StartRtcEventLog(rtc::PlatformFile file, int64_t max_size_bytes);
-
-  // Stops recording the RtcEventLog.
-  void StopRtcEventLog();
-
  private:
   // Every option that is "set" will be applied. Every option not "set" will be
   // ignored. This allows us to selectively turn on and off different options
@@ -112,6 +128,7 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
 
   // The audio device manager.
   rtc::scoped_refptr<webrtc::AudioDeviceModule> adm_;
+  rtc::scoped_refptr<webrtc::AudioDecoderFactory> decoder_factory_;
   // The primary instance of WebRtc VoiceEngine.
   std::unique_ptr<VoEWrapper> voe_wrapper_;
   rtc::scoped_refptr<webrtc::AudioState> audio_state_;
@@ -121,14 +138,16 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
   bool is_dumping_aec_ = false;
 
   webrtc::AgcConfig default_agc_config_;
-  // Cache received extended_filter_aec, delay_agnostic_aec, experimental_ns and
-  // intelligibility_enhancer values, and apply them in case they are missing
-  // in the audio options. We need to do this because SetExtraOptions() will
-  // revert to defaults for options which are not provided.
+  // Cache received extended_filter_aec, delay_agnostic_aec, experimental_ns
+  // level controller, and intelligibility_enhancer values, and apply them
+  // in case they are missing in the audio options. We need to do this because
+  // SetExtraOptions() will revert to defaults for options which are not
+  // provided.
   rtc::Optional<bool> extended_filter_aec_;
   rtc::Optional<bool> delay_agnostic_aec_;
   rtc::Optional<bool> experimental_ns_;
   rtc::Optional<bool> intelligibility_enhancer_;
+  rtc::Optional<bool> level_control_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(WebRtcVoiceEngine);
 };
@@ -219,7 +238,6 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   bool SetRecvCodecs(const std::vector<AudioCodec>& codecs);
   bool SetSendCodecs(const std::vector<AudioCodec>& codecs);
   bool SetSendCodecs(int channel, const webrtc::RtpParameters& rtp_parameters);
-  void SetNack(int channel, bool nack_enabled);
   bool SetSendCodec(int channel, const webrtc::CodecInst& send_codec);
   bool SetLocalSource(uint32_t ssrc, AudioSource* source);
   bool MuteStream(uint32_t ssrc, bool mute);
@@ -254,6 +272,7 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   rtc::Optional<int> dtmf_payload_type_;
   bool desired_playout_ = false;
   bool recv_transport_cc_enabled_ = false;
+  bool recv_nack_enabled_ = false;
   bool playout_ = false;
   bool send_ = false;
   webrtc::Call* const call_ = nullptr;
@@ -277,22 +296,7 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   std::map<uint32_t, WebRtcAudioReceiveStream*> recv_streams_;
   std::vector<webrtc::RtpExtension> recv_rtp_extensions_;
 
-  struct SendCodecSpec {
-    SendCodecSpec() {
-      webrtc::CodecInst empty_inst = {0};
-      codec_inst = empty_inst;
-      codec_inst.pltype = -1;
-    }
-    bool nack_enabled = false;
-    bool transport_cc_enabled = false;
-    bool enable_codec_fec = false;
-    bool enable_opus_dtx = false;
-    int opus_max_playback_rate = 0;
-    int red_payload_type = -1;
-    int cng_payload_type = -1;
-    int cng_plfreq = -1;
-    webrtc::CodecInst codec_inst;
-  } send_codec_spec_;
+  SendCodecSpec send_codec_spec_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(WebRtcVoiceMediaChannel);
 };

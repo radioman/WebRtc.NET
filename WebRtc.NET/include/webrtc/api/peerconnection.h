@@ -16,11 +16,10 @@
 #include <memory>
 #include <vector>
 
-#include "webrtc/api/dtlsidentitystore.h"
 #include "webrtc/api/peerconnectionfactory.h"
 #include "webrtc/api/peerconnectioninterface.h"
-#include "webrtc/api/rtpreceiverinterface.h"
-#include "webrtc/api/rtpsenderinterface.h"
+#include "webrtc/api/rtpreceiver.h"
+#include "webrtc/api/rtpsender.h"
 #include "webrtc/api/statscollector.h"
 #include "webrtc/api/streamcollection.h"
 #include "webrtc/api/webrtcsession.h"
@@ -70,7 +69,7 @@ class PeerConnection : public PeerConnectionInterface,
   bool Initialize(
       const PeerConnectionInterface::RTCConfiguration& configuration,
       std::unique_ptr<cricket::PortAllocator> allocator,
-      std::unique_ptr<DtlsIdentityStoreInterface> dtls_identity_store,
+      std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator,
       PeerConnectionObserver* observer);
 
   rtc::scoped_refptr<StreamCollectionInterface> local_streams() override;
@@ -137,6 +136,10 @@ class PeerConnection : public PeerConnectionInterface,
 
   void RegisterUMAObserver(UMAObserver* observer) override;
 
+  bool StartRtcEventLog(rtc::PlatformFile file,
+                        int64_t max_size_bytes) override;
+  void StopRtcEventLog() override;
+
   void Close() override;
 
   // Virtual for unit tests.
@@ -175,7 +178,6 @@ class PeerConnection : public PeerConnectionInterface,
   void CreateVideoReceiver(MediaStreamInterface* stream,
                            const std::string& track_id,
                            uint32_t ssrc);
-  void StopReceivers(cricket::MediaType media_type);
   void DestroyReceiver(const std::string& track_id);
   void DestroyAudioSender(MediaStreamInterface* stream,
                           AudioTrackInterface* audio_track,
@@ -326,7 +328,9 @@ class PeerConnection : public PeerConnectionInterface,
   void OnSctpDataChannelClosed(DataChannel* channel);
 
   // Notifications from WebRtcSession relating to BaseChannels.
+  void OnVoiceChannelCreated();
   void OnVoiceChannelDestroyed();
+  void OnVideoChannelCreated();
   void OnVideoChannelDestroyed();
   void OnDataChannelCreated();
   void OnDataChannelDestroyed();
@@ -335,11 +339,13 @@ class PeerConnection : public PeerConnectionInterface,
   void OnDataChannelOpenMessage(const std::string& label,
                                 const InternalDataChannelInit& config);
 
-  RtpSenderInterface* FindSenderById(const std::string& id);
+  RtpSenderInternal* FindSenderById(const std::string& id);
 
-  std::vector<rtc::scoped_refptr<RtpSenderInterface>>::iterator
+  std::vector<rtc::scoped_refptr<
+      RtpSenderProxyWithInternal<RtpSenderInternal>>>::iterator
   FindSenderForTrack(MediaStreamTrackInterface* track);
-  std::vector<rtc::scoped_refptr<RtpReceiverInterface>>::iterator
+  std::vector<rtc::scoped_refptr<
+      RtpReceiverProxyWithInternal<RtpReceiverInternal>>>::iterator
   FindReceiverForTrack(const std::string& track_id);
 
   TrackInfos* GetRemoteTracks(cricket::MediaType media_type);
@@ -357,6 +363,13 @@ class PeerConnection : public PeerConnectionInterface,
   // Called when SetConfiguration is called. Only a subset of the configuration
   // is applied.
   bool ReconfigurePortAllocator_n(const RTCConfiguration& configuration);
+
+  // Starts recording an Rtc EventLog using the supplied platform file.
+  // This function should only be called from the worker thread.
+  bool StartRtcEventLog_w(rtc::PlatformFile file, int64_t max_size_bytes);
+  // Starts recording an Rtc EventLog using the supplied platform file.
+  // This function should only be called from the worker thread.
+  void StopRtcEventLog_w();
 
   // Storing the factory as a scoped reference pointer ensures that the memory
   // in the PeerConnectionFactoryImpl remains available as long as the
@@ -401,8 +414,11 @@ class PeerConnection : public PeerConnectionInterface,
 
   bool remote_peer_supports_msid_ = false;
 
-  std::vector<rtc::scoped_refptr<RtpSenderInterface>> senders_;
-  std::vector<rtc::scoped_refptr<RtpReceiverInterface>> receivers_;
+  std::vector<rtc::scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>>>
+      senders_;
+  std::vector<
+      rtc::scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>>>
+      receivers_;
 
   std::unique_ptr<WebRtcSession> session_;
   std::unique_ptr<StatsCollector> stats_;

@@ -302,10 +302,12 @@ void vpx_h_predictor_8x8_neon(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *a
 RTCD_EXTERN void (*vpx_h_predictor_8x8)(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 
 void vpx_hadamard_16x16_c(const int16_t *src_diff, int src_stride, int16_t *coeff);
-#define vpx_hadamard_16x16 vpx_hadamard_16x16_c
+void vpx_hadamard_16x16_neon(const int16_t *src_diff, int src_stride, int16_t *coeff);
+RTCD_EXTERN void (*vpx_hadamard_16x16)(const int16_t *src_diff, int src_stride, int16_t *coeff);
 
 void vpx_hadamard_8x8_c(const int16_t *src_diff, int src_stride, int16_t *coeff);
-#define vpx_hadamard_8x8 vpx_hadamard_8x8_c
+void vpx_hadamard_8x8_neon(const int16_t *src_diff, int src_stride, int16_t *coeff);
+RTCD_EXTERN void (*vpx_hadamard_8x8)(const int16_t *src_diff, int src_stride, int16_t *coeff);
 
 void vpx_he_predictor_4x4_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 #define vpx_he_predictor_4x4 vpx_he_predictor_4x4_c
@@ -923,6 +925,10 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_NEON) vpx_h_predictor_4x4 = vpx_h_predictor_4x4_neon;
     vpx_h_predictor_8x8 = vpx_h_predictor_8x8_c;
     if (flags & HAS_NEON) vpx_h_predictor_8x8 = vpx_h_predictor_8x8_neon;
+    vpx_hadamard_16x16 = vpx_hadamard_16x16_c;
+    if (flags & HAS_NEON) vpx_hadamard_16x16 = vpx_hadamard_16x16_neon;
+    vpx_hadamard_8x8 = vpx_hadamard_8x8_c;
+    if (flags & HAS_NEON) vpx_hadamard_8x8 = vpx_hadamard_8x8_neon;
     vpx_idct16x16_10_add = vpx_idct16x16_10_add_c;
     if (flags & HAS_NEON) vpx_idct16x16_10_add = vpx_idct16x16_10_add_neon;
     vpx_idct16x16_1_add = vpx_idct16x16_1_add_c;

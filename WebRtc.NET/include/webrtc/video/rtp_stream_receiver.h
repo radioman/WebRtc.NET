@@ -60,7 +60,7 @@ class RtpStreamReceiver : public RtpData, public RtpFeedback,
                     PacedSender* paced_sender,
                     PacketRouter* packet_router,
                     VieRemb* remb,
-                    const VideoReceiveStream::Config& config,
+                    const VideoReceiveStream::Config* config,
                     ReceiveStatisticsProxy* receive_stats_proxy,
                     ProcessThread* process_thread);
   ~RtpStreamReceiver();
@@ -85,7 +85,7 @@ class RtpStreamReceiver : public RtpData, public RtpFeedback,
 
   // Implements RtpData.
   int32_t OnReceivedPayloadData(const uint8_t* payload_data,
-                                const size_t payload_size,
+                                size_t payload_size,
                                 const WebRtcRTPHeader* rtp_header) override;
   bool OnRecoveredPacket(const uint8_t* packet, size_t packet_length) override;
 
@@ -128,7 +128,8 @@ class RtpStreamReceiver : public RtpData, public RtpFeedback,
   void EnableReceiveRtpHeaderExtension(const std::string& extension, int id);
 
   Clock* const clock_;
-  const VideoReceiveStream::Config config_;
+  // Ownership of this object lies with VideoReceiveStream, which owns |this|.
+  const VideoReceiveStream::Config& config_;
   vcm::VideoReceiver* const video_receiver_;
   RemoteBitrateEstimator* const remote_bitrate_estimator_;
   PacketRouter* const packet_router_;

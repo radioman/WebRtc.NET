@@ -35,7 +35,7 @@ public:
 			waiting_time_ms *= 0.9;
 
 			capturer_->ReadFrame(true);
-			PostDelayed(waiting_time_ms, this);
+			PostDelayed(RTC_FROM_HERE, waiting_time_ms, this);
 			Thread::Run();
 		}
 
@@ -49,7 +49,7 @@ public:
 		if (capturer_)
 		{
 			capturer_->ReadFrame(false);
-			PostDelayed(waiting_time_ms, this);
+			PostDelayed(RTC_FROM_HERE, waiting_time_ms, this);
 		}
 		else
 		{
@@ -185,7 +185,7 @@ void YuvFramesCapturer2::ReadFrame(bool first_frame)
 		}
 		else
 		{
-			startThread_->Invoke<void>(rtc::Bind(&YuvFramesCapturer2::SignalFrameCapturedOnStartThread, this, &captured_frame_));
+			startThread_->Invoke<void>(RTC_FROM_HERE, rtc::Bind(&YuvFramesCapturer2::SignalFrameCapturedOnStartThread, this, &captured_frame_));
 		}
 	}
 	//else

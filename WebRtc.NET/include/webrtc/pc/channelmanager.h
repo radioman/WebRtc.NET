@@ -72,7 +72,8 @@ class ChannelManager {
 
   // Retrieves the list of supported audio & video codec types.
   // Can be called before starting the media engine.
-  void GetSupportedAudioCodecs(std::vector<AudioCodec>* codecs) const;
+  void GetSupportedAudioSendCodecs(std::vector<AudioCodec>* codecs) const;
+  void GetSupportedAudioReceiveCodecs(std::vector<AudioCodec>* codecs) const;
   void GetSupportedAudioRtpHeaderExtensions(RtpHeaderExtensions* ext) const;
   void GetSupportedVideoCodecs(std::vector<VideoCodec>* codecs) const;
   void GetSupportedVideoRtpHeaderExtensions(RtpHeaderExtensions* ext) const;
@@ -120,8 +121,6 @@ class ChannelManager {
     return (!voice_channels_.empty() || !video_channels_.empty());
   }
 
-  bool GetOutputVolume(int* level);
-  bool SetOutputVolume(int level);
   // RTX will be enabled/disabled in engines that support it. The supporting
   // engines will start offering an RTX codec. Must be called before Init().
   bool SetVideoRtxEnabled(bool enable);
@@ -138,12 +137,6 @@ class ChannelManager {
 
   // Stops recording AEC dump.
   void StopAecDump();
-
-  // Starts RtcEventLog using existing file.
-  bool StartRtcEventLog(rtc::PlatformFile file, int64_t max_size_bytes);
-
-  // Stops logging RtcEventLog.
-  void StopRtcEventLog();
 
  private:
   typedef std::vector<VoiceChannel*> VoiceChannels;
@@ -191,7 +184,6 @@ class ChannelManager {
   VideoChannels video_channels_;
   DataChannels data_channels_;
 
-  int audio_output_volume_;
   bool enable_rtx_;
 
   bool capturing_;

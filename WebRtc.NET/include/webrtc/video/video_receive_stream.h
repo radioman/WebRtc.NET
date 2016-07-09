@@ -20,7 +20,6 @@
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
 #include "webrtc/modules/video_coding/video_coding_impl.h"
 #include "webrtc/system_wrappers/include/clock.h"
-#include "webrtc/video/encoded_frame_callback_adapter.h"
 #include "webrtc/video/receive_statistics_proxy.h"
 #include "webrtc/video/rtp_stream_receiver.h"
 #include "webrtc/video/video_stream_decoder.h"
@@ -38,7 +37,6 @@ class VieRemb;
 namespace internal {
 
 class VideoReceiveStream : public webrtc::VideoReceiveStream,
-                           public I420FrameCallback,
                            public rtc::VideoSinkInterface<VideoFrame>,
                            public EncodedImageCallback,
                            public NackSender,
@@ -46,7 +44,7 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
  public:
   VideoReceiveStream(int num_cpu_cores,
                      CongestionController* congestion_controller,
-                     const VideoReceiveStream::Config& config,
+                     VideoReceiveStream::Config config,
                      webrtc::VoiceEngine* voice_engine,
                      ProcessThread* process_thread,
                      CallStats* call_stats,
@@ -64,9 +62,6 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
   void Stop() override;
 
   webrtc::VideoReceiveStream::Stats GetStats() const override;
-
-  // Overrides I420FrameCallback.
-  void FrameCallback(VideoFrame* video_frame) override;
 
   // Overrides rtc::VideoSinkInterface<VideoFrame>.
   void OnFrame(const VideoFrame& video_frame) override;
@@ -91,7 +86,6 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
   void Decode();
 
   TransportAdapter transport_adapter_;
-  EncodedFrameCallbackAdapter encoded_frame_proxy_;
   const VideoReceiveStream::Config config_;
   ProcessThread* const process_thread_;
   Clock* const clock_;
@@ -102,10 +96,10 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
   CallStats* const call_stats_;
 
   vcm::VideoReceiver video_receiver_;
-  IncomingVideoStream incoming_video_stream_;
+  std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>> incoming_video_stream_;
   ReceiveStatisticsProxy stats_proxy_;
   RtpStreamReceiver rtp_stream_receiver_;
-  VideoStreamDecoder video_stream_decoder_;
+  std::unique_ptr<VideoStreamDecoder> video_stream_decoder_;
   ViESyncModule vie_sync_;
 
   std::unique_ptr<IvfFileWriter> ivf_writer_;

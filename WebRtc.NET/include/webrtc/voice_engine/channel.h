@@ -66,6 +66,7 @@ struct SenderInfo;
 namespace voe {
 
 class OutputMixer;
+class RtcEventLogProxy;
 class RtpPacketSenderProxy;
 class Statistics;
 class StatisticsProxy;
@@ -173,12 +174,17 @@ class Channel
   static int32_t CreateChannel(Channel*& channel,
                                int32_t channelId,
                                uint32_t instanceId,
-                               RtcEventLog* const event_log,
                                const Config& config);
+  static int32_t CreateChannel(
+      Channel*& channel,
+      int32_t channelId,
+      uint32_t instanceId,
+      const Config& config,
+      const rtc::scoped_refptr<AudioDecoderFactory>& decoder_factory);
   Channel(int32_t channelId,
           uint32_t instanceId,
-          RtcEventLog* const event_log,
-          const Config& config);
+          const Config& config,
+          const rtc::scoped_refptr<AudioDecoderFactory>& decoder_factory);
   int32_t Init();
   int32_t SetEngineInformation(Statistics& engineStatistics,
                                OutputMixer& outputMixer,
@@ -190,6 +196,12 @@ class Channel
   int32_t UpdateLocalTimeStamp();
 
   void SetSink(std::unique_ptr<AudioSinkInterface> sink);
+
+  // TODO(ossu): Don't use! It's only here to confirm that the decoder factory
+  // passed into AudioReceiveStream is the same as the one set when creating the
+  // ADM. Once Channel creation is moved into Audio{Send,Receive}Stream this can
+  // go.
+  const rtc::scoped_refptr<AudioDecoderFactory>& GetAudioDecoderFactory() const;
 
   // API methods
 
@@ -353,8 +365,6 @@ class Channel
                        unsigned int& discardedPackets);
   int GetRemoteRTCPReportBlocks(std::vector<ReportBlock>* report_blocks);
   int GetRTPStatistics(CallStatistics& stats);
-  int SetREDStatus(bool enable, int redPayloadtype);
-  int GetREDStatus(bool& enabled, int& redPayloadtype);
   int SetCodecFECStatus(bool enable);
   bool GetCodecFECStatus();
   void SetNACKStatus(bool enable, int maxNumberOfPackets);
@@ -439,6 +449,9 @@ class Channel
   // Disassociate a send channel if it was associated.
   void DisassociateSendChannel(int channel_id);
 
+  // Set a RtcEventLog logging object.
+  void SetRtcEventLog(RtcEventLog* event_log);
+
  protected:
   void OnIncomingFractionLoss(int fraction_lost);
 
@@ -459,7 +472,6 @@ class Channel
   void UpdatePacketDelay(uint32_t timestamp, uint16_t sequenceNumber);
   void RegisterReceiveCodecsToRTPModule();
 
-  int SetRedPayloadType(int red_payload_type);
   int SetSendRtpHeaderExtension(bool enable,
                                 RTPExtensionType type,
                                 unsigned char id);
@@ -475,7 +487,7 @@ class Channel
 
   ChannelState channel_state_;
 
-  RtcEventLog* const event_log_;
+  std::unique_ptr<voe::RtcEventLogProxy> event_log_proxy_;
 
   std::unique_ptr<RtpHeaderParser> rtp_header_parser_;
   std::unique_ptr<RTPPayloadRegistry> rtp_payload_registry_;
@@ -576,6 +588,9 @@ class Channel
   std::unique_ptr<TransportFeedbackProxy> feedback_observer_proxy_;
   std::unique_ptr<TransportSequenceNumberProxy> seq_num_allocator_proxy_;
   std::unique_ptr<RtpPacketSenderProxy> rtp_packet_sender_proxy_;
+
+  // TODO(ossu): Remove once GetAudioDecoderFactory() is no longer needed.
+  rtc::scoped_refptr<AudioDecoderFactory> decoder_factory_;
 };
 
 }  // namespace voe

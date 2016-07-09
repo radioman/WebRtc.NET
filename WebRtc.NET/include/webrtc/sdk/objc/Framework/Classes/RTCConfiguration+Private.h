@@ -48,6 +48,16 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (NSString *)stringForTcpCandidatePolicy:(RTCTcpCandidatePolicy)policy;
 
++ (webrtc::PeerConnectionInterface::CandidateNetworkPolicy)
+    nativeCandidateNetworkPolicyForPolicy:(RTCCandidateNetworkPolicy)policy;
+
++ (RTCCandidateNetworkPolicy)candidateNetworkPolicyForNativePolicy:
+    (webrtc::PeerConnectionInterface::CandidateNetworkPolicy)nativePolicy;
+
++ (NSString *)stringForCandidateNetworkPolicy:(RTCCandidateNetworkPolicy)policy;
+
++ (rtc::KeyType)nativeEncryptionKeyTypeForKeyType:(RTCEncryptionKeyType)keyType;
+
 /**
  * RTCConfiguration struct representation of this RTCConfiguration. This is
  * needed to pass to the underlying C++ APIs.

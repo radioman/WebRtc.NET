@@ -22,6 +22,7 @@
 namespace webrtc {
 class CongestionController;
 class RemoteBitrateEstimator;
+class RtcEventLog;
 
 namespace voe {
 class ChannelProxy;
@@ -33,7 +34,8 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream {
  public:
   AudioReceiveStream(CongestionController* congestion_controller,
                      const webrtc::AudioReceiveStream::Config& config,
-                     const rtc::scoped_refptr<webrtc::AudioState>& audio_state);
+                     const rtc::scoped_refptr<webrtc::AudioState>& audio_state,
+                     webrtc::RtcEventLog* event_log);
   ~AudioReceiveStream() override;
 
   // webrtc::AudioReceiveStream implementation.
@@ -41,6 +43,7 @@ class AudioReceiveStream final : public webrtc::AudioReceiveStream {
   void Stop() override;
   webrtc::AudioReceiveStream::Stats GetStats() const override;
   void SetSink(std::unique_ptr<AudioSinkInterface> sink) override;
+  void SetGain(float gain) override;
 
   void SignalNetworkState(NetworkState state);
   bool DeliverRtcp(const uint8_t* packet, size_t length);

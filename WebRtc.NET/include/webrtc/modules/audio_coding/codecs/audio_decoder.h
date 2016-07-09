@@ -93,6 +93,12 @@ class AudioDecoder {
   // Returns true if the packet has FEC and false otherwise.
   virtual bool PacketHasFec(const uint8_t* encoded, size_t encoded_len) const;
 
+  // Returns the actual sample rate of the decoder's output. This value may not
+  // change during the lifetime of the decoder.
+  virtual int SampleRateHz() const = 0;
+
+  // The number of channels in the decoder's output. This value may not change
+  // during the lifetime of the decoder.
   virtual size_t Channels() const = 0;
 
  protected:

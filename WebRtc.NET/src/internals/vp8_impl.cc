@@ -364,6 +364,12 @@ namespace webrtc
 		return WEBRTC_VIDEO_CODEC_OK;
 	}
 
+	void VP8EncoderImpl::OnDroppedFrame()
+	{
+		if (quality_scaler_enabled_)
+			quality_scaler_.ReportDroppedFrame();
+	}
+
 	const char* VP8EncoderImpl::ImplementationName() const
 	{
 		return "libvpx";
@@ -731,6 +737,26 @@ namespace webrtc
 
 	int VP8EncoderImpl::NumberOfThreads(int width, int height, int cpus)
 	{
+#if defined(ANDROID)
+		if (width * height >= 320 * 180)
+		{
+			if (cpus >= 4)
+			{
+				// 3 threads for CPUs with 4 and more cores since most of times only 4
+				// cores will be active.
+				return 3;
+			}
+			else if (cpus == 3 || cpus == 2)
+			{
+				return 2;
+			}
+			else
+			{
+				return 1;
+			}
+		}
+		return 1;
+#else
 		if (width * height >= 1920 * 1080 && cpus > 8)
 		{
 			return 8;  // 8 threads for 1080p on high perf machines.
@@ -750,6 +776,7 @@ namespace webrtc
 			// 1 thread for VGA or less.
 			return 1;
 		}
+#endif
 	}
 
 	int VP8EncoderImpl::InitAndSetControlSettings()
@@ -844,41 +871,42 @@ namespace webrtc
 		if (encoded_complete_callback_ == NULL)
 			return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
 
-		if (quality_scaler_enabled_)
-			quality_scaler_.OnEncodeFrame(frame);
-		const VideoFrame& input_image =
-			quality_scaler_enabled_ ? quality_scaler_.GetScaledFrame(frame) : frame;
+		rtc::scoped_refptr<VideoFrameBuffer> input_image = frame.video_frame_buffer();
 
-		if (quality_scaler_enabled_ && (input_image.width() != codec_.width ||
-										input_image.height() != codec_.height))
+		if (quality_scaler_enabled_)
 		{
-			int ret = UpdateCodecFrameSize(input_image);
-			if (ret < 0)
-				return ret;
+			quality_scaler_.OnEncodeFrame(frame.width(), frame.height());
+			input_image = quality_scaler_.GetScaledBuffer(input_image);
+
+			if (input_image->width() != codec_.width ||
+				input_image->height() != codec_.height)
+			{
+				int ret =
+					UpdateCodecFrameSize(input_image->width(), input_image->height());
+				if (ret < 0)
+					return ret;
+			}
 		}
 
 		// Since we are extracting raw pointers from |input_image| to
 		// |raw_images_[0]|, the resolution of these frames must match. Note that
 		// |input_image| might be scaled from |frame|. In that case, the resolution of
 		// |raw_images_[0]| should have been updated in UpdateCodecFrameSize.
-		RTC_DCHECK_EQ(input_image.width(), static_cast<int>(raw_images_[0].d_w));
-		RTC_DCHECK_EQ(input_image.height(), static_cast<int>(raw_images_[0].d_h));
+		RTC_DCHECK_EQ(input_image->width(), static_cast<int>(raw_images_[0].d_w));
+		RTC_DCHECK_EQ(input_image->height(), static_cast<int>(raw_images_[0].d_h));
 
 		// Image in vpx_image_t format.
 		// Input image is const. VP8's raw image is not defined as const.
 		raw_images_[0].planes[VPX_PLANE_Y] =
-			const_cast<uint8_t*>(input_image.video_frame_buffer()->DataY());
+			const_cast<uint8_t*>(input_image->DataY());
 		raw_images_[0].planes[VPX_PLANE_U] =
-			const_cast<uint8_t*>(input_image.video_frame_buffer()->DataU());
+			const_cast<uint8_t*>(input_image->DataU());
 		raw_images_[0].planes[VPX_PLANE_V] =
-			const_cast<uint8_t*>(input_image.video_frame_buffer()->DataV());
+			const_cast<uint8_t*>(input_image->DataV());
 
-		raw_images_[0].stride[VPX_PLANE_Y] =
-			input_image.video_frame_buffer()->StrideY();
-		raw_images_[0].stride[VPX_PLANE_U] =
-			input_image.video_frame_buffer()->StrideU();
-		raw_images_[0].stride[VPX_PLANE_V] =
-			input_image.video_frame_buffer()->StrideV();
+		raw_images_[0].stride[VPX_PLANE_Y] = input_image->StrideY();
+		raw_images_[0].stride[VPX_PLANE_U] = input_image->StrideU();
+		raw_images_[0].stride[VPX_PLANE_V] = input_image->StrideV();
 
 		for (size_t i = 1; i < encoders_.size(); ++i)
 		{
@@ -899,7 +927,7 @@ namespace webrtc
 		vpx_enc_frame_flags_t flags[kMaxSimulcastStreams];
 		for (size_t i = 0; i < encoders_.size(); ++i)
 		{
-			int ret = temporal_layers_[i]->EncodeFlags(input_image.timestamp());
+			int ret = temporal_layers_[i]->EncodeFlags(frame.timestamp());
 			if (ret < 0)
 			{
 				// Drop this frame.
@@ -965,12 +993,12 @@ namespace webrtc
 				}
 				if (codec_specific_info->codecSpecific.VP8.hasReceivedSLI)
 				{
-					sendRefresh = rps_.ReceivedSLI(input_image.timestamp());
+					sendRefresh = rps_.ReceivedSLI(frame.timestamp());
 				}
 				for (size_t i = 0; i < encoders_.size(); ++i)
 				{
 					flags[i] = rps_.EncodeFlags(picture_id_[i], sendRefresh,
-												input_image.timestamp());
+												frame.timestamp());
 				}
 			}
 			else
@@ -1047,19 +1075,20 @@ namespace webrtc
 		if (error)
 			return WEBRTC_VIDEO_CODEC_ERROR;
 		timestamp_ += duration;
-		return GetEncodedPartitions(input_image, only_predict_from_key_frame);
+		// Examines frame timestamps only.
+		return GetEncodedPartitions(frame, only_predict_from_key_frame);
 	}
 
 	// TODO(pbos): Make sure this works for properly for >1 encoders.
-	int VP8EncoderImpl::UpdateCodecFrameSize(const VideoFrame& input_image)
+	int VP8EncoderImpl::UpdateCodecFrameSize(int width, int height)
 	{
-		codec_.width = input_image.width();
-		codec_.height = input_image.height();
+		codec_.width = width;
+		codec_.height = height;
 		if (codec_.numberOfSimulcastStreams <= 1)
 		{
 			// For now scaling is only used for single-layer streams.
-			codec_.simulcastStream[0].width = input_image.width();
-			codec_.simulcastStream[0].height = input_image.height();
+			codec_.simulcastStream[0].width = width;
+			codec_.simulcastStream[0].height = height;
 		}
 		// Update the cpu_speed setting for resolution change.
 		vpx_codec_control(&(encoders_[0]), VP8E_SET_CPUUSED,
@@ -1141,24 +1170,24 @@ namespace webrtc
 						if (pkt->data.frame.sz + length > encoded_images_[encoder_idx]._size)
 						{
 							uint8_t* buffer = new uint8_t[pkt->data.frame.sz + length];
-							
+
 							memcpy(buffer, encoded_images_[encoder_idx]._buffer, length);
-							
+
 							delete[] encoded_images_[encoder_idx]._buffer;
 							encoded_images_[encoder_idx]._buffer = buffer;
-							
+
 							encoded_images_[encoder_idx]._size = pkt->data.frame.sz + length;
 						}
 						memcpy(&encoded_images_[encoder_idx]._buffer[length],
-							   pkt->data.frame.buf, pkt->data.frame.sz);						
+							   pkt->data.frame.buf, pkt->data.frame.sz);
 
 						frag_info.fragmentationOffset[part_idx] = length;
 						frag_info.fragmentationLength[part_idx] = pkt->data.frame.sz;
 						frag_info.fragmentationPlType[part_idx] = 0;  // not known here
 						frag_info.fragmentationTimeDiff[part_idx] = 0;
-						
+
 						encoded_images_[encoder_idx]._length += pkt->data.frame.sz;
-						
+
 						assert(length <= encoded_images_[encoder_idx]._size);
 						++part_idx;
 						break;
@@ -1184,7 +1213,7 @@ namespace webrtc
 				}
 			}
 			encoded_images_[encoder_idx]._timeStamp = input_image.timestamp();
-			encoded_images_[encoder_idx].capture_time_ms_ =	input_image.render_time_ms();
+			encoded_images_[encoder_idx].capture_time_ms_ = input_image.render_time_ms();
 			encoded_images_[encoder_idx].rotation_ = input_image.rotation();
 
 			int qp = -1;
@@ -1200,18 +1229,18 @@ namespace webrtc
 									  encoded_images_[encoder_idx]._length);
 					encoded_images_[encoder_idx]._encodedHeight =codec_.simulcastStream[stream_idx].height;
 					encoded_images_[encoder_idx]._encodedWidth =codec_.simulcastStream[stream_idx].width;
-				
+
 					encoded_images_[encoder_idx].adapt_reason_.quality_resolution_downscales =
 						quality_scaler_enabled_ ? quality_scaler_.downscale_shift() : -1;
 
 					// Report once per frame (lowest stream always sent).
 					encoded_images_[encoder_idx].adapt_reason_.bw_resolutions_disabled =
 						(stream_idx == 0) ? bw_resolutions_disabled : -1;
-
+					
 					int qp_128 = -1;
 					vpx_codec_control(&encoders_[encoder_idx], VP8E_GET_LAST_QUANTIZER, &qp_128);
 					encoded_images_[encoder_idx].qp_ = qp_128;
-
+					
 					encoded_complete_callback_->Encoded(encoded_images_[encoder_idx],
 														&codec_specific, &frag_info);
 				}
@@ -1255,7 +1284,6 @@ namespace webrtc
 		inited_(false),
 		feedback_mode_(false),
 		decoder_(NULL),
-		last_keyframe_(),
 		image_format_(VPX_IMG_FMT_NONE),
 		ref_frame_(NULL),
 		propagation_cnt_(-1),
@@ -1445,32 +1473,6 @@ namespace webrtc
 		}
 #endif
 
-		// Store encoded frame if key frame. (Used in Copy method.)
-		if (input_image._frameType == kVideoFrameKey && input_image._buffer != NULL)
-		{
-			const uint32_t bytes_to_copy = input_image._length;
-			if (last_keyframe_._size < bytes_to_copy)
-			{
-				delete[] last_keyframe_._buffer;
-				last_keyframe_._buffer = NULL;
-				last_keyframe_._size = 0;
-			}
-			uint8_t* temp_buffer = last_keyframe_._buffer;  // Save buffer ptr.
-			uint32_t temp_size = last_keyframe_._size;      // Save size.
-			last_keyframe_ = input_image;                   // Shallow copy.
-			last_keyframe_._buffer = temp_buffer;           // Restore buffer ptr.
-			last_keyframe_._size = temp_size;               // Restore buffer size.
-			if (!last_keyframe_._buffer)
-			{
-				// Allocate memory.
-				last_keyframe_._size = bytes_to_copy;
-				last_keyframe_._buffer = new uint8_t[last_keyframe_._size];
-			}
-			// Copy encoded frame.
-			memcpy(last_keyframe_._buffer, input_image._buffer, bytes_to_copy);
-			last_keyframe_._length = bytes_to_copy;
-		}
-
 		img = vpx_codec_get_frame(decoder_, &iter);
 		ret = ReturnFrame(img, input_image._timeStamp, input_image.ntp_time_ms_);
 		if (ret != 0)
@@ -1604,11 +1606,6 @@ namespace webrtc
 
 	int VP8DecoderImpl::Release()
 	{
-		if (last_keyframe_._buffer != NULL)
-		{
-			delete[] last_keyframe_._buffer;
-			last_keyframe_._buffer = NULL;
-		}
 		if (decoder_ != NULL)
 		{
 			if (vpx_codec_destroy(decoder_))

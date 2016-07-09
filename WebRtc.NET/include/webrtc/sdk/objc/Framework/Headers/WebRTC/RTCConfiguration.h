@@ -44,6 +44,12 @@ typedef NS_ENUM(NSInteger, RTCTcpCandidatePolicy) {
   RTCTcpCandidatePolicyDisabled
 };
 
+/** Represents the candidate network policy. */
+typedef NS_ENUM(NSInteger, RTCCandidateNetworkPolicy) {
+  RTCCandidateNetworkPolicyAll,
+  RTCCandidateNetworkPolicyLowCost
+};
+
 /** Represents the continual gathering policy. */
 typedef NS_ENUM(NSInteger, RTCContinualGatheringPolicy) {
   RTCContinualGatheringPolicyGatherOnce,
@@ -74,6 +80,7 @@ RTC_EXPORT
 /** The rtcp-mux policy to use when gathering ICE candidates. */
 @property(nonatomic, assign) RTCRtcpMuxPolicy rtcpMuxPolicy;
 @property(nonatomic, assign) RTCTcpCandidatePolicy tcpCandidatePolicy;
+@property(nonatomic, assign) RTCCandidateNetworkPolicy candidateNetworkPolicy;
 @property(nonatomic, assign)
     RTCContinualGatheringPolicy continualGatheringPolicy;
 @property(nonatomic, assign) int audioJitterBufferMaxPackets;
@@ -85,6 +92,14 @@ RTC_EXPORT
 
 /** ICE candidate pool size as defined in JSEP. Default is 0. */
 @property(nonatomic, assign) int iceCandidatePoolSize;
+
+/** Prune turn ports on the same network to the same turn server. Default is false. */
+@property(nonatomic, assign) bool pruneTurnPorts;
+
+/** If set to true, this means the ICE transport should presume TURN-to-TURN
+ *  candidate pairs will succeed, even before a binding response is received.
+ */
+@property(nonatomic, assign) bool presumeWritableWhenFullyRelayed;
 
 - (instancetype)init NS_DESIGNATED_INITIALIZER;
 

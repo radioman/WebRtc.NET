@@ -98,6 +98,7 @@
 #pragma comment(lib,"rtc_xmllite.lib")
 #pragma comment(lib,"rtc_xmpp.lib")
 #pragma comment(lib,"rtp_rtcp.lib")
+#pragma comment(lib,"rtc_task_queue.lib")
 #pragma comment(lib,"system_wrappers.lib")
 #pragma comment(lib,"usrsctplib.lib")
 #pragma comment(lib,"video_capture_module.lib")

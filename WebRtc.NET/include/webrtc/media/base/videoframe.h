@@ -19,6 +19,10 @@
 namespace cricket {
 
 // Represents a YUV420 (a.k.a. I420) video frame.
+
+// TODO(nisse): This class duplicates webrtc::VideoFrame. There's
+// ongoing work to merge the classes. See
+// https://bugs.chromium.org/p/webrtc/issues/detail?id=5682.
 class VideoFrame {
  public:
   VideoFrame() {}
@@ -54,81 +58,45 @@ class VideoFrame {
   // Make a shallow copy of the frame. The frame buffer itself is not copied.
   // Both the current and new VideoFrame will share a single reference-counted
   // frame buffer.
-  virtual VideoFrame *Copy() const = 0;
 
-  // Since VideoFrame supports shallow copy and the internal frame buffer might
-  // be shared, this function can be used to check exclusive ownership.
-  virtual bool IsExclusive() const = 0;
+  // TODO(nisse): Deprecated, to be deleted in the cricket::VideoFrame and
+  // webrtc::VideoFrame merge. To make a copy, use the cricket::WebRtcVideoFrame
+  // constructor passing video_frame_buffer(), rotation() and timestamp_us() as
+  // arguments.
+  virtual VideoFrame *Copy() const = 0;
 
   // Return a copy of frame which has its pending rotation applied. The
   // ownership of the returned frame is held by this frame.
+
+  // TODO(nisse): Deprecated. Should be moved or deleted in the
+  // cricket::VideoFrame and webrtc::VideoFrame merge, possibly with a helper
+  // method on VideoFrameBuffer.
   virtual const VideoFrame* GetCopyWithRotationApplied() const = 0;
 
   // Converts the I420 data to RGB of a certain type such as ARGB and ABGR.
   // Returns the frame's actual size, regardless of whether it was written or
   // not (like snprintf). Parameters size and stride_rgb are in units of bytes.
   // If there is insufficient space, nothing is written.
+
+  // TODO(nisse): Deprecated. Should be moved or deleted in the
+  // cricket::VideoFrame and webrtc::VideoFrame merge. Use
+  // libyuv::ConvertFromI420 directly instead.
   virtual size_t ConvertToRgbBuffer(uint32_t to_fourcc,
                                     uint8_t* buffer,
                                     size_t size,
                                     int stride_rgb) const;
 
-  // Writes the frame into the given planes, stretched to the given width and
-  // height. The parameter "interpolate" controls whether to interpolate or just
-  // take the nearest-point. The parameter "crop" controls whether to crop this
-  // frame to the aspect ratio of the given dimensions before stretching.
-  virtual void StretchToPlanes(uint8_t* y,
-                               uint8_t* u,
-                               uint8_t* v,
-                               int32_t pitchY,
-                               int32_t pitchU,
-                               int32_t pitchV,
-                               size_t width,
-                               size_t height,
-                               bool interpolate,
-                               bool crop) const;
+  // Tests if sample is valid. Returns true if valid.
 
-  // Writes the frame into the target VideoFrame, stretched to the size of that
-  // frame. The parameter "interpolate" controls whether to interpolate or just
-  // take the nearest-point. The parameter "crop" controls whether to crop this
-  // frame to the aspect ratio of the target frame before stretching.
-  virtual void StretchToFrame(VideoFrame *target, bool interpolate,
-                              bool crop) const;
-
-  // Stretches the frame to the given size, creating a new VideoFrame object to
-  // hold it. The parameter "interpolate" controls whether to interpolate or
-  // just take the nearest-point. The parameter "crop" controls whether to crop
-  // this frame to the aspect ratio of the given dimensions before stretching.
-  virtual VideoFrame *Stretch(size_t w, size_t h, bool interpolate,
-                              bool crop) const;
-
-  // Sets the video frame to black.
-  virtual bool SetToBlack();
-
-  // Tests if sample is valid.  Returns true if valid.
+  // TODO(nisse): Deprecated. Should be deleted in the cricket::VideoFrame and
+  // webrtc::VideoFrame merge. Validation of sample_size possibly moved to
+  // libyuv::ConvertToI420. As an initial step, demote this method to protected
+  // status. Used only by WebRtcVideoFrame::Reset.
   static bool Validate(uint32_t fourcc,
                        int w,
                        int h,
                        const uint8_t* sample,
                        size_t sample_size);
-
- protected:
-  // Writes the frame into the given planes, stretched to the given width and
-  // height. The parameter "interpolate" controls whether to interpolate or just
-  // take the nearest-point. The parameter "crop" controls whether to crop this
-  // frame to the aspect ratio of the given dimensions before stretching.
-  virtual bool CopyToPlanes(uint8_t* dst_y,
-                            uint8_t* dst_u,
-                            uint8_t* dst_v,
-                            int32_t dst_pitch_y,
-                            int32_t dst_pitch_u,
-                            int32_t dst_pitch_v) const;
-
-  // Creates an empty frame.
-  virtual VideoFrame* CreateEmptyFrame(int w,
-                                       int h,
-                                       int64_t timestamp_us) const = 0;
-  virtual void set_rotation(webrtc::VideoRotation rotation) = 0;
 };
 
 }  // namespace cricket

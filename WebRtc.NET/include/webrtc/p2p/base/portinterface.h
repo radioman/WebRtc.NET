@@ -76,6 +76,8 @@ class PortInterface {
   virtual int GetOption(rtc::Socket::Option opt, int* value) = 0;
   virtual int GetError() = 0;
 
+  virtual ProtocolType GetProtocol() const = 0;
+
   virtual const std::vector<Candidate>& Candidates() const = 0;
 
   // Sends the given packet to the given address, provided that the address is
@@ -103,9 +105,6 @@ class PortInterface {
   // Signaled when this port decides to delete itself because it no longer has
   // any usefulness.
   sigslot::signal1<PortInterface*> SignalDestroyed;
-
-  // Signaled when the network used by this port becomes inactive.
-  sigslot::signal1<PortInterface*> SignalNetworkInactive;
 
   // Signaled when Port discovers ice role conflict with the peer.
   sigslot::signal1<PortInterface*> SignalRoleConflict;

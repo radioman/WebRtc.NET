@@ -20,6 +20,7 @@
 #include "vpx_dsp/ssim.h"
 #endif
 #include "vpx_dsp/variance.h"
+#include "vpx_ports/system_state.h"
 #include "vpx_util/vpx_thread.h"
 
 #include "vp9/common/vp9_alloccommon.h"
@@ -50,6 +51,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// vp9 uses 10,000,000 ticks/second as time stamp
+#define TICKS_PER_SEC 10000000
 
 typedef struct {
   int nmvjointcost[MV_JOINTS];
@@ -227,6 +231,8 @@ typedef struct VP9EncoderConfig {
 
   int max_threads;
 
+  int target_level;
+
   vpx_fixed_buf_t two_pass_stats_in;
   struct vpx_codec_pkt_list *output_pkt_list;
 
@@ -295,6 +301,69 @@ typedef struct IMAGE_STAT {
   double worst;
 } ImageStat;
 
+#define CPB_WINDOW_SIZE 4
+#define FRAME_WINDOW_SIZE 128
+#define SAMPLE_RATE_GRACE_P 0.015
+#define VP9_LEVELS 14
+
+typedef enum {
+  LEVEL_UNKNOWN = 0,
+  LEVEL_1 = 10,
+  LEVEL_1_1 = 11,
+  LEVEL_2 = 20,
+  LEVEL_2_1 = 21,
+  LEVEL_3 = 30,
+  LEVEL_3_1 = 31,
+  LEVEL_4 = 40,
+  LEVEL_4_1 = 41,
+  LEVEL_5 = 50,
+  LEVEL_5_1 = 51,
+  LEVEL_5_2 = 52,
+  LEVEL_6 = 60,
+  LEVEL_6_1 = 61,
+  LEVEL_6_2 = 62,
+  LEVEL_MAX = 255
+} VP9_LEVEL;
+
+typedef struct {
+  VP9_LEVEL level;
+  uint64_t max_luma_sample_rate;
+  uint32_t max_luma_picture_size;
+  double average_bitrate;  // in kilobits per second
+  double max_cpb_size;  // in kilobits
+  double compression_ratio;
+  uint8_t max_col_tiles;
+  uint32_t min_altref_distance;
+  uint8_t max_ref_frame_buffers;
+} Vp9LevelSpec;
+
+typedef struct {
+  int64_t ts;  // timestamp
+  uint32_t luma_samples;
+  uint32_t size;  // in bytes
+} FrameRecord;
+
+typedef struct {
+  FrameRecord buf[FRAME_WINDOW_SIZE];
+  uint8_t start;
+  uint8_t len;
+} FrameWindowBuffer;
+
+typedef struct {
+  uint8_t seen_first_altref;
+  uint32_t frames_since_last_altref;
+  uint64_t total_compressed_size;
+  uint64_t total_uncompressed_size;
+  double time_encoded;  // in seconds
+  FrameWindowBuffer frame_window_buffer;
+  int ref_refresh_map;
+} Vp9LevelStats;
+
+typedef struct {
+  Vp9LevelStats level_stats;
+  Vp9LevelSpec level_spec;
+} Vp9LevelInfo;
+
 typedef struct VP9_COMP {
   QUANTS quants;
   ThreadData td;
@@ -339,7 +408,7 @@ typedef struct VP9_COMP {
   YV12_BUFFER_CONFIG last_frame_uf;
 
   TOKENEXTRA *tile_tok[4][1 << 6];
-  unsigned int tok_count[4][1 << 6];
+  uint32_t tok_count[4][1 << 6];
 
   // Ambient reconstruction err target for force key frames
   int64_t ambient_err;
@@ -371,7 +440,7 @@ typedef struct VP9_COMP {
 
   SPEED_FEATURES sf;
 
-  unsigned int max_mv_magnitude;
+  uint32_t max_mv_magnitude;
   int mv_step_param;
 
   int allow_comp_inter_inter;
@@ -383,10 +452,10 @@ typedef struct VP9_COMP {
   // clips, and 300 for < HD clips.
   int encode_breakout;
 
-  unsigned char *segmentation_map;
+  uint8_t *segmentation_map;
 
   // segment threashold for encode breakout
-  int  segment_encode_breakout[MAX_SEGMENTS];
+  int segment_encode_breakout[MAX_SEGMENTS];
 
   CYCLIC_REFRESH *cyclic_refresh;
   ActiveMap active_map;
@@ -408,11 +477,10 @@ typedef struct VP9_COMP {
 
   YV12_BUFFER_CONFIG alt_ref_buffer;
 
-
 #if CONFIG_INTERNAL_STATS
   unsigned int mode_chosen_counts[MAX_MODES];
 
-  int    count;
+  int count;
   uint64_t total_sq_error;
   uint64_t total_samples;
   ImageStat psnr;
@@ -497,6 +565,8 @@ typedef struct VP9_COMP {
 
   int use_skin_detection;
 
+  int target_level;
+
   NOISE_ESTIMATE noise_estimate;
 
   // Count on how many consecutive times a block uses small/zeromv for encoding.
@@ -515,6 +585,9 @@ typedef struct VP9_COMP {
   VPxWorker *workers;
   struct EncWorkerData *tile_thr_data;
   VP9LfSync lf_row_sync;
+
+  int keep_level_stats;
+  Vp9LevelInfo level_info;
 } VP9_COMP;
 
 void vp9_initialize_enc(void);
@@ -669,6 +742,8 @@ static INLINE int get_chessboard_index(const int frame_index) {
 static INLINE int *cond_cost_list(const struct VP9_COMP *cpi, int *cost_list) {
   return cpi->sf.mv.subpel_search_method != SUBPEL_TREE ? cost_list : NULL;
 }
+
+VP9_LEVEL vp9_get_level(const Vp9LevelSpec *const level_spec);
 
 void vp9_new_framerate(VP9_COMP *cpi, double framerate);
 

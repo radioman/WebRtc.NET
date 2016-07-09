@@ -42,7 +42,7 @@ class DtmfBuffer;
 class DtmfToneGenerator;
 class Expand;
 class Merge;
-class Nack;
+class NackTracker;
 class Normal;
 class PacketBuffer;
 class PayloadSplitter;
@@ -72,7 +72,9 @@ class NetEqImpl : public webrtc::NetEq {
     // before sending the struct to the NetEqImpl constructor. However, there
     // are dependencies between some of the classes inside the struct, so
     // swapping out one may make it necessary to re-create another one.
-    explicit Dependencies(const NetEq::Config& config);
+    explicit Dependencies(
+        const NetEq::Config& config,
+        const rtc::scoped_refptr<AudioDecoderFactory>& decoder_factory);
     ~Dependencies();
 
     std::unique_ptr<TickTimer> tick_timer;
@@ -126,8 +128,7 @@ class NetEqImpl : public webrtc::NetEq {
   int RegisterExternalDecoder(AudioDecoder* decoder,
                               NetEqDecoder codec,
                               const std::string& codec_name,
-                              uint8_t rtp_payload_type,
-                              int sample_rate_hz) override;
+                              uint8_t rtp_payload_type) override;
 
   // Removes |rtp_payload_type| from the codec database. Returns 0 on success,
   // -1 on failure.
@@ -403,7 +404,7 @@ class NetEqImpl : public webrtc::NetEq {
   const BackgroundNoiseMode background_noise_mode_ GUARDED_BY(crit_sect_);
   NetEqPlayoutMode playout_mode_ GUARDED_BY(crit_sect_);
   bool enable_fast_accelerate_ GUARDED_BY(crit_sect_);
-  std::unique_ptr<Nack> nack_ GUARDED_BY(crit_sect_);
+  std::unique_ptr<NackTracker> nack_ GUARDED_BY(crit_sect_);
   bool nack_enabled_ GUARDED_BY(crit_sect_);
   const bool enable_muted_state_ GUARDED_BY(crit_sect_);
   AudioFrame::VADActivity last_vad_activity_ GUARDED_BY(crit_sect_) =

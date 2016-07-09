@@ -76,9 +76,22 @@ class VideoReceiveStream {
   };
 
   struct Config {
+   private:
+    // Access to the copy constructor is private to force use of the Copy()
+    // method for those exceptional cases where we do use it.
+    Config(const Config&) = default;
+
+   public:
     Config() = delete;
+    Config(Config&&) = default;
     explicit Config(Transport* rtcp_send_transport)
         : rtcp_send_transport(rtcp_send_transport) {}
+
+    Config& operator=(Config&&) = default;
+    Config& operator=(const Config&) = delete;
+
+    // Mostly used by tests.  Avoid creating copies if you can.
+    Config Copy() const { return Config(*this); }
 
     std::string ToString() const;
 
@@ -168,6 +181,9 @@ class VideoReceiveStream {
     // Called for each decoded frame. E.g. used when adding effects to the
     // decoded
     // stream. 'nullptr' disables the callback.
+    // TODO(tommi): This seems to be only used by a test or two.  Consider
+    // removing it (and use an appropriate alternative in the tests) as well
+    // as the associated code in VideoStreamDecoder.
     I420FrameCallback* pre_render_callback = nullptr;
 
     // Target delay in milliseconds. A positive value indicates this stream is

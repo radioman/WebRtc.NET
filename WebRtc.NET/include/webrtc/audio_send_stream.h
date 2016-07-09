@@ -56,7 +56,7 @@ class AudioSendStream {
 
     std::string ToString() const;
 
-    // Receive-stream specific RTP settings.
+    // Send-stream specific RTP settings.
     struct Rtp {
       std::string ToString() const;
 
@@ -65,6 +65,9 @@ class AudioSendStream {
 
       // RTP header extensions used for the sent stream.
       std::vector<RtpExtension> extensions;
+
+      // See NackConfig for description.
+      NackConfig nack;
 
       // RTCP CNAME, see RFC 3550.
       std::string c_name;
@@ -85,7 +88,6 @@ class AudioSendStream {
     // TODO(solenberg): Implement, once we configure codecs through the new API.
     // std::unique_ptr<AudioEncoder> encoder;
     int cng_payload_type = -1;  // pt, or -1 to disable Comfort Noise Generator.
-    int red_payload_type = -1;  // pt, or -1 to disable REDundant coding.
   };
 
   // Starts stream activity.
@@ -98,6 +100,9 @@ class AudioSendStream {
   // TODO(solenberg): Make payload_type a config property instead.
   virtual bool SendTelephoneEvent(int payload_type, int event,
                                   int duration_ms) = 0;
+
+  virtual void SetMuted(bool muted) = 0;
+
   virtual Stats GetStats() const = 0;
 
  protected:

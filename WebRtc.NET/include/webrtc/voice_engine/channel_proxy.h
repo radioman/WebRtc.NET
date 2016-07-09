@@ -24,6 +24,7 @@ namespace webrtc {
 
 class AudioSinkInterface;
 class PacketRouter;
+class RtcEventLog;
 class RtpPacketSender;
 class Transport;
 class TransportFeedbackObserver;
@@ -48,6 +49,7 @@ class ChannelProxy {
   virtual void SetRTCPStatus(bool enable);
   virtual void SetLocalSSRC(uint32_t ssrc);
   virtual void SetRTCP_CNAME(const std::string& c_name);
+  virtual void SetNACKStatus(bool enable, int max_packets);
   virtual void SetSendAbsoluteSenderTimeStatus(bool enable, int id);
   virtual void SetSendAudioLevelIndicationStatus(bool enable, int id);
   virtual void SetReceiveAbsoluteSenderTimeStatus(bool enable, int id);
@@ -72,6 +74,7 @@ class ChannelProxy {
   virtual bool SetSendTelephoneEventPayloadType(int payload_type);
   virtual bool SendTelephoneEventOutband(int event, int duration_ms);
   virtual void SetSink(std::unique_ptr<AudioSinkInterface> sink);
+  virtual void SetInputMute(bool muted);
 
   virtual void RegisterExternalTransport(Transport* transport);
   virtual void DeRegisterExternalTransport();
@@ -79,6 +82,13 @@ class ChannelProxy {
                                  size_t length,
                                  const PacketTime& packet_time);
   virtual bool ReceivedRTCPPacket(const uint8_t* packet, size_t length);
+
+  virtual const rtc::scoped_refptr<AudioDecoderFactory>&
+      GetAudioDecoderFactory() const;
+
+  virtual void SetChannelOutputVolumeScaling(float scaling);
+
+  virtual void SetRtcEventLog(RtcEventLog* event_log);
 
  private:
   Channel* channel() const;

@@ -123,6 +123,7 @@ class Port : public PortInterface, public rtc::MessageHandler,
              public sigslot::has_slots<> {
  public:
   Port(rtc::Thread* thread,
+       const std::string& type,
        rtc::PacketSocketFactory* factory,
        rtc::Network* network,
        const rtc::IPAddress& ip,
@@ -178,7 +179,7 @@ class Port : public PortInterface, public rtc::MessageHandler,
   }
 
   // Identifies the generation that this port was created in.
-  uint32_t generation() { return generation_; }
+  uint32_t generation() const { return generation_; }
   void set_generation(uint32_t generation) { generation_ = generation; }
 
   const std::string username_fragment() const;
@@ -293,9 +294,6 @@ class Port : public PortInterface, public rtc::MessageHandler,
   // Returns the index of the new local candidate.
   size_t AddPrflxCandidate(const Candidate& local);
 
-  void set_candidate_filter(uint32_t candidate_filter) {
-    candidate_filter_ = candidate_filter;
-  }
   int16_t network_cost() const { return network_cost_; }
 
  protected:
@@ -319,8 +317,10 @@ class Port : public PortInterface, public rtc::MessageHandler,
                   uint32_t relay_preference,
                   bool final);
 
-  // Adds the given connection to the list.  (Deleting removes them.)
-  void AddConnection(Connection* conn);
+  // Adds the given connection to the map keyed by the remote candidate address.
+  // If an existing connection has the same address, the existing one will be
+  // replaced and destroyed.
+  void AddOrReplaceConnection(Connection* conn);
 
   // Called when a packet is received from an unknown address that is not
   // currently a connection.  If this is an authenticated STUN binding request,
@@ -349,7 +349,8 @@ class Port : public PortInterface, public rtc::MessageHandler,
     return rtc::DSCP_NO_CHANGE;
   }
 
-  uint32_t candidate_filter() { return candidate_filter_; }
+  // Extra work to be done in subclasses when a connection is destroyed.
+  virtual void HandleConnectionDestroyed(Connection* conn) {}
 
  private:
   void Construct();
@@ -361,8 +362,6 @@ class Port : public PortInterface, public rtc::MessageHandler,
   bool dead() const {
     return ice_role_ == ICEROLE_CONTROLLED && connections_.empty();
   }
-
-  void OnNetworkInactive(const rtc::Network* network);
 
   void OnNetworkTypeChanged(const rtc::Network* network);
 
@@ -397,12 +396,6 @@ class Port : public PortInterface, public rtc::MessageHandler,
   // Information to use when going through a proxy.
   std::string user_agent_;
   rtc::ProxyInfo proxy_;
-
-  // Candidate filter is pushed down to Port such that each Port could
-  // make its own decision on how to create candidates. For example,
-  // when IceTransportsType is set to relay, both RelayPort and
-  // TurnPort will hide raddr to avoid local address leakage.
-  uint32_t candidate_filter_;
 
   // A virtual cost perceived by the user, usually based on the network type
   // (WiFi. vs. Cellular). It takes precedence over the priority when
@@ -467,20 +460,15 @@ class Connection : public CandidatePairInterface,
   bool active() const {
     return write_state_ != STATE_WRITE_TIMEOUT;
   }
+
   // A connection is dead if it can be safely deleted.
   bool dead(int64_t now) const;
 
   // Estimate of the round-trip time over this connection.
   int rtt() const { return rtt_; }
 
-  size_t sent_total_bytes();
-  size_t sent_bytes_second();
-  // Used to track how many packets are discarded in the application socket due
-  // to errors.
-  size_t sent_discarded_packets();
-  size_t sent_total_packets();
-  size_t recv_total_bytes();
-  size_t recv_bytes_second();
+  ConnectionInfo stats();
+
   sigslot::signal1<Connection*> SignalStateChange;
 
   // Sent when the connection has decided that it is no longer of value.  It
@@ -535,6 +523,10 @@ class Connection : public CandidatePairInterface,
   // Makes the connection go away, in a failed state.
   void FailAndDestroy();
 
+  // Prunes the connection and sets its state to STATE_FAILED,
+  // It will not be used or send pings although it can still receive packets.
+  void FailAndPrune();
+
   // Checks that the state of this connection is up-to-date.  The argument is
   // the current time, which is compared against various timeouts.
   void UpdateState(int64_t now);
@@ -542,7 +534,7 @@ class Connection : public CandidatePairInterface,
   // Called when this connection should try checking writability again.
   int64_t last_ping_sent() const { return last_ping_sent_; }
   void Ping(int64_t now);
-  void ReceivedPingResponse();
+  void ReceivedPingResponse(int rtt);
   int64_t last_ping_response_received() const {
     return last_ping_response_received_;
   }
@@ -553,6 +545,8 @@ class Connection : public CandidatePairInterface,
   void ReceivedPing();
   // Handles the binding request; sends a response if this is a valid request.
   void HandleBindingRequest(IceMessage* msg);
+
+  int64_t last_data_received() const { return last_data_received_; }
 
   // Debugging description of this connection
   std::string ToDebugId() const;
@@ -572,6 +566,8 @@ class Connection : public CandidatePairInterface,
   void HandleRoleConflictFromPeer();
 
   State state() const { return state_; }
+
+  int num_pings_sent() const { return num_pings_sent_; }
 
   IceMode remote_ice_mode() const { return remote_ice_mode_; }
 
@@ -595,6 +591,8 @@ class Connection : public CandidatePairInterface,
   // response in milliseconds
   int64_t last_received() const;
 
+  bool stable(int64_t now) const;
+
  protected:
   enum { MSG_DELETE = 0, MSG_FIRST_AVAILABLE };
 
@@ -611,6 +609,12 @@ class Connection : public CandidatePairInterface,
                                         StunMessage* response);
   void OnConnectionRequestTimeout(ConnectionRequest* req);
   void OnConnectionRequestSent(ConnectionRequest* req);
+
+  bool rtt_converged() const;
+
+  // If the response is not received within 2 * RTT, the response is assumed to
+  // be missing.
+  bool missing_responses(int64_t now) const;
 
   // Changes the state and signals if necessary.
   void set_write_state(WriteState value);
@@ -638,6 +642,7 @@ class Connection : public CandidatePairInterface,
   IceMode remote_ice_mode_;
   StunRequestManager requests_;
   int rtt_;
+  int rtt_samples_ = 0;
   int64_t last_ping_sent_;      // last time we sent a ping to the other side
   int64_t last_ping_received_;  // last time we received a ping from the other
                                 // side
@@ -647,8 +652,8 @@ class Connection : public CandidatePairInterface,
 
   rtc::RateTracker recv_rate_tracker_;
   rtc::RateTracker send_rate_tracker_;
-  uint32_t sent_packets_discarded_;
-  uint32_t sent_packets_total_;
+
+  ConnectionInfo stats_;
 
  private:
   void MaybeAddPrflxCandidate(ConnectionRequest* request,
@@ -659,6 +664,7 @@ class Connection : public CandidatePairInterface,
   // Time duration to switch from receiving to not receiving.
   int receiving_timeout_;
   int64_t time_created_ms_;
+  int num_pings_sent_ = 0;
 
   friend class Port;
   friend class ConnectionRequest;

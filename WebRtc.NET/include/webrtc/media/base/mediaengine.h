@@ -27,6 +27,7 @@
 #include "webrtc/media/base/mediacommon.h"
 #include "webrtc/media/base/videocapturer.h"
 #include "webrtc/media/base/videocommon.h"
+#include "webrtc/modules/audio_coding/codecs/audio_decoder_factory.h"
 
 #if defined(GOOGLE_CHROME_BUILD) || defined(CHROMIUM_BUILD)
 #define DISABLE_MEDIA_ENGINE_FACTORY
@@ -42,7 +43,7 @@ namespace cricket {
 class VideoCapturer;
 
 struct RtpCapabilities {
-  std::vector<RtpHeaderExtension> header_extensions;
+  std::vector<webrtc::RtpExtension> header_extensions;
 };
 
 // MediaEngineInterface is an abstraction of a media engine which can be
@@ -71,16 +72,11 @@ class MediaEngineInterface {
       const MediaConfig& config,
       const VideoOptions& options) = 0;
 
-  // Device configuration
-  // Gets the current speaker volume, as a value between 0 and 255.
-  virtual bool GetOutputVolume(int* level) = 0;
-  // Sets the current speaker volume, as a value between 0 and 255.
-  virtual bool SetOutputVolume(int level) = 0;
-
   // Gets the current microphone level, as a value between 0 and 10.
   virtual int GetInputLevel() = 0;
 
-  virtual const std::vector<AudioCodec>& audio_codecs() = 0;
+  virtual const std::vector<AudioCodec>& audio_send_codecs() = 0;
+  virtual const std::vector<AudioCodec>& audio_recv_codecs() = 0;
   virtual RtpCapabilities GetAudioCapabilities() = 0;
   virtual const std::vector<VideoCodec>& video_codecs() = 0;
   virtual RtpCapabilities GetVideoCapabilities() = 0;
@@ -92,15 +88,6 @@ class MediaEngineInterface {
 
   // Stops recording AEC dump.
   virtual void StopAecDump() = 0;
-
-  // Starts RtcEventLog using existing file. A maximum file size in bytes can be
-  // specified. Logging is stopped just before the size limit is exceeded.
-  // If max_size_bytes is set to a value <= 0, no limit will be used.
-  virtual bool StartRtcEventLog(rtc::PlatformFile file,
-                                int64_t max_size_bytes) = 0;
-
-  // Stops recording an RtcEventLog.
-  virtual void StopRtcEventLog() = 0;
 };
 
 
@@ -127,7 +114,11 @@ class MediaEngineFactory {
 template<class VOICE, class VIDEO>
 class CompositeMediaEngine : public MediaEngineInterface {
  public:
-  explicit CompositeMediaEngine(webrtc::AudioDeviceModule* adm) : voice_(adm) {}
+  CompositeMediaEngine(
+      webrtc::AudioDeviceModule* adm,
+      const rtc::scoped_refptr<webrtc::AudioDecoderFactory>&
+          audio_decoder_factory)
+      : voice_(adm, audio_decoder_factory) {}
   virtual ~CompositeMediaEngine() {}
   virtual bool Init() {
     video_.Init();
@@ -148,18 +139,14 @@ class CompositeMediaEngine : public MediaEngineInterface {
     return video_.CreateChannel(call, config, options);
   }
 
-  virtual bool GetOutputVolume(int* level) {
-    return voice_.GetOutputVolume(level);
-  }
-  virtual bool SetOutputVolume(int level) {
-    return voice_.SetOutputVolume(level);
-  }
-
   virtual int GetInputLevel() {
     return voice_.GetInputLevel();
   }
-  virtual const std::vector<AudioCodec>& audio_codecs() {
-    return voice_.codecs();
+  virtual const std::vector<AudioCodec>& audio_send_codecs() {
+    return voice_.send_codecs();
+  }
+  virtual const std::vector<AudioCodec>& audio_recv_codecs() {
+    return voice_.recv_codecs();
   }
   virtual RtpCapabilities GetAudioCapabilities() {
     return voice_.GetCapabilities();
@@ -178,13 +165,6 @@ class CompositeMediaEngine : public MediaEngineInterface {
   virtual void StopAecDump() {
     voice_.StopAecDump();
   }
-
-  virtual bool StartRtcEventLog(rtc::PlatformFile file,
-                                int64_t max_size_bytes) {
-    return voice_.StartRtcEventLog(file, max_size_bytes);
-  }
-
-  virtual void StopRtcEventLog() { voice_.StopRtcEventLog(); }
 
  protected:
   VOICE voice_;

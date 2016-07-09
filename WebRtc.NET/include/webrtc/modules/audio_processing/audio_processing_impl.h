@@ -36,8 +36,7 @@ namespace webrtc {
 class AgcManagerDirect;
 class AudioConverter;
 
-template<typename T>
-class Beamformer;
+class NonlinearBeamformer;
 
 class AudioProcessingImpl : public AudioProcessing {
  public:
@@ -45,7 +44,7 @@ class AudioProcessingImpl : public AudioProcessing {
   // Acquires both the render and capture locks.
   explicit AudioProcessingImpl(const Config& config);
   // AudioProcessingImpl takes ownership of beamformer.
-  AudioProcessingImpl(const Config& config, Beamformer<float>* beamformer);
+  AudioProcessingImpl(const Config& config, NonlinearBeamformer* beamformer);
   virtual ~AudioProcessingImpl();
   int Initialize() override;
   int Initialize(int input_sample_rate_hz,
@@ -202,6 +201,7 @@ class AudioProcessingImpl : public AudioProcessing {
       EXCLUSIVE_LOCKS_REQUIRED(crit_render_, crit_capture_);
   int InitializeLocked(const ProcessingConfig& config)
       EXCLUSIVE_LOCKS_REQUIRED(crit_render_, crit_capture_);
+  void InitializeLevelController() EXCLUSIVE_LOCKS_REQUIRED(crit_capture_);
 
   // Capture-side exclusive methods possibly running APM in a multi-threaded
   // manner that are called with the render lock already acquired.
@@ -322,12 +322,14 @@ class AudioProcessingImpl : public AudioProcessing {
 
   struct ApmCaptureNonLockedState {
     ApmCaptureNonLockedState(bool beamformer_enabled,
-                             bool intelligibility_enabled)
+                             bool intelligibility_enabled,
+                             bool level_controller_enabled)
         : fwd_proc_format(kSampleRate16kHz),
           split_rate(kSampleRate16kHz),
           stream_delay_ms(0),
           beamformer_enabled(beamformer_enabled),
-          intelligibility_enabled(intelligibility_enabled) {}
+          intelligibility_enabled(intelligibility_enabled),
+          level_controller_enabled(level_controller_enabled) {}
     // Only the rate and samples fields of fwd_proc_format_ are used because the
     // forward processing number of channels is mutable and is tracked by the
     // capture_audio_.
@@ -336,6 +338,7 @@ class AudioProcessingImpl : public AudioProcessing {
     int stream_delay_ms;
     bool beamformer_enabled;
     bool intelligibility_enabled;
+    bool level_controller_enabled;
   } capture_nonlocked_;
 
   struct ApmRenderState {

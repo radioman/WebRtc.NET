@@ -31,6 +31,33 @@ static const int64_t kNumNanosecsPerMicrosec =
 
 // TODO(honghaiz): Define a type for the time value specifically.
 
+class ClockInterface {
+ public:
+  virtual ~ClockInterface() {}
+  virtual uint64_t TimeNanos() const = 0;
+};
+
+// Sets the global source of time. This is useful mainly for unit tests.
+//
+// Returns the previously set ClockInterface, or nullptr if none is set.
+//
+// Does not transfer ownership of the clock. SetClockForTesting(nullptr)
+// should be called before the ClockInterface is deleted.
+//
+// This method is not thread-safe; it should only be used when no other thread
+// is running (for example, at the start/end of a unit test, or start/end of
+// main()).
+//
+// TODO(deadbeef): Instead of having functions that access this global
+// ClockInterface, we may want to pass the ClockInterface into everything
+// that uses it, eliminating the need for a global variable and this function.
+ClockInterface* SetClockForTesting(ClockInterface* clock);
+
+// Returns the actual system time, even if a clock is set for testing.
+// Useful for timeouts while using a test clock, or for logging.
+uint64_t SystemTimeNanos();
+int64_t SystemTimeMillis();
+
 // Returns the current time in milliseconds in 32 bits.
 uint32_t Time32();
 

@@ -30,6 +30,10 @@ config("internal_config") {
     # https://crbug.com/429039
     "//build/config/compiler:no_size_t_to_int_warning",
   ]
+  if (is_posix) {
+    cflags_c = [ "-std=c99" ]
+    defines += [ "_XOPEN_SOURCE=700" ]
+  }
 }
 
 config("no_asm_config") {
@@ -140,17 +144,19 @@ if (build_with_chromium) {
     ]
   }
 
-  test("boringssl_unittests") {
-    deps = [
-      ":boringssl_tests",
-      "//base",
-      "//base/test:run_all_unittests",
-      "//base/test:test_support",
-      "//testing/gtest",
-    ]
-    sources = [
-      "boringssl_unittest.cc",
-    ]
+  if (!is_ios) {
+    test("boringssl_unittests") {
+      deps = [
+        ":boringssl_tests",
+        "//base",
+        "//base/test:run_all_unittests",
+        "//base/test:test_support",
+        "//testing/gtest",
+      ]
+      sources = [
+        "boringssl_unittest.cc",
+      ]
+    }
   }
 
   # The same as boringssl, but builds with BORINGSSL_UNSAFE_FUZZER_MODE.
@@ -194,6 +200,8 @@ if (build_with_chromium) {
         libfuzzer_options = [ "max_len=2048" ]
       } else if ("privkey" == fuzzer) {
         libfuzzer_options = [ "max_len=2048" ]
+      } else if ("read_pem" == fuzzer) {
+        libfuzzer_options = [ "max_len=512" ]
       } else if ("server" == fuzzer) {
         libfuzzer_options = [ "max_len=4096" ]
       } else if ("spki" == fuzzer) {

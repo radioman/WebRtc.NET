@@ -56,7 +56,7 @@ class VP8EncoderImpl : public VP8Encoder {
 
   int SetRates(uint32_t new_bitrate_kbit, uint32_t frame_rate) override;
 
-  void OnDroppedFrame() override {}
+  void OnDroppedFrame() override;
 
   const char* ImplementationName() const override;
 
@@ -75,7 +75,7 @@ class VP8EncoderImpl : public VP8Encoder {
   int InitAndSetControlSettings();
 
   // Update frame size for codec.
-  int UpdateCodecFrameSize(const VideoFrame& input_image);
+  int UpdateCodecFrameSize(int width, int height);
 
   void PopulateCodecSpecific(CodecSpecificInfo* codec_specific,
                              const vpx_codec_cx_pkt& pkt,
@@ -158,7 +158,6 @@ class VP8DecoderImpl : public VP8Decoder {
   bool feedback_mode_;
   vpx_codec_ctx_t* decoder_;
   VideoCodec codec_;
-  EncodedImage last_keyframe_;
   int image_format_;
   vpx_ref_frame_t* ref_frame_;
   int propagation_cnt_;

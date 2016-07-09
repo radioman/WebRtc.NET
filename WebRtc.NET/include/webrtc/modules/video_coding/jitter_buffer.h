@@ -129,10 +129,6 @@ class VCMJitterBuffer {
   // was started.
   FrameCounts FrameStatistics() const;
 
-  // The number of packets discarded by the jitter buffer because the decoder
-  // won't be able to decode them.
-  int num_not_decodable_packets() const;
-
   // Gets number of packets received.
   int num_packets() const;
 
@@ -145,16 +141,9 @@ class VCMJitterBuffer {
   // Statistics, Calculate frame and bit rates.
   void IncomingRateStatistics(unsigned int* framerate, unsigned int* bitrate);
 
-  // Checks if the packet sequence will be complete if the next frame would be
-  // grabbed for decoding. That is, if a frame has been lost between the
-  // last decoded frame and the next, or if the next frame is missing one
-  // or more packets.
-  bool CompleteSequenceWithNextFrame();
-
   // Wait |max_wait_time_ms| for a complete frame to arrive.
-  // The function returns true once such a frame is found, its corresponding
-  // timestamp is returned. Otherwise, returns false.
-  bool NextCompleteTimestamp(uint32_t max_wait_time_ms, uint32_t* timestamp);
+  // If found, a pointer to the frame is returned. Returns nullptr otherwise.
+  VCMEncodedFrame* NextCompleteFrame(uint32_t max_wait_time_ms);
 
   // Locates a frame for decoding (even an incomplete) without delay.
   // The function returns true once such a frame is found, its corresponding
@@ -209,13 +198,9 @@ class VCMJitterBuffer {
   // Set decode error mode - Should not be changed in the middle of the
   // session. Changes will not influence frames already in the buffer.
   void SetDecodeErrorMode(VCMDecodeErrorMode error_mode);
-  int64_t LastDecodedTimestamp() const;
   VCMDecodeErrorMode decode_error_mode() const { return decode_error_mode_; }
 
   void RegisterStatsCallback(VCMReceiveStatisticsCallback* callback);
-
-  int64_t TimeUntilNextProcess();
-  void Process();
 
  private:
   class SequenceNumberLessThan {
@@ -387,8 +372,6 @@ class VCMJitterBuffer {
   // average_packets_per_frame converges fast if we have fewer than this many
   // frames.
   int frame_counter_;
-
-  std::unique_ptr<NackModule> nack_module_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(VCMJitterBuffer);
 };

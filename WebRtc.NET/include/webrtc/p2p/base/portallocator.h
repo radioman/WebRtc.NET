@@ -60,6 +60,16 @@ enum {
   // Disallow use of UDP when connecting to a relay server. Since proxy servers
   // usually don't handle UDP, using UDP will leak the IP address.
   PORTALLOCATOR_DISABLE_UDP_RELAY = 0x1000,
+
+  // When multiple networks exist, do not gather candidates on the ones with
+  // high cost. So if both Wi-Fi and cellular networks exist, gather only on the
+  // Wi-Fi network. If a network type is "unknown", it has a cost lower than
+  // cellular but higher than Wi-Fi/Ethernet. So if an unknown network exists,
+  // cellular networks will not be used to gather candidates and if a Wi-Fi
+  // network is present, "unknown" networks will not be usd to gather
+  // candidates. Doing so ensures that even if a cellular network type was not
+  // detected initially, it would not be used if a Wi-Fi network is present.
+  PORTALLOCATOR_DISABLE_COSTLY_NETWORKS = 0x2000,
 };
 
 const uint32_t kDefaultPortAllocatorFlags = 0;
@@ -141,13 +151,36 @@ class PortAllocatorSession : public sigslot::has_slots<> {
   const std::string& ice_pwd() const { return ice_pwd_; }
   bool pooled() const { return ice_ufrag_.empty(); }
 
+  // Setting this filter should affect not only candidates gathered in the
+  // future, but candidates already gathered and ports already "ready",
+  // which would be returned by ReadyCandidates() and ReadyPorts().
+  //
+  // Default filter should be CF_ALL.
+  virtual void SetCandidateFilter(uint32_t filter) = 0;
+
   // Starts gathering STUN and Relay configurations.
   virtual void StartGettingPorts() = 0;
+  // Completely stops the gathering process and will not start new ones.
   virtual void StopGettingPorts() = 0;
-  // Only stop the existing gathering process but may start new ones if needed.
-  virtual void ClearGettingPorts() = 0;
-  // Whether the process of getting ports has been stopped.
+  // Whether the session is actively getting ports.
   virtual bool IsGettingPorts() = 0;
+  // ClearGettingPorts and IsCleared are used by continual gathering.
+  // Only stops the existing gathering process but may start new ones if needed.
+  virtual void ClearGettingPorts() = 0;
+  // Whether it is in the state where the existing gathering process is stopped,
+  // but new ones may be started (basically after calling ClearGettingPorts).
+  virtual bool IsCleared() const { return false; }
+  // Whether the session has completely stopped.
+  virtual bool IsStopped() const { return false; }
+  // Re-gathers candidates on networks that do not have any connections. More
+  // precisely, a network interface may have more than one IP addresses (e.g.,
+  // IPv4 and IPv6 addresses). Each address subnet will be used to create a
+  // network. Only if all networks of an interface have no connection, the
+  // implementation should start re-gathering on all networks of that interface.
+  virtual void RegatherOnFailedNetworks() {}
+  // Re-gathers candidates on all networks.
+  // TODO(honghaiz): Implement this in BasicPortAllocator.
+  virtual void RegatherOnAllNetworks() {}
 
   // Another way of getting the information provided by the signals below.
   //
@@ -158,9 +191,23 @@ class PortAllocatorSession : public sigslot::has_slots<> {
   virtual bool CandidatesAllocationDone() const = 0;
 
   sigslot::signal2<PortAllocatorSession*, PortInterface*> SignalPortReady;
+  // Ports should be signaled to be removed when the networks of the ports
+  // failed (either because the interface is down, or because there is no
+  // connection on the interface).
+  sigslot::signal2<PortAllocatorSession*, const std::vector<PortInterface*>&>
+      SignalPortsRemoved;
   sigslot::signal2<PortAllocatorSession*,
                    const std::vector<Candidate>&> SignalCandidatesReady;
+  // Candidates should be signaled to be removed when the port that generated
+  // the candidates is removed.
+  sigslot::signal2<PortAllocatorSession*, const std::vector<Candidate>&>
+      SignalCandidatesRemoved;
   sigslot::signal1<PortAllocatorSession*> SignalCandidatesAllocationDone;
+  // A TURN port is pruned if a higher-priority TURN port becomes ready
+  // (pairable). When it is pruned, it will not be used for creating
+  // connections and its candidates will not be sent to the remote side
+  // if they have not been sent.
+  sigslot::signal2<PortAllocatorSession*, PortInterface*> SignalPortPruned;
 
   virtual uint32_t generation() { return generation_; }
   virtual void set_generation(uint32_t generation) { generation_ = generation; }
@@ -204,8 +251,12 @@ class PortAllocatorSession : public sigslot::has_slots<> {
   friend class PortAllocator;
 };
 
-// Note that this class should only be used on one thread.
-// This includes calling the destructor.
+// Every method of PortAllocator (including the destructor) must be called on
+// the same thread, except for the constructor which may be called on any
+// thread.
+//
+// This allows constructing a PortAllocator subclass on one thread and
+// passing it into an object that uses it on a different thread.
 class PortAllocator : public sigslot::has_slots<> {
  public:
   PortAllocator() :
@@ -215,9 +266,12 @@ class PortAllocator : public sigslot::has_slots<> {
       step_delay_(kDefaultStepDelay),
       allow_tcp_listen_(true),
       candidate_filter_(CF_ALL) {
-    // This will allow us to have old behavior on non webrtc clients.
   }
   virtual ~PortAllocator() {}
+
+  // This should be called on the PortAllocator's thread before the
+  // PortAllocator is used. Subclasses may override this if necessary.
+  virtual void Initialize() {}
 
   // Set STUN and TURN servers to be used in future sessions, and set
   // candidate pool size, as described in JSEP.
@@ -229,7 +283,8 @@ class PortAllocator : public sigslot::has_slots<> {
   // pooled sessions will be either created or destroyed as necessary.
   void SetConfiguration(const ServerAddresses& stun_servers,
                         const std::vector<RelayServerConfig>& turn_servers,
-                        int candidate_pool_size);
+                        int candidate_pool_size,
+                        bool prune_turn_ports);
 
   const ServerAddresses& stun_servers() const { return stun_servers_; }
 
@@ -300,9 +355,10 @@ class PortAllocator : public sigslot::has_slots<> {
 
   uint32_t candidate_filter() { return candidate_filter_; }
   void set_candidate_filter(uint32_t filter) {
-    // TODO(mallinath) - Do transition check?
     candidate_filter_ = filter;
   }
+
+  bool prune_turn_ports() const { return prune_turn_ports_; }
 
   // Gets/Sets the Origin value used for WebRTC STUN requests.
   const std::string& origin() const { return origin_; }
@@ -334,6 +390,7 @@ class PortAllocator : public sigslot::has_slots<> {
   // both owned by this class and taken by TakePooledSession.
   int allocated_pooled_session_count_ = 0;
   std::deque<std::unique_ptr<PortAllocatorSession>> pooled_sessions_;
+  bool prune_turn_ports_ = false;
 };
 
 }  // namespace cricket

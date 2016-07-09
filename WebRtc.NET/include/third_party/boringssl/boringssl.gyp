@@ -6,6 +6,14 @@
   'includes': [
     'boringssl.gypi',
   ],
+  'target_defaults': {
+    'conditions': [
+      ['os_posix == 1', {
+        'cflags_c': [ '-std=c99' ],
+        'defines': [ '_XOPEN_SOURCE=700' ],
+      }],
+    ],
+  },
   'targets': [
     {
       'target_name': 'boringssl_nacl_win64',
@@ -134,7 +142,7 @@
         }],
         ['target_arch == "ia32" and msan == 0', {
           'conditions': [
-            ['OS == "mac" or OS == "ios"', {
+            ['OS == "mac"', {
               'sources': [ '<@(boringssl_mac_x86_sources)' ],
             }],
             ['OS == "linux" or OS == "android"', {
@@ -160,7 +168,7 @@
         }],
         ['target_arch == "x64" and msan == 0', {
           'conditions': [
-            ['OS == "mac" or OS == "ios"', {
+            ['OS == "mac"', {
               'sources': [ '<@(boringssl_mac_x86_64_sources)' ],
             }],
             ['OS == "linux" or OS == "android"', {

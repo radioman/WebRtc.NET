@@ -65,5 +65,8 @@
     <ClCompile Include="src\internals\vp8_impl.cc">
       <Filter>Source Files\src\internals</Filter>
     </ClCompile>
+    <ClCompile Include="src\internals\yuvframegenerator.cc">
+      <Filter>Source Files\src\internals</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

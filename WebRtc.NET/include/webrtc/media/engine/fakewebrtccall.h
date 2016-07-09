@@ -46,6 +46,7 @@ class FakeAudioSendStream final : public webrtc::AudioSendStream {
   void SetStats(const webrtc::AudioSendStream::Stats& stats);
   TelephoneEvent GetLatestTelephoneEvent() const;
   bool IsSending() const { return sending_; }
+  bool muted() const { return muted_; }
 
  private:
   // webrtc::AudioSendStream implementation.
@@ -54,12 +55,14 @@ class FakeAudioSendStream final : public webrtc::AudioSendStream {
 
   bool SendTelephoneEvent(int payload_type, int event,
                           int duration_ms) override;
+  void SetMuted(bool muted) override;
   webrtc::AudioSendStream::Stats GetStats() const override;
 
   TelephoneEvent latest_telephone_event_;
   webrtc::AudioSendStream::Config config_;
   webrtc::AudioSendStream::Stats stats_;
   bool sending_ = false;
+  bool muted_ = false;
 };
 
 class FakeAudioReceiveStream final : public webrtc::AudioReceiveStream {
@@ -72,6 +75,7 @@ class FakeAudioReceiveStream final : public webrtc::AudioReceiveStream {
   int received_packets() const { return received_packets_; }
   bool VerifyLastPacket(const uint8_t* data, size_t length) const;
   const webrtc::AudioSinkInterface* sink() const { return sink_.get(); }
+  float gain() const { return gain_; }
   bool DeliverRtp(const uint8_t* packet,
                   size_t length,
                   const webrtc::PacketTime& packet_time);
@@ -83,11 +87,13 @@ class FakeAudioReceiveStream final : public webrtc::AudioReceiveStream {
 
   webrtc::AudioReceiveStream::Stats GetStats() const override;
   void SetSink(std::unique_ptr<webrtc::AudioSinkInterface> sink) override;
+  void SetGain(float gain) override;
 
   webrtc::AudioReceiveStream::Config config_;
   webrtc::AudioReceiveStream::Stats stats_;
-  int received_packets_;
+  int received_packets_ = 0;
   std::unique_ptr<webrtc::AudioSinkInterface> sink_;
+  float gain_ = 1.0f;
   rtc::Buffer last_packet_;
 };
 
@@ -140,10 +146,9 @@ class FakeVideoSendStream final : public webrtc::VideoSendStream,
 
 class FakeVideoReceiveStream final : public webrtc::VideoReceiveStream {
  public:
-  explicit FakeVideoReceiveStream(
-      const webrtc::VideoReceiveStream::Config& config);
+  explicit FakeVideoReceiveStream(webrtc::VideoReceiveStream::Config config);
 
-  webrtc::VideoReceiveStream::Config GetConfig();
+  const webrtc::VideoReceiveStream::Config& GetConfig();
 
   bool IsReceiving() const;
 
@@ -178,6 +183,13 @@ class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
   const FakeAudioReceiveStream* GetAudioReceiveStream(uint32_t ssrc);
 
   rtc::SentPacket last_sent_packet() const { return last_sent_packet_; }
+
+  // This is useful if we care about the last media packet (with id populated)
+  // but not the last ICE packet (with -1 ID).
+  int last_sent_nonnegative_packet_id() const {
+    return last_sent_nonnegative_packet_id_;
+  }
+
   webrtc::NetworkState GetNetworkState(webrtc::MediaType media) const;
   int GetNumCreatedSendStreams() const;
   int GetNumCreatedReceiveStreams() const;
@@ -199,7 +211,7 @@ class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
   void DestroyVideoSendStream(webrtc::VideoSendStream* send_stream) override;
 
   webrtc::VideoReceiveStream* CreateVideoReceiveStream(
-      const webrtc::VideoReceiveStream::Config& config) override;
+      webrtc::VideoReceiveStream::Config config) override;
   void DestroyVideoReceiveStream(
       webrtc::VideoReceiveStream* receive_stream) override;
   webrtc::PacketReceiver* Receiver() override;
@@ -219,10 +231,15 @@ class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
                                  webrtc::NetworkState state) override;
   void OnSentPacket(const rtc::SentPacket& sent_packet) override;
 
+  bool StartEventLog(rtc::PlatformFile log_file,
+                     int64_t max_size_bytes) override;
+  void StopEventLog() override;
+
   webrtc::Call::Config config_;
   webrtc::NetworkState audio_network_state_;
   webrtc::NetworkState video_network_state_;
   rtc::SentPacket last_sent_packet_;
+  int last_sent_nonnegative_packet_id_ = -1;
   webrtc::Call::Stats stats_;
   std::vector<FakeVideoSendStream*> video_send_streams_;
   std::vector<FakeAudioSendStream*> audio_send_streams_;

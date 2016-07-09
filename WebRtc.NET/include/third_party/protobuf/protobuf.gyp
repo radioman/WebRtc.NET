@@ -18,52 +18,12 @@
               4305,  # double to float truncation
               4355,  # 'this' used in base member initializer list
               4506,  # no definition for inline function (protobuf issue #240)
+              4715,  # not all control paths return a value (fixed in trunk)
             ],
             'defines!': [
               'WIN32_LEAN_AND_MEAN',  # Protobuf defines this itself.
             ],
           },
-        }],
-        ['OS=="ios" and "<(GENERATOR)"=="xcode" and "<(GENERATOR_FLAVOR)"!="ninja"', {
-          'variables': {
-            'ninja_output_dir': 'ninja-protoc',
-            'ninja_product_dir':
-              '<(DEPTH)/xcodebuild/<(ninja_output_dir)/<(CONFIGURATION_NAME)',
-            # Gyp to rerun
-            're_run_targets': [
-              'third_party/protobuf/protobuf.gyp',
-            ],
-          },
-          'targets': [
-            {
-              # On iOS, generating protoc is done via two actions: (1) compiling
-              # the executable with ninja, and (2) copying the executable into a
-              # location that is shared with other projects. These actions are
-              # separated into two targets in order to be able to specify that the
-              # second action should not run until the first action finishes (since
-              # the ordering of multiple actions in one target is defined only by
-              # inputs and outputs, and it's impossible to set correct inputs for
-              # the ninja build, so setting all the inputs and outputs isn't an
-              # option). The first target is given here; the second target is the
-              # normal protoc target under the condition that "OS==iOS".
-              'target_name': 'compile_protoc',
-              'type': 'none',
-              'toolsets': ['host'],
-              'includes': ['../../build/ios/mac_build.gypi'],
-              'actions': [
-                {
-                  'action_name': 'compile protoc',
-                  'inputs': [],
-                  'outputs': [],
-                  'action': [
-                    '<@(ninja_cmd)',
-                    'protoc',
-                  ],
-                  'message': 'Generating the C++ protocol buffers compiler',
-                },
-              ],
-            },
-          ],
         }],
       ],
       'targets': [
@@ -299,6 +259,7 @@
             "src/google/protobuf/compiler/csharp/csharp_message.h",
             "src/google/protobuf/compiler/csharp/csharp_message_field.cc",
             "src/google/protobuf/compiler/csharp/csharp_message_field.h",
+            "src/google/protobuf/compiler/csharp/csharp_options.h",
             "src/google/protobuf/compiler/csharp/csharp_primitive_field.cc",
             "src/google/protobuf/compiler/csharp/csharp_primitive_field.h",
             "src/google/protobuf/compiler/csharp/csharp_reflection_class.cc",
@@ -327,6 +288,8 @@
             "src/google/protobuf/compiler/java/java_enum_lite.h",
             "src/google/protobuf/compiler/java/java_extension.cc",
             "src/google/protobuf/compiler/java/java_extension.h",
+            "src/google/protobuf/compiler/java/java_extension_lite.cc",
+            "src/google/protobuf/compiler/java/java_extension_lite.h",
             "src/google/protobuf/compiler/java/java_field.cc",
             "src/google/protobuf/compiler/java/java_field.h",
             "src/google/protobuf/compiler/java/java_file.cc",
@@ -447,42 +410,16 @@
         },
         {
           'target_name': 'protoc',
-          'conditions': [
-            ['OS!="ios" or "<(GENERATOR)"!="xcode" or "<(GENERATOR_FLAVOR)"=="ninja"', {
-              'type': 'executable',
-              'toolsets': ['host'],
-              'sources': [
-                "src/google/protobuf/compiler/main.cc",
-              ],
-              'dependencies': [
-                'protoc_lib',
-              ],
-              'include_dirs': [
-                'src',
-              ],
-            }, {  # else, OS=="ios" and "<(GENERATOR)"=="xcode" and "<(GENERATOR_FLAVOR)"!="ninja"
-              'type': 'none',
-              'toolsets': ['host'],
-              'dependencies': [
-                'compile_protoc',
-              ],
-              'actions': [
-                {
-                  'action_name': 'copy protoc',
-                  'inputs': [
-                    '<(ninja_product_dir)/protoc',
-                  ],
-                  'outputs': [
-                    '<(PRODUCT_DIR)/protoc',
-                  ],
-                  'action': [
-                    'cp',
-                    '<(ninja_product_dir)/protoc',
-                    '<(PRODUCT_DIR)/protoc',
-                  ],
-                },
-              ],
-            }],
+          'type': 'executable',
+          'toolsets': ['host'],
+          'sources': [
+            "src/google/protobuf/compiler/main.cc",
+          ],
+          'dependencies': [
+            'protoc_lib',
+          ],
+          'include_dirs': [
+            'src',
           ],
         },
         {

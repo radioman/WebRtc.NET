@@ -63,11 +63,8 @@ class VCMReceiver {
 
   void Reset();
   void UpdateRtt(int64_t rtt);
-  int32_t InsertPacket(const VCMPacket& packet,
-                       uint16_t frame_width,
-                       uint16_t frame_height);
+  int32_t InsertPacket(const VCMPacket& packet);
   VCMEncodedFrame* FrameForDecoding(uint16_t max_wait_time_ms,
-                                    int64_t* next_render_time_ms,
                                     bool prefer_late_decoding);
   void ReleaseFrame(VCMEncodedFrame* frame);
   void ReceiveStatistics(uint32_t* bitrate, uint32_t* framerate);
@@ -93,9 +90,6 @@ class VCMReceiver {
   void RegisterStatsCallback(VCMReceiveStatisticsCallback* callback);
 
   void TriggerDecoderShutdown();
-
-  int64_t TimeUntilNextProcess();
-  void Process();
 
  private:
   CriticalSectionWrapper* crit_sect_;

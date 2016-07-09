@@ -168,6 +168,8 @@ class BaseChannel
 
   SrtpFilter* srtp_filter() { return &srtp_filter_; }
 
+  virtual cricket::MediaType media_type() = 0;
+
  protected:
   virtual MediaChannel* media_channel() const { return media_channel_; }
   // Sets the |transport_channel_| (and |rtcp_transport_channel_|, if |rtcp_| is
@@ -220,7 +222,8 @@ class BaseChannel
   void OnSelectedCandidatePairChanged(
       TransportChannel* channel,
       CandidatePairInterface* selected_candidate_pair,
-      int last_sent_packet_id);
+      int last_sent_packet_id,
+      bool ready_to_send);
 
   bool PacketIsRtcp(const TransportChannel* channel, const char* data,
                     size_t len);
@@ -282,7 +285,7 @@ class BaseChannel
   // Helper method to get RTP Absoulute SendTime extension header id if
   // present in remote supported extensions list.
   void MaybeCacheRtpAbsSendTimeHeaderExtension_w(
-      const std::vector<RtpHeaderExtension>& extensions);
+      const std::vector<webrtc::RtpExtension>& extensions);
 
   bool CheckSrtpConfig_n(const std::vector<CryptoParams>& cryptos,
                          bool* dtls,
@@ -308,8 +311,9 @@ class BaseChannel
 
   // Helper function for invoking bool-returning methods on the worker thread.
   template <class FunctorT>
-  bool InvokeOnWorker(const FunctorT& functor) {
-    return worker_thread_->Invoke<bool>(functor);
+  bool InvokeOnWorker(const rtc::Location& posted_from,
+                      const FunctorT& functor) {
+    return worker_thread_->Invoke<bool>(posted_from, functor);
   }
 
  private:
@@ -435,6 +439,7 @@ class VoiceChannel : public BaseChannel {
   webrtc::RtpParameters GetRtpReceiveParameters_w(uint32_t ssrc) const;
   bool SetRtpReceiveParameters_w(uint32_t ssrc,
                                  webrtc::RtpParameters parameters);
+  cricket::MediaType media_type() override { return cricket::MEDIA_TYPE_AUDIO; }
 
  private:
   // overrides from BaseChannel
@@ -497,10 +502,6 @@ class VideoChannel : public BaseChannel {
   }
 
   bool SetSink(uint32_t ssrc, rtc::VideoSinkInterface<VideoFrame>* sink);
-  // Register a source. The |ssrc| must correspond to a registered
-  // send stream.
-  void SetSource(uint32_t ssrc,
-                 rtc::VideoSourceInterface<cricket::VideoFrame>* source);
   // Get statistics about the current media session.
   bool GetStats(VideoMediaInfo* stats);
 
@@ -511,13 +512,19 @@ class VideoChannel : public BaseChannel {
   void StopMediaMonitor();
   sigslot::signal2<VideoChannel*, const VideoMediaInfo&> SignalMediaMonitor;
 
-  bool SetVideoSend(uint32_t ssrc, bool enable, const VideoOptions* options);
+  // Register a source and set options.
+  // The |ssrc| must correspond to a registered send stream.
+  bool SetVideoSend(uint32_t ssrc,
+                    bool enable,
+                    const VideoOptions* options,
+                    rtc::VideoSourceInterface<cricket::VideoFrame>* source);
   webrtc::RtpParameters GetRtpSendParameters(uint32_t ssrc) const;
   bool SetRtpSendParameters(uint32_t ssrc,
                             const webrtc::RtpParameters& parameters);
   webrtc::RtpParameters GetRtpReceiveParameters(uint32_t ssrc) const;
   bool SetRtpReceiveParameters(uint32_t ssrc,
                                const webrtc::RtpParameters& parameters);
+  cricket::MediaType media_type() override { return cricket::MEDIA_TYPE_VIDEO; }
 
  private:
   // overrides from BaseChannel
@@ -589,6 +596,7 @@ class DataChannel : public BaseChannel {
   sigslot::signal1<bool> SignalReadyToSendData;
   // Signal for notifying that the remote side has closed the DataChannel.
   sigslot::signal1<uint32_t> SignalStreamClosedRemotely;
+  cricket::MediaType media_type() override { return cricket::MEDIA_TYPE_DATA; }
 
  protected:
   // downcasts a MediaChannel.

@@ -58,7 +58,6 @@ class VideoSender : public Module {
 
   VideoSender(Clock* clock,
               EncodedImageCallback* post_encode_callback,
-              VideoEncoderRateObserver* encoder_rate_observer,
               VCMSendStatisticsCallback* send_stats_callback);
 
   ~VideoSender();
@@ -79,9 +78,9 @@ class VideoSender : public Module {
   int32_t SetChannelParameters(uint32_t target_bitrate,  // bits/s.
                                uint8_t lossRate,
                                int64_t rtt);
-
+  // Deprecated:
+  // TODO(perkj): Remove once no projects use it.
   int32_t RegisterProtectionCallback(VCMProtectionCallback* protection);
-  void SetVideoProtection(VCMVideoProtection videoProtection);
 
   int32_t AddVideoFrame(const VideoFrame& videoFrame,
                         const CodecSpecificInfo* codecSpecificInfo);
@@ -89,14 +88,11 @@ class VideoSender : public Module {
   int32_t IntraFrameRequest(size_t stream_index);
   int32_t EnableFrameDropper(bool enable);
 
-  void SuspendBelowMinBitrate();
-  bool VideoSuspended() const;
-
   int64_t TimeUntilNextProcess() override;
   void Process() override;
 
  private:
-  void SetEncoderParameters(EncoderParameters params)
+  void SetEncoderParameters(EncoderParameters params, bool has_internal_source)
       EXCLUSIVE_LOCKS_REQUIRED(encoder_crit_);
 
   Clock* const clock_;
@@ -114,7 +110,6 @@ class VideoSender : public Module {
   VideoCodec current_codec_;
   rtc::ThreadChecker main_thread_;
 
-  VCMProtectionCallback* protection_callback_;
 
   rtc::CriticalSection params_crit_;
   EncoderParameters encoder_params_ GUARDED_BY(params_crit_);

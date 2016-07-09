@@ -19,7 +19,6 @@
 #include "webrtc/api/datachannel.h"
 #include "webrtc/api/dtmfsender.h"
 #include "webrtc/api/mediacontroller.h"
-#include "webrtc/api/mediastreamprovider.h"
 #include "webrtc/api/peerconnectioninterface.h"
 #include "webrtc/api/statstypes.h"
 #include "webrtc/base/constructormagic.h"
@@ -115,11 +114,11 @@ struct SessionStats {
 // participates in the network-level negotiation.  The individual streams of
 // packets are represented by TransportChannels.  The application-level protocol
 // is represented by SessionDecription objects.
-class WebRtcSession : public AudioProviderInterface,
-                      public VideoProviderInterface,
-                      public DtmfProviderInterface,
-                      public DataChannelProviderInterface,
-                      public sigslot::has_slots<> {
+class WebRtcSession :
+
+    public DtmfProviderInterface,
+    public DataChannelProviderInterface,
+    public sigslot::has_slots<> {
  public:
   enum State {
     STATE_INIT = 0,
@@ -153,7 +152,7 @@ class WebRtcSession : public AudioProviderInterface,
 
   bool Initialize(
       const PeerConnectionFactoryInterface::Options& options,
-      std::unique_ptr<DtlsIdentityStoreInterface> dtls_identity_store,
+      std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator,
       const PeerConnectionInterface::RTCConfiguration& rtc_configuration);
   // Deletes the voice, video and data channel and changes the session state
   // to STATE_CLOSED.
@@ -233,42 +232,6 @@ class WebRtcSession : public AudioProviderInterface,
   // Get the id used as a media stream track's "id" field from ssrc.
   virtual bool GetLocalTrackIdBySsrc(uint32_t ssrc, std::string* track_id);
   virtual bool GetRemoteTrackIdBySsrc(uint32_t ssrc, std::string* track_id);
-
-  // AudioMediaProviderInterface implementation.
-  void SetAudioPlayout(uint32_t ssrc, bool enable) override;
-  void SetAudioSend(uint32_t ssrc,
-                    bool enable,
-                    const cricket::AudioOptions& options,
-                    cricket::AudioSource* source) override;
-  void SetAudioPlayoutVolume(uint32_t ssrc, double volume) override;
-  void SetRawAudioSink(uint32_t ssrc,
-                       std::unique_ptr<AudioSinkInterface> sink) override;
-
-  RtpParameters GetAudioRtpSendParameters(uint32_t ssrc) const override;
-  bool SetAudioRtpSendParameters(uint32_t ssrc,
-                                 const RtpParameters& parameters) override;
-  RtpParameters GetAudioRtpReceiveParameters(uint32_t ssrc) const override;
-  bool SetAudioRtpReceiveParameters(uint32_t ssrc,
-                                    const RtpParameters& parameters) override;
-
-  // Implements VideoMediaProviderInterface.
-  bool SetSource(
-      uint32_t ssrc,
-      rtc::VideoSourceInterface<cricket::VideoFrame>* source) override;
-  void SetVideoPlayout(
-      uint32_t ssrc,
-      bool enable,
-      rtc::VideoSinkInterface<cricket::VideoFrame>* sink) override;
-  void SetVideoSend(uint32_t ssrc,
-                    bool enable,
-                    const cricket::VideoOptions* options) override;
-
-  RtpParameters GetVideoRtpSendParameters(uint32_t ssrc) const override;
-  bool SetVideoRtpSendParameters(uint32_t ssrc,
-                                 const RtpParameters& parameters) override;
-  RtpParameters GetVideoRtpReceiveParameters(uint32_t ssrc) const override;
-  bool SetVideoRtpReceiveParameters(uint32_t ssrc,
-                                    const RtpParameters& parameters) override;
 
   // Implements DtmfProviderInterface.
   bool CanInsertDtmf(const std::string& track_id) override;
@@ -527,6 +490,9 @@ class WebRtcSession : public AudioProviderInterface,
 
   // Declares the RTCP mux policy for the WebRTCSession.
   PeerConnectionInterface::RtcpMuxPolicy rtcp_mux_policy_;
+
+  bool received_first_video_packet_ = false;
+  bool received_first_audio_packet_ = false;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(WebRtcSession);
 };

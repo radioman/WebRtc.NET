@@ -12,11 +12,14 @@
 #ifndef WEBRTC_MODULES_VIDEO_CODING_CODECS_H264_H264_ENCODER_IMPL_H_
 #define WEBRTC_MODULES_VIDEO_CODING_CODECS_H264_H264_ENCODER_IMPL_H_
 
-#include "webrtc/modules/video_coding/codecs/h264/include/h264.h"
-
 #include <memory>
 #include <vector>
 
+#include "webrtc/modules/video_coding/codecs/h264/include/h264.h"
+#include "webrtc/modules/video_coding/utility/h264_bitstream_parser.h"
+#include "webrtc/modules/video_coding/utility/quality_scaler.h"
+
+#include "third_party/openh264/src/codec/api/svc/codec_app_def.h"
 
 class ISVCEncoder;
 
@@ -49,6 +52,8 @@ class H264EncoderImpl : public H264Encoder {
                  const CodecSpecificInfo* codec_specific_info,
                  const std::vector<FrameType>* frame_types) override;
 
+  const char* ImplementationName() const override;
+
   // Unsupported / Do nothing.
   int32_t SetChannelParameters(uint32_t packet_loss, int64_t rtt) override;
   int32_t SetPeriodicKeyFrames(bool enable) override;
@@ -56,13 +61,17 @@ class H264EncoderImpl : public H264Encoder {
 
  private:
   bool IsInitialized() const;
+  SEncParamExt CreateEncoderParams() const;
 
+  webrtc::H264BitstreamParser h264_bitstream_parser_;
+  QualityScaler quality_scaler_;
   // Reports statistics with histograms.
   void ReportInit();
   void ReportError();
 
   ISVCEncoder* openh264_encoder_;
   VideoCodec codec_settings_;
+  int32_t number_of_cores_;
 
   EncodedImage encoded_image_;
   std::unique_ptr<uint8_t[]> encoded_image_buffer_;

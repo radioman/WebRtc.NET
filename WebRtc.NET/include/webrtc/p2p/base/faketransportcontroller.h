@@ -111,12 +111,6 @@ class FakeTransportChannel : public TransportChannelImpl,
     return true;
   }
 
-  void Connect() override {
-    if (state_ == STATE_INIT) {
-      state_ = STATE_CONNECTING;
-    }
-  }
-
   void MaybeStartGathering() override {
     if (gathering_state_ == kIceGatheringNew) {
       gathering_state_ = kIceGatheringGathering;
@@ -145,7 +139,7 @@ class FakeTransportChannel : public TransportChannelImpl,
   // If |asymmetric| is true this method only affects this FakeTransportChannel.
   // If false, it affects |dest| as well.
   void SetDestination(FakeTransportChannel* dest, bool asymmetric = false) {
-    if (state_ == STATE_CONNECTING && dest) {
+    if (state_ == STATE_INIT && dest) {
       // This simulates the delivery of candidates.
       dest_ = dest;
       if (local_cert_ && dest_->local_cert_) {
@@ -160,7 +154,7 @@ class FakeTransportChannel : public TransportChannelImpl,
     } else if (state_ == STATE_CONNECTED && !dest) {
       // Simulates loss of connectivity, by asymmetrically forgetting dest_.
       dest_ = nullptr;
-      state_ = STATE_CONNECTING;
+      state_ = STATE_INIT;
       set_writable(false);
     }
   }
@@ -170,8 +164,10 @@ class FakeTransportChannel : public TransportChannelImpl,
     connection_count_ = connection_count;
     if (connection_count)
       had_connection_ = true;
+    // In this fake transport channel, |connection_count_| determines the
+    // transport channel state.
     if (connection_count_ < old_connection_count)
-      SignalConnectionRemoved(this);
+      SignalStateChanged(this);
   }
 
   void SetCandidatesGatheringComplete() {
@@ -183,13 +179,10 @@ class FakeTransportChannel : public TransportChannelImpl,
 
   void SetReceiving(bool receiving) { set_receiving(receiving); }
 
-  void SetIceConfig(const IceConfig& config) override {
-    receiving_timeout_ = config.receiving_timeout;
-    gather_continually_ = config.gather_continually;
-  }
+  void SetIceConfig(const IceConfig& config) override { ice_config_ = config; }
 
-  int receiving_timeout() const { return receiving_timeout_; }
-  bool gather_continually() const { return gather_continually_; }
+  int receiving_timeout() const { return ice_config_.receiving_timeout; }
+  bool gather_continually() const { return ice_config_.gather_continually(); }
 
   int SendPacket(const char* data,
                  size_t len,
@@ -205,9 +198,9 @@ class FakeTransportChannel : public TransportChannelImpl,
 
     PacketMessageData* packet = new PacketMessageData(data, len);
     if (async_) {
-      rtc::Thread::Current()->Post(this, 0, packet);
+      rtc::Thread::Current()->Post(RTC_FROM_HERE, this, 0, packet);
     } else {
-      rtc::Thread::Current()->Send(this, 0, packet);
+      rtc::Thread::Current()->Send(RTC_FROM_HERE, this, 0, packet);
     }
     rtc::SentPacket sent_packet(options.packet_id, rtc::TimeMillis());
     SignalSentPacket(this, sent_packet);
@@ -312,7 +305,7 @@ class FakeTransportChannel : public TransportChannelImpl,
     }
   }
 
-  enum State { STATE_INIT, STATE_CONNECTING, STATE_CONNECTED };
+  enum State { STATE_INIT, STATE_CONNECTED };
   FakeTransportChannel* dest_ = nullptr;
   State state_ = STATE_INIT;
   bool async_ = false;
@@ -322,8 +315,7 @@ class FakeTransportChannel : public TransportChannelImpl,
   bool do_dtls_ = false;
   std::vector<int> srtp_ciphers_;
   int chosen_crypto_suite_ = rtc::SRTP_INVALID_CRYPTO_SUITE;
-  int receiving_timeout_ = -1;
-  bool gather_continually_ = false;
+  IceConfig ice_config_;
   IceRole role_ = ICEROLE_UNKNOWN;
   uint64_t tiebreaker_ = 0;
   std::string ice_ufrag_;
@@ -518,6 +510,7 @@ class FakeTransportController : public TransportController {
 
   void Connect(FakeTransportController* dest) {
     network_thread()->Invoke<void>(
+        RTC_FROM_HERE,
         rtc::Bind(&FakeTransportController::Connect_n, this, dest));
   }
 
@@ -575,7 +568,6 @@ class FakeTransportController : public TransportController {
         transport->SetLocalTransportDescription(faketransport_desc,
                                                 cricket::CA_OFFER, nullptr);
       }
-      transport->ConnectChannels();
       transport->MaybeStartGathering();
     }
   }

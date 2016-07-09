@@ -17,6 +17,7 @@
 
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/base/optional.h"
+#include "webrtc/base/scoped_ref_ptr.h"
 #include "webrtc/common_types.h"
 #include "webrtc/modules/audio_coding/neteq/audio_decoder_impl.h"
 #include "webrtc/typedefs.h"
@@ -26,6 +27,7 @@ namespace webrtc {
 // Forward declarations.
 class AudioFrame;
 struct WebRtcRTPHeader;
+class AudioDecoderFactory;
 
 struct NetEqNetworkStatistics {
   uint16_t current_buffer_size_ms;  // Current jitter buffer size in ms.
@@ -133,7 +135,9 @@ class NetEq {
   // Creates a new NetEq object, with parameters set in |config|. The |config|
   // object will only have to be valid for the duration of the call to this
   // method.
-  static NetEq* Create(const NetEq::Config& config);
+  static NetEq* Create(
+      const NetEq::Config& config,
+      const rtc::scoped_refptr<AudioDecoderFactory>& decoder_factory);
 
   virtual ~NetEq() {}
 
@@ -179,16 +183,14 @@ class NetEq {
 
   // Provides an externally created decoder object |decoder| to insert in the
   // decoder database. The decoder implements a decoder of type |codec| and
-  // associates it with |rtp_payload_type| and |codec_name|. The decoder will
-  // produce samples at the rate |sample_rate_hz|. Returns kOK on success, kFail
-  // on failure.
-  // The name is only used to provide information back to the caller about the
-  // decoders. Hence, the name is arbitrary, and may be empty.
+  // associates it with |rtp_payload_type| and |codec_name|. Returns kOK on
+  // success, kFail on failure. The name is only used to provide information
+  // back to the caller about the decoders. Hence, the name is arbitrary, and
+  // may be empty.
   virtual int RegisterExternalDecoder(AudioDecoder* decoder,
                                       NetEqDecoder codec,
                                       const std::string& codec_name,
-                                      uint8_t rtp_payload_type,
-                                      int sample_rate_hz) = 0;
+                                      uint8_t rtp_payload_type) = 0;
 
   // Removes |rtp_payload_type| from the codec database. Returns 0 on success,
   // -1 on failure.

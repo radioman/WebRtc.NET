@@ -246,8 +246,9 @@ class QuicTransportChannel : public TransportChannelImpl,
   void OnSelectedCandidatePairChanged(
       TransportChannel* channel,
       CandidatePairInterface* selected_candidate_pair,
-      int last_sent_packet_id);
-  void OnConnectionRemoved(TransportChannelImpl* channel);
+      int last_sent_packet_id,
+      bool ready_to_send);
+  void OnChannelStateChanged(TransportChannelImpl* channel);
 
   // Callbacks for |quic_|.
   // Called when |quic_| has established the crypto handshake.

@@ -23,11 +23,6 @@ class VCMPacket {
   VCMPacket(const uint8_t* ptr,
             const size_t size,
             const WebRtcRTPHeader& rtpHeader);
-  VCMPacket(const uint8_t* ptr,
-            size_t size,
-            uint16_t seqNum,
-            uint32_t timestamp,
-            bool markerBit);
 
   void Reset();
 
@@ -39,6 +34,7 @@ class VCMPacket {
   const uint8_t* dataPtr;
   size_t sizeBytes;
   bool markerBit;
+  int timesNacked;
 
   FrameType frameType;
   VideoCodecType codec;
@@ -49,7 +45,7 @@ class VCMPacket {
                          // packet.
   int width;
   int height;
-  RTPVideoHeader codecSpecificHeader;
+  RTPVideoHeader video_header;
 
  protected:
   void CopyCodecSpecifics(const RTPVideoHeader& videoHeader);

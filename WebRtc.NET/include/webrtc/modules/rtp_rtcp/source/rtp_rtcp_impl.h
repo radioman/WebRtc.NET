@@ -19,6 +19,7 @@
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/gtest_prod_util.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp.h"
+#include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "webrtc/modules/rtp_rtcp/source/packet_loss_stats.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_receiver.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_sender.h"
@@ -123,11 +124,12 @@ class ModuleRtpRtcpImpl : public RtpRtcp {
   bool TimeToSendPacket(uint32_t ssrc,
                         uint16_t sequence_number,
                         int64_t capture_time_ms,
-                        bool retransmission) override;
+                        bool retransmission,
+                        int probe_cluster_id) override;
 
   // Returns the number of padding bytes actually sent, which can be more or
   // less than |bytes|.
-  size_t TimeToSendPadding(size_t bytes) override;
+  size_t TimeToSendPadding(size_t bytes, int probe_cluster_id) override;
 
   // RTCP part.
 
@@ -318,6 +320,7 @@ class ModuleRtpRtcpImpl : public RtpRtcp {
       const override;
 
   void OnReceivedNACK(const std::list<uint16_t>& nack_sequence_numbers);
+  void OnReceivedRtcpReportBlocks(const ReportBlockList& report_blocks);
 
   void OnRequestSendReport();
 

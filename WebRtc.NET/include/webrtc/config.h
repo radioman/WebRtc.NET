@@ -25,6 +25,7 @@ namespace webrtc {
 // Settings for NACK, see RFC 4585 for details.
 struct NackConfig {
   NackConfig() : rtp_history_ms(0) {}
+  std::string ToString() const;
   // Send side: the time RTP packets are stored for retransmissions.
   // Receive side: the time the receiver is prepared to wait for
   // retransmissions.
@@ -52,20 +53,45 @@ struct FecConfig {
 
 // RTP header extension, see RFC 5285.
 struct RtpExtension {
-  RtpExtension(const std::string& name, int id) : name(name), id(id) {}
+  RtpExtension() : id(0) {}
+  RtpExtension(const std::string& uri, int id) : uri(uri), id(id) {}
   std::string ToString() const;
   bool operator==(const RtpExtension& rhs) const {
-    return name == rhs.name && id == rhs.id;
+    return uri == rhs.uri && id == rhs.id;
   }
-  static bool IsSupportedForAudio(const std::string& name);
-  static bool IsSupportedForVideo(const std::string& name);
+  static bool IsSupportedForAudio(const std::string& uri);
+  static bool IsSupportedForVideo(const std::string& uri);
 
-  static const char* kTOffset;
-  static const char* kAbsSendTime;
-  static const char* kVideoRotation;
-  static const char* kAudioLevel;
-  static const char* kTransportSequenceNumber;
-  std::string name;
+  // Header extension for audio levels, as defined in:
+  // http://tools.ietf.org/html/draft-ietf-avtext-client-to-mixer-audio-level-03
+  static const char* kAudioLevelUri;
+  static const int kAudioLevelDefaultId;
+
+  // Header extension for RTP timestamp offset, see RFC 5450 for details:
+  // http://tools.ietf.org/html/rfc5450
+  static const char* kTimestampOffsetUri;
+  static const int kTimestampOffsetDefaultId;
+
+  // Header extension for absolute send time, see url for details:
+  // http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time
+  static const char* kAbsSendTimeUri;
+  static const int kAbsSendTimeDefaultId;
+
+  // Header extension for coordination of video orientation, see url for
+  // details:
+  // http://www.etsi.org/deliver/etsi_ts/126100_126199/126114/12.07.00_60/ts_126114v120700p.pdf
+  static const char* kVideoRotationUri;
+  static const int kVideoRotationDefaultId;
+
+  // Header extension for transport sequence number, see url for details:
+  // http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions
+  static const char* kTransportSequenceNumberUri;
+  static const int kTransportSequenceNumberDefaultId;
+
+  static const char* kPlayoutDelayUri;
+  static const int kPlayoutDelayDefaultId;
+
+  std::string uri;
   int id;
 };
 
@@ -117,6 +143,7 @@ struct VideoEncoderConfig {
   // maintaining a higher bitrate estimate. Padding will however not be sent
   // unless the estimated bandwidth indicates that the link can handle it.
   int min_transmit_bitrate_bps;
+  bool expect_encode_from_texture;
 };
 
 // Controls the capacity of the packet buffer in NetEq. The capacity is the

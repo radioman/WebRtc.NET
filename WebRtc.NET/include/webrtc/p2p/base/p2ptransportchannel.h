@@ -39,6 +39,9 @@
 namespace cricket {
 
 extern const int WEAK_PING_INTERVAL;
+extern const int STABILIZING_WRITABLE_CONNECTION_PING_INTERVAL;
+extern const int STABLE_WRITABLE_CONNECTION_PING_INTERVAL;
+static const int MIN_PINGS_AT_WEAK_PING_INTERVAL = 3;
 
 struct IceParameters {
   std::string ufrag;
@@ -90,7 +93,9 @@ class P2PTransportChannel : public TransportChannelImpl,
   void SetRemoteIceCredentials(const std::string& ice_ufrag,
                                const std::string& ice_pwd) override;
   void SetRemoteIceMode(IceMode mode) override;
-  void Connect() override;
+  // TODO(deadbeef): Deprecated. Remove when Chromium's
+  // IceTransportChannel does not depend on this.
+  void Connect() {}
   void MaybeStartGathering() override;
   IceGatheringState gathering_state() const override {
     return gathering_state_;
@@ -101,6 +106,7 @@ class P2PTransportChannel : public TransportChannelImpl,
   // only update the parameter if it is considered set in |config|. For example,
   // a negative value of receiving_timeout will be considered "not set" and we
   // will not use it to update the respective parameter in |config_|.
+  // TODO(deadbeef): Use rtc::Optional instead of negative values.
   void SetIceConfig(const IceConfig& config) override;
   const IceConfig& config() const;
 
@@ -114,7 +120,11 @@ class P2PTransportChannel : public TransportChannelImpl,
   int GetError() override { return error_; }
   bool GetStats(std::vector<ConnectionInfo>* stats) override;
 
-  const Connection* best_connection() const { return best_connection_; }
+  // TODO(honghaiz): Remove this method once the reference of it in
+  // Chromoting is removed.
+  const Connection* best_connection() const { return selected_connection_; }
+
+  const Connection* selected_connection() const { return selected_connection_; }
   void set_incoming_only(bool value) { incoming_only_ = value; }
 
   // Note: This is only for testing purpose.
@@ -204,10 +214,34 @@ class P2PTransportChannel : public TransportChannelImpl,
   // A transport channel is weak if the current best connection is either
   // not receiving or not writable, or if there is no best connection at all.
   bool weak() const;
+  // Returns true if it's possible to send packets on this channel.
+  bool ReadyToSend() const;
   void UpdateConnectionStates();
-  void RequestSort();
-  void SortConnections();
-  void SwitchBestConnectionTo(Connection* conn);
+  void RequestSortAndStateUpdate();
+  // Start pinging if we haven't already started, and we now have a connection
+  // that's pingable.
+  void MaybeStartPinging();
+
+  // The methods below return a positive value if a is preferable to b,
+  // a negative value if b is preferable, and 0 if they're equally preferable.
+  int CompareConnectionStates(const cricket::Connection* a,
+                              const cricket::Connection* b) const;
+  int CompareConnectionCandidates(const cricket::Connection* a,
+                                  const cricket::Connection* b) const;
+  // Compares two connections based on the connection states
+  // (writable/receiving/connected), nomination states, last data received time,
+  // and static preferences. Does not include latency. Used by both sorting
+  // and ShouldSwitchSelectedConnection().
+  // Returns a positive value if |a| is better than |b|.
+  int CompareConnections(const cricket::Connection* a,
+                         const cricket::Connection* b) const;
+
+  bool PresumedWritable(const cricket::Connection* conn) const;
+
+  bool ShouldSwitchSelectedConnection(const cricket::Connection* selected,
+                                      const cricket::Connection* conn) const;
+  void SortConnectionsAndUpdateState();
+  void SwitchSelectedConnection(Connection* conn);
   void UpdateState();
   void HandleAllTimedOut();
   void MaybeStopPortAllocatorSessions();
@@ -225,14 +259,24 @@ class P2PTransportChannel : public TransportChannelImpl,
   bool IsDuplicateRemoteCandidate(const Candidate& candidate);
   void RememberRemoteCandidate(const Candidate& remote_candidate,
                                PortInterface* origin_port);
-  bool IsPingable(Connection* conn, int64_t now);
+  bool IsPingable(const Connection* conn, int64_t now) const;
+  bool IsSelectedConnectionPingable(int64_t now);
+  int CalculateActiveWritablePingInterval(const Connection* conn,
+                                          int64_t now) const;
   void PingConnection(Connection* conn);
   void AddAllocatorSession(std::unique_ptr<PortAllocatorSession> session);
   void AddConnection(Connection* connection);
 
   void OnPortReady(PortAllocatorSession *session, PortInterface* port);
+  // TODO(honghaiz): Merge the two methods OnPortsRemoved and OnPortPruned but
+  // still log the reason of removing.
+  void OnPortsRemoved(PortAllocatorSession* session,
+                      const std::vector<PortInterface*>& ports);
+  void OnPortPruned(PortAllocatorSession* session, PortInterface* port);
   void OnCandidatesReady(PortAllocatorSession *session,
                          const std::vector<Candidate>& candidates);
+  void OnCandidatesRemoved(PortAllocatorSession* session,
+                           const std::vector<Candidate>& candidates);
   void OnCandidatesAllocationDone(PortAllocatorSession* session);
   void OnUnknownAddress(PortInterface* port,
                         const rtc::SocketAddress& addr,
@@ -240,8 +284,13 @@ class P2PTransportChannel : public TransportChannelImpl,
                         IceMessage* stun_msg,
                         const std::string& remote_username,
                         bool port_muxed);
+
+  // When a port is destroyed, remove it from both lists |ports_|
+  // and |removed_ports_|.
   void OnPortDestroyed(PortInterface* port);
-  void OnPortNetworkInactive(PortInterface* port);
+  // When removing a port, move it from |ports_| to |removed_ports_|.
+  // Returns true if the port is found and removed from |ports_|.
+  bool RemovePort(PortInterface* port);
   void OnRoleConflict(PortInterface* port);
 
   void OnConnectionStateChange(Connection* connection);
@@ -254,12 +303,14 @@ class P2PTransportChannel : public TransportChannelImpl,
   void OnNominated(Connection* conn);
 
   void OnMessage(rtc::Message* pmsg) override;
-  void OnSort();
   void OnCheckAndPing();
+  void OnRegatherOnFailedNetworks();
+
+  // Returns true if the new_connection should be selected for transmission.
+  bool ShouldSwitchSelectedConnection(Connection* new_connection) const;
 
   void PruneConnections();
-  Connection* best_nominated_connection() const;
-  bool IsBackupConnection(Connection* conn) const;
+  bool IsBackupConnection(const Connection* conn) const;
 
   Connection* FindConnectionToPing(int64_t now);
   Connection* FindOldestConnectionNeedingTriggeredCheck(int64_t now);
@@ -296,10 +347,17 @@ class P2PTransportChannel : public TransportChannelImpl,
   bool incoming_only_;
   int error_;
   std::vector<std::unique_ptr<PortAllocatorSession>> allocator_sessions_;
-  std::vector<PortInterface *> ports_;
+  // |ports_| contains ports that are used to form new connections when
+  // new remote candidates are added.
+  std::vector<PortInterface*> ports_;
+  // |removed_ports_| contains ports that have been removed from |ports_| and
+  // are not being used to form new connections, but that aren't yet destroyed.
+  // They may have existing connections, and they still fire signals such as
+  // SignalUnknownAddress.
+  std::vector<PortInterface*> removed_ports_;
 
   // |connections_| is a sorted list with the first one always be the
-  // |best_connection_| when it's not nullptr. The combination of
+  // |selected_connection_| when it's not nullptr. The combination of
   // |pinged_connections_| and |unpinged_connections_| has the same
   // connections as |connections_|. These 2 sets maintain whether a
   // connection should be pinged next or not.
@@ -307,11 +365,8 @@ class P2PTransportChannel : public TransportChannelImpl,
   std::set<Connection*> pinged_connections_;
   std::set<Connection*> unpinged_connections_;
 
-  Connection* best_connection_;
+  Connection* selected_connection_ = nullptr;
 
-  // Connection selected by the controlling agent. This should be used only
-  // at controlled side when protocol type is RFC5245.
-  Connection* pending_best_connection_;
   std::vector<RemoteCandidate> remote_candidates_;
   bool sort_dirty_;  // indicates whether another sort is needed right now
   bool had_connection_ = false;  // if connections_ has ever been nonempty
@@ -331,6 +386,7 @@ class P2PTransportChannel : public TransportChannelImpl,
   TransportChannelState state_ = TransportChannelState::STATE_INIT;
   IceConfig config_;
   int last_sent_packet_id_ = -1;  // -1 indicates no packet was sent before.
+  bool started_pinging_ = false;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(P2PTransportChannel);
 };

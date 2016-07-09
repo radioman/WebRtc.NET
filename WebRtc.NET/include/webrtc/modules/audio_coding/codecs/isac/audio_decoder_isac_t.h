@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "webrtc/base/constructormagic.h"
+#include "webrtc/base/optional.h"
 #include "webrtc/base/scoped_ref_ptr.h"
 #include "webrtc/modules/audio_coding/codecs/audio_decoder.h"
 #include "webrtc/modules/audio_coding/codecs/isac/locked_bandwidth_info.h"
@@ -23,9 +24,9 @@ namespace webrtc {
 template <typename T>
 class AudioDecoderIsacT final : public AudioDecoder {
  public:
-  AudioDecoderIsacT();
-  explicit AudioDecoderIsacT(
-      const rtc::scoped_refptr<LockedIsacBandwidthInfo>& bwinfo);
+  explicit AudioDecoderIsacT(int sample_rate_hz);
+  AudioDecoderIsacT(int sample_rate_hz,
+                    const rtc::scoped_refptr<LockedIsacBandwidthInfo>& bwinfo);
   ~AudioDecoderIsacT() override;
 
   bool HasDecodePlc() const override;
@@ -37,6 +38,7 @@ class AudioDecoderIsacT final : public AudioDecoder {
                      uint32_t rtp_timestamp,
                      uint32_t arrival_timestamp) override;
   int ErrorCode() override;
+  int SampleRateHz() const override;
   size_t Channels() const override;
   int DecodeInternal(const uint8_t* encoded,
                      size_t encoded_len,
@@ -46,8 +48,8 @@ class AudioDecoderIsacT final : public AudioDecoder {
 
  private:
   typename T::instance_type* isac_state_;
+  int sample_rate_hz_;
   rtc::scoped_refptr<LockedIsacBandwidthInfo> bwinfo_;
-  int decoder_sample_rate_hz_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(AudioDecoderIsacT);
 };

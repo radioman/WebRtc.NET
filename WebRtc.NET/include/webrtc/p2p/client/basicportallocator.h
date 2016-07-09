@@ -47,7 +47,7 @@ class BasicPortAllocator : public PortAllocator {
 
   int network_ignore_mask() const { return network_ignore_mask_; }
 
-  rtc::NetworkManager* network_manager() { return network_manager_; }
+  rtc::NetworkManager* network_manager() const { return network_manager_; }
 
   // If socket_factory() is set to NULL each PortAllocatorSession
   // creates its own socket factory.
@@ -74,6 +74,14 @@ class BasicPortAllocator : public PortAllocator {
 struct PortConfiguration;
 class AllocationSequence;
 
+enum class SessionState {
+  GATHERING,  // Actively allocating ports and gathering candidates.
+  CLEARED,    // Current allocation process has been stopped but may start
+              // new ones.
+  STOPPED     // This session has completely stopped, no new allocation
+              // process will be started.
+};
+
 class BasicPortAllocatorSession : public PortAllocatorSession,
                                   public rtc::MessageHandler {
  public:
@@ -88,14 +96,18 @@ class BasicPortAllocatorSession : public PortAllocatorSession,
   rtc::Thread* network_thread() { return network_thread_; }
   rtc::PacketSocketFactory* socket_factory() { return socket_factory_; }
 
+  void SetCandidateFilter(uint32_t filter) override;
   void StartGettingPorts() override;
   void StopGettingPorts() override;
   void ClearGettingPorts() override;
-  bool IsGettingPorts() override { return running_; }
+  bool IsGettingPorts() override { return state_ == SessionState::GATHERING; }
+  bool IsCleared() const override { return state_ == SessionState::CLEARED; }
+  bool IsStopped() const override { return state_ == SessionState::STOPPED; }
   // These will all be cricket::Ports.
   std::vector<PortInterface*> ReadyPorts() const override;
   std::vector<Candidate> ReadyCandidates() const override;
   bool CandidatesAllocationDone() const override;
+  void RegatherOnFailedNetworks() override;
 
  protected:
   void UpdateIceParametersInternal() override;
@@ -113,36 +125,50 @@ class BasicPortAllocatorSession : public PortAllocatorSession,
  private:
   class PortData {
    public:
-    PortData() : port_(NULL), sequence_(NULL), state_(STATE_INIT) {}
+    PortData() {}
     PortData(Port* port, AllocationSequence* seq)
-    : port_(port), sequence_(seq), state_(STATE_INIT) {
-    }
+        : port_(port), sequence_(seq) {}
 
     Port* port() const { return port_; }
     AllocationSequence* sequence() const { return sequence_; }
-    bool ready() const { return state_ == STATE_READY; }
+    bool has_pairable_candidate() const { return has_pairable_candidate_; }
     bool complete() const { return state_ == STATE_COMPLETE; }
     bool error() const { return state_ == STATE_ERROR; }
+    bool pruned() const { return state_ == STATE_PRUNED; }
+    bool inprogress() const { return state_ == STATE_INPROGRESS; }
+    // Returns true if this port is ready to be used.
+    bool ready() const {
+      return has_pairable_candidate_ && state_ != STATE_ERROR &&
+             state_ != STATE_PRUNED;
+    }
 
-    void set_ready() { ASSERT(state_ == STATE_INIT); state_ = STATE_READY; }
+    void set_pruned() { state_ = STATE_PRUNED; }
+    void set_has_pairable_candidate(bool has_pairable_candidate) {
+      if (has_pairable_candidate) {
+        ASSERT(state_ == STATE_INPROGRESS);
+      }
+      has_pairable_candidate_ = has_pairable_candidate;
+    }
     void set_complete() {
       state_ = STATE_COMPLETE;
     }
     void set_error() {
-      ASSERT(state_ == STATE_INIT || state_ == STATE_READY);
+      ASSERT(state_ == STATE_INPROGRESS);
       state_ = STATE_ERROR;
     }
 
    private:
     enum State {
-      STATE_INIT,      // No candidates allocated yet.
-      STATE_READY,     // At least one candidate is ready for process.
-      STATE_COMPLETE,  // All candidates allocated and ready for process.
-      STATE_ERROR      // Error in gathering candidates.
+      STATE_INPROGRESS,  // Still gathering candidates.
+      STATE_COMPLETE,    // All candidates allocated and ready for process.
+      STATE_ERROR,       // Error in gathering candidates.
+      STATE_PRUNED       // Pruned by higher priority ports on the same network
+                         // interface. Only TURN ports may be pruned.
     };
-    Port* port_;
-    AllocationSequence* sequence_;
-    State state_;
+    Port* port_ = nullptr;
+    AllocationSequence* sequence_ = nullptr;
+    bool has_pairable_candidate_ = false;
+    State state_ = STATE_INPROGRESS;
   };
 
   void OnConfigReady(PortConfiguration* config);
@@ -165,9 +191,24 @@ class BasicPortAllocatorSession : public PortAllocatorSession,
   void MaybeSignalCandidatesAllocationDone();
   void OnPortAllocationComplete(AllocationSequence* seq);
   PortData* FindPort(Port* port);
-  void GetNetworks(std::vector<rtc::Network*>* networks);
+  std::vector<rtc::Network*> GetNetworks();
+  std::vector<rtc::Network*> GetFailedNetworks();
 
   bool CheckCandidateFilter(const Candidate& c) const;
+  bool CandidatePairable(const Candidate& c, const Port* port) const;
+  // Clear the related address according to the flags and candidate filter
+  // in order to avoid leaking any information.
+  Candidate SanitizeRelatedAddress(const Candidate& c) const;
+
+  // Removes the ports and candidates on given networks.
+  void RemovePortsAndCandidates(const std::vector<rtc::Network*>& networks);
+  // Gets filtered and sanitized candidates generated from a port and
+  // append to |candidates|.
+  void GetCandidatesFromPort(const PortData& data,
+                             std::vector<Candidate>* candidates) const;
+  Port* GetBestTurnPortForNetwork(const std::string& network_name) const;
+  // Returns true if at least one TURN port is pruned.
+  bool PruneTurnPorts(Port* newly_pairable_turn_port);
 
   BasicPortAllocator* allocator_;
   rtc::Thread* network_thread_;
@@ -175,11 +216,14 @@ class BasicPortAllocatorSession : public PortAllocatorSession,
   rtc::PacketSocketFactory* socket_factory_;
   bool allocation_started_;
   bool network_manager_started_;
-  bool running_;  // set when StartGetAllPorts is called
   bool allocation_sequences_created_;
   std::vector<PortConfiguration*> configs_;
   std::vector<AllocationSequence*> sequences_;
   std::vector<PortData> ports_;
+  uint32_t candidate_filter_ = CF_ALL;
+  // Whether to prune low-priority ports, taken from the port allocator.
+  bool prune_turn_ports_;
+  SessionState state_ = SessionState::CLEARED;
 
   friend class AllocationSequence;
 };
@@ -245,11 +289,13 @@ class AllocationSequence : public rtc::MessageHandler,
   ~AllocationSequence();
   bool Init();
   void Clear();
-  void OnNetworkRemoved();
+  void OnNetworkFailed();
 
   State state() const { return state_; }
-  const rtc::Network* network() const { return network_; }
-  bool network_removed() const { return network_removed_; }
+  rtc::Network* network() const { return network_; }
+
+  bool network_failed() const { return network_failed_; }
+  void set_network_failed() { network_failed_ = true; }
 
   // Disables the phases for a new sequence that this one already covers for an
   // equivalent network setup.
@@ -299,7 +345,7 @@ class AllocationSequence : public rtc::MessageHandler,
   void OnPortDestroyed(PortInterface* port);
 
   BasicPortAllocatorSession* session_;
-  bool network_removed_ = false;
+  bool network_failed_ = false;
   rtc::Network* network_;
   rtc::IPAddress ip_;
   PortConfiguration* config_;

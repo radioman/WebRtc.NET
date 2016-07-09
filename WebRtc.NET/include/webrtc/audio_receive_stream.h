@@ -16,14 +16,14 @@
 #include <string>
 #include <vector>
 
+#include "webrtc/base/scoped_ref_ptr.h"
+#include "webrtc/modules/audio_coding/codecs/audio_decoder_factory.h"
 #include "webrtc/common_types.h"
 #include "webrtc/config.h"
 #include "webrtc/transport.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
-
-class AudioDecoder;
 class AudioSinkInterface;
 
 // WORK IN PROGRESS
@@ -79,6 +79,9 @@ class AudioReceiveStream {
       // for details.
       bool transport_cc = false;
 
+      // See NackConfig for description.
+      NackConfig nack;
+
       // RTP header extensions used for the received stream.
       std::vector<RtpExtension> extensions;
     } rtp;
@@ -101,6 +104,8 @@ class AudioReceiveStream {
     // Call::CreateReceiveStream().
     // TODO(solenberg): Use unique_ptr<> once our std lib fully supports C++11.
     std::map<uint8_t, AudioDecoder*> decoder_map;
+
+    rtc::scoped_refptr<AudioDecoderFactory> decoder_factory;
   };
 
   // Starts stream activity.
@@ -121,6 +126,10 @@ class AudioReceiveStream {
   // is being pulled+rendered and/or if audio is being pulled for the purposes
   // of feeding to the AEC.
   virtual void SetSink(std::unique_ptr<AudioSinkInterface> sink) = 0;
+
+  // Sets playback gain of the stream, applied when mixing, and thus after it
+  // is potentially forwarded to any attached AudioSinkInterface implementation.
+  virtual void SetGain(float gain) = 0;
 
  protected:
   virtual ~AudioReceiveStream() {}

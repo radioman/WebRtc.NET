@@ -35,7 +35,7 @@ typedef std::vector<AudioCodec> AudioCodecs;
 typedef std::vector<VideoCodec> VideoCodecs;
 typedef std::vector<DataCodec> DataCodecs;
 typedef std::vector<CryptoParams> CryptoParamsVec;
-typedef std::vector<RtpHeaderExtension> RtpHeaderExtensions;
+typedef std::vector<webrtc::RtpExtension> RtpHeaderExtensions;
 
 enum MediaType {
   MEDIA_TYPE_AUDIO,
@@ -51,6 +51,8 @@ enum MediaContentDirection {
   MD_RECVONLY,
   MD_SENDRECV
 };
+
+std::string MediaContentDirectionToString(MediaContentDirection direction);
 
 enum CryptoType {
   CT_NONE,
@@ -78,6 +80,30 @@ const int kBufferedModeDisabled = 0;
 
 // Default RTCP CNAME for unit tests.
 const char kDefaultRtcpCname[] = "DefaultRtcpCname";
+
+struct RtpTransceiverDirection {
+  bool send;
+  bool recv;
+
+  RtpTransceiverDirection(bool send, bool recv) : send(send), recv(recv) {}
+
+  bool operator==(const RtpTransceiverDirection& o) const {
+    return send == o.send && recv == o.recv;
+  }
+
+  bool operator!=(const RtpTransceiverDirection& o) const {
+    return !(*this == o);
+  }
+
+  static RtpTransceiverDirection FromMediaContentDirection(
+      MediaContentDirection md);
+
+  MediaContentDirection ToMediaContentDirection() const;
+};
+
+RtpTransceiverDirection
+NegotiateRtpTransceiverDirection(RtpTransceiverDirection offer,
+                                 RtpTransceiverDirection wants);
 
 struct MediaSessionOptions {
   MediaSessionOptions()
@@ -205,8 +231,15 @@ class MediaContentDescription : public ContentDescription {
     rtp_header_extensions_ = extensions;
     rtp_header_extensions_set_ = true;
   }
-  void AddRtpHeaderExtension(const RtpHeaderExtension& ext) {
+  void AddRtpHeaderExtension(const webrtc::RtpExtension& ext) {
     rtp_header_extensions_.push_back(ext);
+    rtp_header_extensions_set_ = true;
+  }
+  void AddRtpHeaderExtension(const cricket::RtpHeaderExtension& ext) {
+    webrtc::RtpExtension webrtc_extension;
+    webrtc_extension.uri = ext.uri;
+    webrtc_extension.id = ext.id;
+    rtp_header_extensions_.push_back(webrtc_extension);
     rtp_header_extensions_set_ = true;
   }
   void ClearRtpHeaderExtensions() {
@@ -284,7 +317,7 @@ class MediaContentDescription : public ContentDescription {
   std::string protocol_;
   std::vector<CryptoParams> cryptos_;
   CryptoType crypto_required_ = CT_NONE;
-  std::vector<RtpHeaderExtension> rtp_header_extensions_;
+  std::vector<webrtc::RtpExtension> rtp_header_extensions_;
   bool rtp_header_extensions_set_ = false;
   bool multistream_ = false;
   StreamParamsVec streams_;
@@ -395,8 +428,11 @@ class MediaSessionDescriptionFactory {
   MediaSessionDescriptionFactory(ChannelManager* cmanager,
                                  const TransportDescriptionFactory* factory);
 
-  const AudioCodecs& audio_codecs() const { return audio_codecs_; }
-  void set_audio_codecs(const AudioCodecs& codecs) { audio_codecs_ = codecs; }
+  const AudioCodecs& audio_sendrecv_codecs() const;
+  const AudioCodecs& audio_send_codecs() const;
+  const AudioCodecs& audio_recv_codecs() const;
+  void set_audio_codecs(const AudioCodecs& send_codecs,
+                        const AudioCodecs& recv_codecs);
   void set_audio_rtp_header_extensions(const RtpHeaderExtensions& extensions) {
     audio_rtp_extensions_ = extensions;
   }
@@ -430,7 +466,15 @@ class MediaSessionDescriptionFactory {
         const SessionDescription* current_description) const;
 
  private:
+  const AudioCodecs& GetAudioCodecsForOffer(
+      const RtpTransceiverDirection& direction) const;
+  const AudioCodecs& GetAudioCodecsForAnswer(
+      const RtpTransceiverDirection& offer,
+      const RtpTransceiverDirection& answer) const;
   void GetCodecsToOffer(const SessionDescription* current_description,
+                        const AudioCodecs& supported_audio_codecs,
+                        const VideoCodecs& supported_video_codecs,
+                        const DataCodecs& supported_data_codecs,
                         AudioCodecs* audio_codecs,
                         VideoCodecs* video_codecs,
                         DataCodecs* data_codecs) const;
@@ -502,7 +546,9 @@ class MediaSessionDescriptionFactory {
       StreamParamsVec* current_streams,
       SessionDescription* answer) const;
 
-  AudioCodecs audio_codecs_;
+  AudioCodecs audio_send_codecs_;
+  AudioCodecs audio_recv_codecs_;
+  AudioCodecs audio_sendrecv_codecs_;
   RtpHeaderExtensions audio_rtp_extensions_;
   VideoCodecs video_codecs_;
   RtpHeaderExtensions video_rtp_extensions_;

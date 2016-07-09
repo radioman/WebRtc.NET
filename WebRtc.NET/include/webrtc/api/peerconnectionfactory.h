@@ -14,12 +14,12 @@
 #include <memory>
 #include <string>
 
-#include "webrtc/api/dtlsidentitystore.h"
 #include "webrtc/api/mediacontroller.h"
 #include "webrtc/api/mediastreaminterface.h"
 #include "webrtc/api/peerconnectioninterface.h"
 #include "webrtc/base/scoped_ref_ptr.h"
 #include "webrtc/base/thread.h"
+#include "webrtc/base/rtccertificategenerator.h"
 #include "webrtc/pc/channelmanager.h"
 
 namespace rtc {
@@ -28,9 +28,6 @@ class BasicPacketSocketFactory;
 }
 
 namespace webrtc {
-
-typedef rtc::RefCountedObject<DtlsIdentityStoreImpl>
-    RefCountedDtlsIdentityStore;
 
 class PeerConnectionFactory : public PeerConnectionFactoryInterface {
  public:
@@ -43,13 +40,13 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
       const PeerConnectionInterface::RTCConfiguration& configuration,
       const MediaConstraintsInterface* constraints,
       std::unique_ptr<cricket::PortAllocator> allocator,
-      std::unique_ptr<DtlsIdentityStoreInterface> dtls_identity_store,
+      std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator,
       PeerConnectionObserver* observer) override;
 
   virtual rtc::scoped_refptr<PeerConnectionInterface> CreatePeerConnection(
       const PeerConnectionInterface::RTCConfiguration& configuration,
       std::unique_ptr<cricket::PortAllocator> allocator,
-      std::unique_ptr<DtlsIdentityStoreInterface> dtls_identity_store,
+      std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator,
       PeerConnectionObserver* observer) override;
 
   bool Initialize();
@@ -83,12 +80,15 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
 
   bool StartAecDump(rtc::PlatformFile file, int64_t max_size_bytes) override;
   void StopAecDump() override;
-  bool StartRtcEventLog(rtc::PlatformFile file) override {
-    return StartRtcEventLog(file, -1);
-  }
+  // TODO(ivoc) Remove after Chrome is updated.
+  bool StartRtcEventLog(rtc::PlatformFile file) override { return false; }
+  // TODO(ivoc) Remove after Chrome is updated.
   bool StartRtcEventLog(rtc::PlatformFile file,
-                        int64_t max_size_bytes) override;
-  void StopRtcEventLog() override;
+                        int64_t max_size_bytes) override {
+    return false;
+  }
+  // TODO(ivoc) Remove after Chrome is updated.
+  void StopRtcEventLog() override {}
 
   virtual webrtc::MediaControllerInterface* CreateMediaController(
       const cricket::MediaConfig& config) const;
@@ -104,6 +104,8 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
       rtc::Thread* worker_thread,
       rtc::Thread* signaling_thread,
       AudioDeviceModule* default_adm,
+      const rtc::scoped_refptr<webrtc::AudioDecoderFactory>&
+          audio_decoder_factory,
       cricket::WebRtcVideoEncoderFactory* video_encoder_factory,
       cricket::WebRtcVideoDecoderFactory* video_decoder_factory);
   virtual ~PeerConnectionFactory();
@@ -119,6 +121,7 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
   Options options_;
   // External Audio device used for audio playback.
   rtc::scoped_refptr<AudioDeviceModule> default_adm_;
+  rtc::scoped_refptr<AudioDecoderFactory> audio_decoder_factory_;
   std::unique_ptr<cricket::ChannelManager> channel_manager_;
   // External Video encoder factory. This can be NULL if the client has not
   // injected any. In that case, video engine will use the internal SW encoder.
@@ -128,8 +131,6 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
   std::unique_ptr<cricket::WebRtcVideoDecoderFactory> video_decoder_factory_;
   std::unique_ptr<rtc::BasicNetworkManager> default_network_manager_;
   std::unique_ptr<rtc::BasicPacketSocketFactory> default_socket_factory_;
-
-  rtc::scoped_refptr<RefCountedDtlsIdentityStore> dtls_identity_store_;
 };
 
 }  // namespace webrtc
