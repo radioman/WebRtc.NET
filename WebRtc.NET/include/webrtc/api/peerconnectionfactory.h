@@ -31,9 +31,7 @@ namespace webrtc {
 
 class PeerConnectionFactory : public PeerConnectionFactoryInterface {
  public:
-  void SetOptions(const Options& options) override {
-    options_ = options;
-  }
+  void SetOptions(const Options& options) override;
 
   // Deprecated, use version without constraints.
   rtc::scoped_refptr<PeerConnectionInterface> CreatePeerConnection(
@@ -92,6 +90,8 @@ class PeerConnectionFactory : public PeerConnectionFactoryInterface {
 
   virtual webrtc::MediaControllerInterface* CreateMediaController(
       const cricket::MediaConfig& config) const;
+  virtual cricket::TransportController* CreateTransportController(
+      cricket::PortAllocator* port_allocator);
   virtual rtc::Thread* signaling_thread();
   virtual rtc::Thread* worker_thread();
   virtual rtc::Thread* network_thread();

@@ -89,6 +89,7 @@ enum IcePriorityValue {
   // For TLS ICE_TYPE_PREFERENCE_RELAY will be 0.
   // Check turnport.cc for setting these values.
   ICE_TYPE_PREFERENCE_RELAY = 2,
+  ICE_TYPE_PREFERENCE_PRFLX_TCP = 80,
   ICE_TYPE_PREFERENCE_HOST_TCP = 90,
   ICE_TYPE_PREFERENCE_SRFLX = 100,
   ICE_TYPE_PREFERENCE_PRFLX = 110,
@@ -122,6 +123,12 @@ typedef std::set<rtc::SocketAddress> ServerAddresses;
 class Port : public PortInterface, public rtc::MessageHandler,
              public sigslot::has_slots<> {
  public:
+  // INIT: The state when a port is just created.
+  // KEEP_ALIVE_UNTIL_PRUNED: A port should not be destroyed even if no
+  // connection is using it.
+  // PRUNED: It will be destroyed if no connection is using it for a period of
+  // 30 seconds.
+  enum class State { INIT, KEEP_ALIVE_UNTIL_PRUNED, PRUNED };
   Port(rtc::Thread* thread,
        const std::string& type,
        rtc::PacketSocketFactory* factory,
@@ -152,6 +159,12 @@ class Port : public PortInterface, public rtc::MessageHandler,
 
   virtual bool SharedSocket() const { return shared_socket_; }
   void ResetSharedSocket() { shared_socket_ = false; }
+
+  // Should not destroy the port even if no connection is using it. Called when
+  // a port is ready to use.
+  void KeepAliveUntilPruned();
+  // Allows a port to be destroyed if no connection is using it.
+  void Prune();
 
   // The thread on which this port performs its I/O.
   rtc::Thread* thread() { return thread_; }
@@ -297,10 +310,7 @@ class Port : public PortInterface, public rtc::MessageHandler,
   int16_t network_cost() const { return network_cost_; }
 
  protected:
-  enum {
-    MSG_DEAD = 0,
-    MSG_FIRST_AVAILABLE
-  };
+  enum { MSG_DESTROY_IF_DEAD = 0, MSG_FIRST_AVAILABLE };
 
   virtual void UpdateNetworkCost();
 
@@ -357,12 +367,6 @@ class Port : public PortInterface, public rtc::MessageHandler,
   // Called when one of our connections deletes itself.
   void OnConnectionDestroyed(Connection* conn);
 
-  // Whether this port is dead, and hence, should be destroyed on the controlled
-  // side.
-  bool dead() const {
-    return ice_role_ == ICEROLE_CONTROLLED && connections_.empty();
-  }
-
   void OnNetworkTypeChanged(const rtc::Network* network);
 
   rtc::Thread* thread_;
@@ -401,6 +405,8 @@ class Port : public PortInterface, public rtc::MessageHandler,
   // (WiFi. vs. Cellular). It takes precedence over the priority when
   // comparing two connections.
   uint16_t network_cost_;
+  State state_ = State::INIT;
+  int64_t last_time_all_connections_removed_ = 0;
 
   friend class Connection;
 };
@@ -412,11 +418,12 @@ class Connection : public CandidatePairInterface,
                    public sigslot::has_slots<> {
  public:
   struct SentPing {
-    SentPing(const std::string id, int64_t sent_time)
-        : id(id), sent_time(sent_time) {}
+    SentPing(const std::string id, int64_t sent_time, uint32_t nomination)
+        : id(id), sent_time(sent_time), nomination(nomination) {}
 
     std::string id;
     int64_t sent_time;
+    uint32_t nomination;
   };
 
   // States are from RFC 5245. http://tools.ietf.org/html/rfc5245#section-5.7.4
@@ -506,8 +513,16 @@ class Connection : public CandidatePairInterface,
   bool use_candidate_attr() const { return use_candidate_attr_; }
   void set_use_candidate_attr(bool enable);
 
-  bool nominated() const { return nominated_; }
-  void set_nominated(bool nominated) { nominated_ = nominated; }
+  void set_nomination(uint32_t value) { nomination_ = value; }
+
+  uint32_t remote_nomination() const { return remote_nomination_; }
+  bool nominated() const { return remote_nomination_ > 0; }
+  // Public for unit tests.
+  void set_remote_nomination(uint32_t remote_nomination) {
+    remote_nomination_ = remote_nomination;
+  }
+  // Public for unit tests.
+  uint32_t acked_nomination() const { return acked_nomination_; }
 
   void set_remote_ice_mode(IceMode mode) {
     remote_ice_mode_ = mode;
@@ -534,7 +549,7 @@ class Connection : public CandidatePairInterface,
   // Called when this connection should try checking writability again.
   int64_t last_ping_sent() const { return last_ping_sent_; }
   void Ping(int64_t now);
-  void ReceivedPingResponse(int rtt);
+  void ReceivedPingResponse(int rtt, const std::string& request_id);
   int64_t last_ping_response_received() const {
     return last_ping_response_received_;
   }
@@ -590,6 +605,10 @@ class Connection : public CandidatePairInterface,
   // Returns the last received time of any data, stun request, or stun
   // response in milliseconds
   int64_t last_received() const;
+  // Returns the last time when the connection changed its receiving state.
+  int64_t receiving_unchanged_since() const {
+    return receiving_unchanged_since_;
+  }
 
   bool stable(int64_t now) const;
 
@@ -618,15 +637,28 @@ class Connection : public CandidatePairInterface,
 
   // Changes the state and signals if necessary.
   void set_write_state(WriteState value);
-  void set_receiving(bool value);
+  void UpdateReceiving(int64_t now);
   void set_state(State state);
   void set_connected(bool value);
+
+  uint32_t nomination() const { return nomination_; }
 
   void OnMessage(rtc::Message *pmsg);
 
   Port* port_;
   size_t local_candidate_index_;
   Candidate remote_candidate_;
+
+  ConnectionInfo stats_;
+  rtc::RateTracker recv_rate_tracker_;
+  rtc::RateTracker send_rate_tracker_;
+
+ private:
+  // Update the local candidate based on the mapped address attribute.
+  // If the local candidate changed, fires SignalStateChange.
+  void MaybeUpdateLocalCandidate(ConnectionRequest* request,
+                                 StunMessage* response);
+
   WriteState write_state_;
   bool receiving_;
   bool connected_;
@@ -636,9 +668,19 @@ class Connection : public CandidatePairInterface,
   // But when peer is ice-lite, this flag "must" be initialized to false and
   // turn on when connection becomes "best connection".
   bool use_candidate_attr_;
-  // Whether this connection has been nominated by the controlling side via
-  // the use_candidate attribute.
-  bool nominated_;
+  // Used by the controlling side to indicate that this connection will be
+  // selected for transmission if the peer supports ICE-renomination when this
+  // value is positive. A larger-value indicates that a connection is nominated
+  // later and should be selected by the controlled side with higher precedence.
+  // A zero-value indicates not nominating this connection.
+  uint32_t nomination_ = 0;
+  // The last nomination that has been acknowledged.
+  uint32_t acked_nomination_ = 0;
+  // Used by the controlled side to remember the nomination value received from
+  // the controlling side. When the peer does not support ICE re-nomination,
+  // its value will be 1 if the connection has been nominated.
+  uint32_t remote_nomination_ = 0;
+
   IceMode remote_ice_mode_;
   StunRequestManager requests_;
   int rtt_;
@@ -648,16 +690,8 @@ class Connection : public CandidatePairInterface,
                                 // side
   int64_t last_data_received_;
   int64_t last_ping_response_received_;
+  int64_t receiving_unchanged_since_ = 0;
   std::vector<SentPing> pings_since_last_response_;
-
-  rtc::RateTracker recv_rate_tracker_;
-  rtc::RateTracker send_rate_tracker_;
-
-  ConnectionInfo stats_;
-
- private:
-  void MaybeAddPrflxCandidate(ConnectionRequest* request,
-                              StunMessage* response);
 
   bool reported_;
   State state_;

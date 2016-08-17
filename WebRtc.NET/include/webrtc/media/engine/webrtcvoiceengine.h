@@ -123,6 +123,8 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
   int CreateVoEChannel();
   webrtc::AudioDeviceModule* adm();
 
+  AudioCodecs CollectRecvCodecs() const;
+
   rtc::ThreadChecker signal_thread_checker_;
   rtc::ThreadChecker worker_thread_checker_;
 
@@ -132,7 +134,8 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
   // The primary instance of WebRtc VoiceEngine.
   std::unique_ptr<VoEWrapper> voe_wrapper_;
   rtc::scoped_refptr<webrtc::AudioState> audio_state_;
-  std::vector<AudioCodec> codecs_;
+  std::vector<AudioCodec> send_codecs_;
+  std::vector<AudioCodec> recv_codecs_;
   std::vector<WebRtcVoiceMediaChannel*> channels_;
   webrtc::Config voe_config_;
   bool is_dumping_aec_ = false;
@@ -177,9 +180,7 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
       uint32_t ssrc,
       const webrtc::RtpParameters& parameters) override;
 
-  bool SetPlayout(bool playout) override;
-  bool PausePlayout();
-  bool ResumePlayout();
+  void SetPlayout(bool playout) override;
   void SetSend(bool send) override;
   bool SetAudioSend(uint32_t ssrc,
                     bool enable,
@@ -245,8 +246,7 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   WebRtcVoiceEngine* engine() { return engine_; }
   int GetLastEngineError() { return engine()->GetLastEngineError(); }
   int GetOutputLevel(int channel);
-  bool SetPlayout(int channel, bool playout);
-  bool ChangePlayout(bool playout);
+  void ChangePlayout(bool playout);
   int CreateVoEChannel();
   bool DeleteVoEChannel(int channel);
   bool IsDefaultRecvStream(uint32_t ssrc) {

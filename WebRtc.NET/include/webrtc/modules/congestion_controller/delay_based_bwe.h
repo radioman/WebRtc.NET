@@ -21,6 +21,7 @@
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/rate_statistics.h"
 #include "webrtc/base/thread_checker.h"
+#include "webrtc/modules/congestion_controller/probe_bitrate_estimator.h"
 #include "webrtc/modules/remote_bitrate_estimator/aimd_rate_control.h"
 #include "webrtc/modules/remote_bitrate_estimator/include/remote_bitrate_estimator.h"
 #include "webrtc/modules/remote_bitrate_estimator/inter_arrival.h"
@@ -32,115 +33,46 @@ namespace webrtc {
 
 class DelayBasedBwe : public RemoteBitrateEstimator {
  public:
-  explicit DelayBasedBwe(RemoteBitrateObserver* observer);
+  DelayBasedBwe(RemoteBitrateObserver* observer, Clock* clock);
   virtual ~DelayBasedBwe() {}
 
   void IncomingPacketFeedbackVector(
       const std::vector<PacketInfo>& packet_feedback_vector) override;
-
-  void IncomingPacket(int64_t arrival_time_ms,
-                      size_t payload_size,
-                      const RTPHeader& header) override;
-
-  void IncomingPacket(int64_t arrival_time_ms,
-                      size_t payload_size,
-                      const RTPHeader& header,
-                      int probe_cluster_id);
-
-  // This class relies on Process() being called periodically (at least once
-  // every other second) for streams to be timed out properly. Therefore it
-  // shouldn't be detached from the ProcessThread except if it's about to be
-  // deleted.
-  void Process() override;
-  int64_t TimeUntilNextProcess() override;
   void OnRttUpdate(int64_t avg_rtt_ms, int64_t max_rtt_ms) override;
-  void RemoveStream(uint32_t ssrc) override;
   bool LatestEstimate(std::vector<uint32_t>* ssrcs,
                       uint32_t* bitrate_bps) const override;
   void SetMinBitrate(int min_bitrate_bps) override;
 
+  // Required by RemoteBitrateEstimator but does nothing.
+  void Process() override;
+  // Required by RemoteBitrateEstimator but does nothing.
+  int64_t TimeUntilNextProcess() override;
+  // Required by RemoteBitrateEstimator but does nothing.
+  void RemoveStream(uint32_t ssrc) override;
+  void IncomingPacket(int64_t arrival_time_ms,
+                      size_t payload_size,
+                      const RTPHeader& header) override {
+    RTC_NOTREACHED();
+  }
+
  private:
-  struct Probe {
-    Probe(int64_t send_time_ms,
-          int64_t recv_time_ms,
-          size_t payload_size,
-          int cluster_id)
-        : send_time_ms(send_time_ms),
-          recv_time_ms(recv_time_ms),
-          payload_size(payload_size),
-          cluster_id(cluster_id) {}
-    int64_t send_time_ms;
-    int64_t recv_time_ms;
-    size_t payload_size;
-    int cluster_id;
-  };
-
-  struct Cluster {
-    Cluster()
-        : send_mean_ms(0.0f),
-          recv_mean_ms(0.0f),
-          mean_size(0),
-          count(0),
-          num_above_min_delta(0) {}
-
-    int GetSendBitrateBps() const {
-      RTC_CHECK_GT(send_mean_ms, 0.0f);
-      return mean_size * 8 * 1000 / send_mean_ms;
-    }
-
-    int GetRecvBitrateBps() const {
-      RTC_CHECK_GT(recv_mean_ms, 0.0f);
-      return mean_size * 8 * 1000 / recv_mean_ms;
-    }
-
-    float send_mean_ms;
-    float recv_mean_ms;
-    // TODO(holmer): Add some variance metric as well?
-    size_t mean_size;
-    int count;
-    int num_above_min_delta;
-  };
-
-  typedef std::map<uint32_t, int64_t> Ssrcs;
-  enum class ProbeResult { kBitrateUpdated, kNoUpdate };
-
-  static void AddCluster(std::list<Cluster>* clusters, Cluster* cluster);
-
-  void IncomingPacketInfo(int64_t arrival_time_ms,
-                          uint32_t send_time_24bits,
-                          size_t payload_size,
-                          uint32_t ssrc,
-                          int probe_cluster_id);
-
-  void ComputeClusters(std::list<Cluster>* clusters) const;
-
-  std::list<Cluster>::const_iterator FindBestProbe(
-      const std::list<Cluster>& clusters) const;
-
-  // Returns true if a probe which changed the estimate was detected.
-  ProbeResult ProcessClusters(int64_t now_ms) EXCLUSIVE_LOCKS_REQUIRED(&crit_);
-
-  bool IsBitrateImproving(int probe_bitrate_bps) const
-      EXCLUSIVE_LOCKS_REQUIRED(&crit_);
-
-  void TimeoutStreams(int64_t now_ms) EXCLUSIVE_LOCKS_REQUIRED(&crit_);
+  void IncomingPacketInfo(const PacketInfo& info);
 
   rtc::ThreadChecker network_thread_;
+  Clock* const clock_;
   RemoteBitrateObserver* const observer_;
   std::unique_ptr<InterArrival> inter_arrival_;
   std::unique_ptr<OveruseEstimator> estimator_;
   OveruseDetector detector_;
   RateStatistics incoming_bitrate_;
-  std::vector<int> recent_propagation_delta_ms_;
-  std::vector<int64_t> recent_update_time_ms_;
-  std::list<Probe> probes_;
-  size_t total_probes_received_;
   int64_t first_packet_time_ms_;
   int64_t last_update_ms_;
+  int64_t last_seen_packet_ms_;
+  bool uma_recorded_;
 
   rtc::CriticalSection crit_;
-  Ssrcs ssrcs_ GUARDED_BY(&crit_);
   AimdRateControl remote_rate_ GUARDED_BY(&crit_);
+  ProbeBitrateEstimator probe_bitrate_estimator_ GUARDED_BY(&crit_);
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(DelayBasedBwe);
 };

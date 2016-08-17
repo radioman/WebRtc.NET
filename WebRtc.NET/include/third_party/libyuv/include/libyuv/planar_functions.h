@@ -288,6 +288,12 @@ int ARGBCopyAlpha(const uint8* src_argb, int src_stride_argb,
                   uint8* dst_argb, int dst_stride_argb,
                   int width, int height);
 
+// Extract the alpha channel from ARGB.
+LIBYUV_API
+int ARGBExtractAlpha(const uint8* src_argb, int src_stride_argb,
+                     uint8* dst_a, int dst_stride_a,
+                     int width, int height);
+
 // Copy Y channel to Alpha of ARGB.
 LIBYUV_API
 int ARGBCopyYToAlpha(const uint8* src_y, int src_stride_y,
@@ -446,6 +452,12 @@ int I420Interpolate(const uint8* src0_y, int src0_stride_y,
 #if defined(__pnacl__) || defined(__CLR_VER) || \
     (defined(__i386__) && !defined(__SSE2__))
 #define LIBYUV_DISABLE_X86
+#endif
+// MemorySanitizer does not support assembly code yet. http://crbug.com/344505
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+#define LIBYUV_DISABLE_X86
+#endif
 #endif
 // The following are available on all x86 platforms:
 #if !defined(LIBYUV_DISABLE_X86) && \

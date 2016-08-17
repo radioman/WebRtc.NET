@@ -56,6 +56,8 @@ class H264VideoToolboxEncoder : public H264Encoder {
 
   const char* ImplementationName() const override;
 
+  bool SupportsNativeHandle() const override;
+
   void OnEncodedFrame(OSStatus status,
                       VTEncodeInfoFlags info_flags,
                       CMSampleBufferRef sample_buffer,
@@ -86,6 +88,7 @@ class H264VideoToolboxEncoder : public H264Encoder {
   rtc::CriticalSection quality_scaler_crit_;
   QualityScaler quality_scaler_ GUARDED_BY(quality_scaler_crit_);
   H264BitstreamParser h264_bitstream_parser_;
+  bool enable_scaling_;
 };  // H264VideoToolboxEncoder
 
 }  // namespace webrtc

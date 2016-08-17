@@ -127,9 +127,10 @@ class P2PTransportChannel : public TransportChannelImpl,
   const Connection* selected_connection() const { return selected_connection_; }
   void set_incoming_only(bool value) { incoming_only_ = value; }
 
-  // Note: This is only for testing purpose.
-  // |ports_| should not be changed from outside.
+  // Note: These are only for testing purpose.
+  // |ports_| and |pruned_ports| should not be changed from outside.
   const std::vector<PortInterface*>& ports() { return ports_; }
+  const std::vector<PortInterface*>& pruned_ports() { return pruned_ports_; }
 
   IceMode remote_ice_mode() const { return remote_ice_mode_; }
 
@@ -184,6 +185,7 @@ class P2PTransportChannel : public TransportChannelImpl,
     return false;
   }
 
+  void PruneAllPorts();
   int receiving_timeout() const { return config_.receiving_timeout; }
   int check_receiving_interval() const { return check_receiving_interval_; }
 
@@ -207,25 +209,38 @@ class P2PTransportChannel : public TransportChannelImpl,
     return remote_candidates_;
   }
 
+  // Public for unit tests.
+  void set_remote_supports_renomination(bool remote_supports_renomination) {
+    remote_supports_renomination_ = remote_supports_renomination;
+  }
+
  private:
-  rtc::Thread* thread() { return worker_thread_; }
+  rtc::Thread* thread() const { return worker_thread_; }
   bool IsGettingPorts() { return allocator_session()->IsGettingPorts(); }
 
   // A transport channel is weak if the current best connection is either
   // not receiving or not writable, or if there is no best connection at all.
   bool weak() const;
-  // Returns true if it's possible to send packets on this channel.
-  bool ReadyToSend() const;
+  // Returns true if it's possible to send packets on |connection|.
+  bool ReadyToSend(Connection* connection) const;
   void UpdateConnectionStates();
   void RequestSortAndStateUpdate();
   // Start pinging if we haven't already started, and we now have a connection
   // that's pingable.
   void MaybeStartPinging();
 
-  // The methods below return a positive value if a is preferable to b,
-  // a negative value if b is preferable, and 0 if they're equally preferable.
-  int CompareConnectionStates(const cricket::Connection* a,
-                              const cricket::Connection* b) const;
+  // The methods below return a positive value if |a| is preferable to |b|,
+  // a negative value if |b| is preferable, and 0 if they're equally preferable.
+  // If |receiving_unchanged_threshold| is set, then when |b| is receiving and
+  // |a| is not, returns a negative value only if |b| has been in receiving
+  // state and |a| has been in not receiving state since
+  // |receiving_unchanged_threshold| and sets
+  // |missed_receiving_unchanged_threshold| to true otherwise.
+  int CompareConnectionStates(
+      const cricket::Connection* a,
+      const cricket::Connection* b,
+      rtc::Optional<int64_t> receiving_unchanged_threshold,
+      bool* missed_receiving_unchanged_threshold) const;
   int CompareConnectionCandidates(const cricket::Connection* a,
                                   const cricket::Connection* b) const;
   // Compares two connections based on the connection states
@@ -234,12 +249,12 @@ class P2PTransportChannel : public TransportChannelImpl,
   // and ShouldSwitchSelectedConnection().
   // Returns a positive value if |a| is better than |b|.
   int CompareConnections(const cricket::Connection* a,
-                         const cricket::Connection* b) const;
+                         const cricket::Connection* b,
+                         rtc::Optional<int64_t> receiving_unchanged_threshold,
+                         bool* missed_receiving_unchanged_threshold) const;
 
   bool PresumedWritable(const cricket::Connection* conn) const;
 
-  bool ShouldSwitchSelectedConnection(const cricket::Connection* selected,
-                                      const cricket::Connection* conn) const;
   void SortConnectionsAndUpdateState();
   void SwitchSelectedConnection(Connection* conn);
   void UpdateState();
@@ -268,11 +283,8 @@ class P2PTransportChannel : public TransportChannelImpl,
   void AddConnection(Connection* connection);
 
   void OnPortReady(PortAllocatorSession *session, PortInterface* port);
-  // TODO(honghaiz): Merge the two methods OnPortsRemoved and OnPortPruned but
-  // still log the reason of removing.
-  void OnPortsRemoved(PortAllocatorSession* session,
-                      const std::vector<PortInterface*>& ports);
-  void OnPortPruned(PortAllocatorSession* session, PortInterface* port);
+  void OnPortsPruned(PortAllocatorSession* session,
+                     const std::vector<PortInterface*>& ports);
   void OnCandidatesReady(PortAllocatorSession *session,
                          const std::vector<Candidate>& candidates);
   void OnCandidatesRemoved(PortAllocatorSession* session,
@@ -286,11 +298,11 @@ class P2PTransportChannel : public TransportChannelImpl,
                         bool port_muxed);
 
   // When a port is destroyed, remove it from both lists |ports_|
-  // and |removed_ports_|.
+  // and |pruned_ports_|.
   void OnPortDestroyed(PortInterface* port);
-  // When removing a port, move it from |ports_| to |removed_ports_|.
+  // When pruning a port, move it from |ports_| to |pruned_ports_|.
   // Returns true if the port is found and removed from |ports_|.
-  bool RemovePort(PortInterface* port);
+  bool PrunePort(PortInterface* port);
   void OnRoleConflict(PortInterface* port);
 
   void OnConnectionStateChange(Connection* connection);
@@ -306,8 +318,19 @@ class P2PTransportChannel : public TransportChannelImpl,
   void OnCheckAndPing();
   void OnRegatherOnFailedNetworks();
 
-  // Returns true if the new_connection should be selected for transmission.
-  bool ShouldSwitchSelectedConnection(Connection* new_connection) const;
+  uint32_t GetNominationAttr(Connection* conn) const;
+  bool GetUseCandidateAttr(Connection* conn, NominationMode mode) const;
+
+  // Returns true if we should switch to the new connection.
+  // sets |missed_receiving_unchanged_threshold| to true if either
+  // the selected connection or the new connection missed its
+  // receiving-unchanged-threshold.
+  bool ShouldSwitchSelectedConnection(
+      Connection* new_connection,
+      bool* missed_receiving_unchanged_threshold) const;
+  // Returns true if the new_connection is selected for transmission.
+  bool MaybeSwitchSelectedConnection(Connection* new_connection,
+                                     const std::string& reason);
 
   void PruneConnections();
   bool IsBackupConnection(const Connection* conn) const;
@@ -350,11 +373,11 @@ class P2PTransportChannel : public TransportChannelImpl,
   // |ports_| contains ports that are used to form new connections when
   // new remote candidates are added.
   std::vector<PortInterface*> ports_;
-  // |removed_ports_| contains ports that have been removed from |ports_| and
+  // |pruned_ports_| contains ports that have been removed from |ports_| and
   // are not being used to form new connections, but that aren't yet destroyed.
   // They may have existing connections, and they still fire signals such as
   // SignalUnknownAddress.
-  std::vector<PortInterface*> removed_ports_;
+  std::vector<PortInterface*> pruned_ports_;
 
   // |connections_| is a sorted list with the first one always be the
   // |selected_connection_| when it's not nullptr. The combination of
@@ -387,6 +410,13 @@ class P2PTransportChannel : public TransportChannelImpl,
   IceConfig config_;
   int last_sent_packet_id_ = -1;  // -1 indicates no packet was sent before.
   bool started_pinging_ = false;
+  // TODO(honghaiz): Put this and ICE role inside ICEParameters and rename this
+  // as renomination. Set its value in subsequent CLs based on signaling
+  // exchange.
+  bool remote_supports_renomination_ = false;
+  // The value put in the "nomination" attribute for the next nominated
+  // connection. A zero-value indicates the connection will not be nominated.
+  uint32_t nomination_ = 0;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(P2PTransportChannel);
 };

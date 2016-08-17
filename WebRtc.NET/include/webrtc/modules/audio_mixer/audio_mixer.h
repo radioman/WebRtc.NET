@@ -11,11 +11,13 @@
 #ifndef WEBRTC_MODULES_AUDIO_MIXER_AUDIO_MIXER_H_
 #define WEBRTC_MODULES_AUDIO_MIXER_AUDIO_MIXER_H_
 
+#include <memory>
+
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/common_audio/resampler/include/push_resampler.h"
 #include "webrtc/common_types.h"
-#include "webrtc/modules/audio_mixer/include/new_audio_conference_mixer.h"
-#include "webrtc/modules/audio_mixer/include/audio_mixer_defines.h"
+#include "webrtc/modules/audio_mixer/new_audio_conference_mixer.h"
+#include "webrtc/modules/audio_mixer/audio_mixer_defines.h"
 #include "webrtc/modules/utility/include/file_recorder.h"
 #include "webrtc/voice_engine/level_indicator.h"
 #include "webrtc/voice_engine/voice_engine_defines.h"
@@ -32,7 +34,7 @@ class Statistics;
 // Note: this class is in the process of being rewritten and merged
 // with AudioConferenceMixer. Expect inheritance chains to be changed,
 // member functions removed or renamed.
-class AudioMixer : public OldAudioMixerOutputReceiver, public FileCallback {
+class AudioMixer : public FileCallback {
  public:
   static int32_t Create(AudioMixer*& mixer, uint32_t instanceId);  // NOLINT
 
@@ -48,15 +50,14 @@ class AudioMixer : public OldAudioMixerOutputReceiver, public FileCallback {
 
   int DeRegisterExternalMediaProcessing();
 
-  int32_t MixActiveChannels();
-
   int32_t DoOperationsOnCombinedSignal(bool feed_data_to_apm);
 
-  int32_t SetMixabilityStatus(MixerAudioSource& participant,  // NOLINT
+  int32_t SetMixabilityStatus(MixerAudioSource& audio_source,  // NOLINT
                               bool mixable);
 
-  int32_t SetAnonymousMixabilityStatus(MixerAudioSource& participant,  // NOLINT
-                                       bool mixable);
+  int32_t SetAnonymousMixabilityStatus(
+      MixerAudioSource& audio_source,  // NOLINT
+      bool mixable);
 
   int GetMixedAudio(int sample_rate_hz,
                     size_t num_channels,
@@ -79,12 +80,6 @@ class AudioMixer : public OldAudioMixerOutputReceiver, public FileCallback {
 
   virtual ~AudioMixer();
 
-  // from AudioMixerOutputReceiver
-  virtual void NewMixedAudio(int32_t id,
-                             const AudioFrame& generalAudioFrame,
-                             const AudioFrame** uniqueAudioFrames,
-                             uint32_t size);
-
   // For file recording
   void PlayNotification(int32_t id, uint32_t durationMs);
 
@@ -105,8 +100,6 @@ class AudioMixer : public OldAudioMixerOutputReceiver, public FileCallback {
   rtc::CriticalSection _fileCritSect;
   NewAudioConferenceMixer& _mixerModule;
   AudioFrame _audioFrame;
-  // Converts mixed audio to the audio device output rate.
-  PushResampler<int16_t> resampler_;
   // Converts mixed audio to the audio processing rate.
   PushResampler<int16_t> audioproc_resampler_;
   AudioLevel _audioLevel;  // measures audio level for the combined signal
@@ -116,7 +109,7 @@ class AudioMixer : public OldAudioMixerOutputReceiver, public FileCallback {
   float _panLeft;
   float _panRight;
   int _mixingFrequencyHz;
-  FileRecorder* _outputFileRecorderPtr;
+  std::unique_ptr<FileRecorder> _outputFileRecorderPtr;
   bool _outputFileRecording;
 };
 

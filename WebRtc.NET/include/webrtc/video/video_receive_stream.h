@@ -22,6 +22,7 @@
 #include "webrtc/system_wrappers/include/clock.h"
 #include "webrtc/video/receive_statistics_proxy.h"
 #include "webrtc/video/rtp_stream_receiver.h"
+#include "webrtc/video/rtp_streams_synchronizer.h"
 #include "webrtc/video/video_stream_decoder.h"
 #include "webrtc/video_receive_stream.h"
 
@@ -31,6 +32,7 @@ class CallStats;
 class CongestionController;
 class IvfFileWriter;
 class ProcessThread;
+class RTPFragmentationHeader;
 class VoiceEngine;
 class VieRemb;
 
@@ -67,9 +69,10 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
   void OnFrame(const VideoFrame& video_frame) override;
 
   // Overrides EncodedImageCallback.
-  int32_t Encoded(const EncodedImage& encoded_image,
-                  const CodecSpecificInfo* codec_specific_info,
-                  const RTPFragmentationHeader* fragmentation) override;
+  EncodedImageCallback::Result OnEncodedImage(
+      const EncodedImage& encoded_image,
+      const CodecSpecificInfo* codec_specific_info,
+      const RTPFragmentationHeader* fragmentation) override;
 
   const Config& config() const { return config_; }
 
@@ -100,7 +103,7 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
   ReceiveStatisticsProxy stats_proxy_;
   RtpStreamReceiver rtp_stream_receiver_;
   std::unique_ptr<VideoStreamDecoder> video_stream_decoder_;
-  ViESyncModule vie_sync_;
+  RtpStreamsSynchronizer rtp_stream_sync_;
 
   std::unique_ptr<IvfFileWriter> ivf_writer_;
 };

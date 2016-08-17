@@ -89,7 +89,7 @@ class CopyOnWriteBuffer {
   template <typename T = uint8_t,
             typename std::enable_if<
                 internal::BufferCompat<uint8_t, T>::value>::type* = nullptr>
-  T* cdata() const {
+  const T* cdata() const {
     RTC_DCHECK(IsConsistent());
     if (!buffer_) {
       return nullptr;
@@ -119,9 +119,7 @@ class CopyOnWriteBuffer {
   CopyOnWriteBuffer& operator=(CopyOnWriteBuffer&& buf) {
     RTC_DCHECK(IsConsistent());
     RTC_DCHECK(buf.IsConsistent());
-    // TODO(jbauch): use std::move once scoped_refptr supports it (issue 5556)
-    buffer_.swap(buf.buffer_);
-    buf.buffer_ = nullptr;
+    buffer_ = std::move(buf.buffer_);
     return *this;
   }
 

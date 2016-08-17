@@ -182,23 +182,10 @@ int vp8_mbblock_error_mmx(struct macroblock *mb, int dc);
 int vp8_mbblock_error_xmm(struct macroblock *mb, int dc);
 #define vp8_mbblock_error vp8_mbblock_error_xmm
 
-void vp8_mbpost_proc_across_ip_c(unsigned char *dst, int pitch, int rows, int cols,int flimit);
-void vp8_mbpost_proc_across_ip_xmm(unsigned char *dst, int pitch, int rows, int cols,int flimit);
-#define vp8_mbpost_proc_across_ip vp8_mbpost_proc_across_ip_xmm
-
-void vp8_mbpost_proc_down_c(unsigned char *dst, int pitch, int rows, int cols,int flimit);
-void vp8_mbpost_proc_down_mmx(unsigned char *dst, int pitch, int rows, int cols,int flimit);
-void vp8_mbpost_proc_down_xmm(unsigned char *dst, int pitch, int rows, int cols,int flimit);
-#define vp8_mbpost_proc_down vp8_mbpost_proc_down_xmm
-
 int vp8_mbuverror_c(struct macroblock *mb);
 int vp8_mbuverror_mmx(struct macroblock *mb);
 int vp8_mbuverror_xmm(struct macroblock *mb);
 #define vp8_mbuverror vp8_mbuverror_xmm
-
-void vp8_post_proc_down_and_across_mb_row_c(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int cols, unsigned char *flimits, int size);
-void vp8_post_proc_down_and_across_mb_row_sse2(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int cols, unsigned char *flimits, int size);
-#define vp8_post_proc_down_and_across_mb_row vp8_post_proc_down_and_across_mb_row_sse2
 
 int vp8_refining_search_sad_c(struct macroblock *x, struct block *b, struct blockd *d, union int_mv *ref_mv, int sad_per_bit, int distance, struct variance_vtable *fn_ptr, int *mvcost[2], union int_mv *center_mv);
 int vp8_refining_search_sadx4(struct macroblock *x, struct block *b, struct blockd *d, union int_mv *ref_mv, int sad_per_bit, int distance, struct variance_vtable *fn_ptr, int *mvcost[2], union int_mv *center_mv);

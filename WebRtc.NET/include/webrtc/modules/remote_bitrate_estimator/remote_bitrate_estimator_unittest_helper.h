@@ -79,7 +79,7 @@ class RtpStream {
   int64_t GenerateFrame(int64_t time_now_us, PacketList* packets);
 
   // The send-side time when the next frame can be generated.
-  double next_rtp_time() const;
+  int64_t next_rtp_time() const;
 
   // Generates an RTCP packet.
   RtcpPacket* Rtcp(int64_t time_now_us);
@@ -112,7 +112,7 @@ class StreamGenerator {
  public:
   typedef std::list<RtpStream::RtcpPacket*> RtcpList;
 
-  StreamGenerator(int capacity, double time_now);
+  StreamGenerator(int capacity, int64_t time_now);
 
   ~StreamGenerator();
 
@@ -203,15 +203,16 @@ class RemoteBitrateEstimatorTest : public ::testing::Test {
   void RateIncreaseRtpTimestampsTestHelper(int expected_iterations);
   void CapacityDropTestHelper(int number_of_streams,
                               bool wrap_time_stamp,
-                              uint32_t expected_bitrate_drop_delta);
+                              uint32_t expected_bitrate_drop_delta,
+                              int64_t receiver_clock_offset_change_ms);
 
   static const uint32_t kDefaultSsrc;
-  static const int kArrivalTimeClockOffsetMs = 60000;
 
   SimulatedClock clock_;  // Time at the receiver.
   std::unique_ptr<testing::TestBitrateObserver> bitrate_observer_;
   std::unique_ptr<RemoteBitrateEstimator> bitrate_estimator_;
   std::unique_ptr<testing::StreamGenerator> stream_generator_;
+  int64_t arrival_time_offset_ms_;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(RemoteBitrateEstimatorTest);
 };

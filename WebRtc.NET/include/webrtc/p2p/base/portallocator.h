@@ -189,13 +189,17 @@ class PortAllocatorSession : public sigslot::has_slots<> {
   virtual std::vector<PortInterface*> ReadyPorts() const = 0;
   virtual std::vector<Candidate> ReadyCandidates() const = 0;
   virtual bool CandidatesAllocationDone() const = 0;
+  // Marks all ports in the current session as "pruned" so that they may be
+  // destroyed if no connection is using them.
+  virtual void PruneAllPorts() {}
 
   sigslot::signal2<PortAllocatorSession*, PortInterface*> SignalPortReady;
-  // Ports should be signaled to be removed when the networks of the ports
-  // failed (either because the interface is down, or because there is no
-  // connection on the interface).
+  // Fires this signal when the network of the ports failed (either because the
+  // interface is down, or because there is no connection on the interface),
+  // or when TURN ports are pruned because a higher-priority TURN port becomes
+  // ready(pairable).
   sigslot::signal2<PortAllocatorSession*, const std::vector<PortInterface*>&>
-      SignalPortsRemoved;
+      SignalPortsPruned;
   sigslot::signal2<PortAllocatorSession*,
                    const std::vector<Candidate>&> SignalCandidatesReady;
   // Candidates should be signaled to be removed when the port that generated
@@ -203,11 +207,6 @@ class PortAllocatorSession : public sigslot::has_slots<> {
   sigslot::signal2<PortAllocatorSession*, const std::vector<Candidate>&>
       SignalCandidatesRemoved;
   sigslot::signal1<PortAllocatorSession*> SignalCandidatesAllocationDone;
-  // A TURN port is pruned if a higher-priority TURN port becomes ready
-  // (pairable). When it is pruned, it will not be used for creating
-  // connections and its candidates will not be sent to the remote side
-  // if they have not been sent.
-  sigslot::signal2<PortAllocatorSession*, PortInterface*> SignalPortPruned;
 
   virtual uint32_t generation() { return generation_; }
   virtual void set_generation(uint32_t generation) { generation_ = generation; }
@@ -302,7 +301,6 @@ class PortAllocator : public sigslot::has_slots<> {
   virtual void SetNetworkIgnoreMask(int network_ignore_mask) = 0;
 
   std::unique_ptr<PortAllocatorSession> CreateSession(
-      const std::string& sid,
       const std::string& content_name,
       int component,
       const std::string& ice_ufrag,

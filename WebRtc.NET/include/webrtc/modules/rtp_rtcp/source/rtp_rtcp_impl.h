@@ -112,14 +112,15 @@ class ModuleRtpRtcpImpl : public RtpRtcp {
 
   // Used by the codec module to deliver a video or audio frame for
   // packetization.
-  int32_t SendOutgoingData(FrameType frame_type,
-                           int8_t payload_type,
-                           uint32_t time_stamp,
-                           int64_t capture_time_ms,
-                           const uint8_t* payload_data,
-                           size_t payload_size,
-                           const RTPFragmentationHeader* fragmentation = NULL,
-                           const RTPVideoHeader* rtp_video_hdr = NULL) override;
+  bool SendOutgoingData(FrameType frame_type,
+                        int8_t payload_type,
+                        uint32_t time_stamp,
+                        int64_t capture_time_ms,
+                        const uint8_t* payload_data,
+                        size_t payload_size,
+                        const RTPFragmentationHeader* fragmentation,
+                        const RTPVideoHeader* rtp_video_header,
+                        uint32_t* transport_frame_id_out) override;
 
   bool TimeToSendPacket(uint32_t ssrc,
                         uint16_t sequence_number,
@@ -265,12 +266,6 @@ class ModuleRtpRtcpImpl : public RtpRtcp {
                                     uint16_t time_ms,
                                     uint8_t level) override;
 
-  // Set payload type for Redundant Audio Data RFC 2198.
-  int32_t SetSendREDPayloadType(int8_t payload_type) override;
-
-  // Get payload type for Redundant Audio Data RFC 2198.
-  int32_t SendREDPayloadType(int8_t* payload_type) const override;
-
   // Store the audio level in d_bov for header-extension-for-audio-level-
   // indication.
   int32_t SetAudioLevel(uint8_t level_d_bov) override;
@@ -284,8 +279,6 @@ class ModuleRtpRtcpImpl : public RtpRtcp {
 
   // Send a request for a keyframe.
   int32_t RequestKeyFrame() override;
-
-  void SetTargetSendBitrate(uint32_t bitrate_bps) override;
 
   void SetGenericFECStatus(bool enable,
                            uint8_t payload_type_red,

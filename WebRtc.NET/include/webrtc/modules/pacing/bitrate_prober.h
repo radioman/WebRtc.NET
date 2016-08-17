@@ -11,10 +11,9 @@
 #ifndef WEBRTC_MODULES_PACING_BITRATE_PROBER_H_
 #define WEBRTC_MODULES_PACING_BITRATE_PROBER_H_
 
-#include <cstddef>
-#include <list>
 #include <queue>
 
+#include "webrtc/base/basictypes.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -35,9 +34,11 @@ class BitrateProber {
   // Initializes a new probing session if the prober is allowed to probe. Does
   // not initialize the prober unless the packet size is large enough to probe
   // with.
-  void OnIncomingPacket(uint32_t bitrate_bps,
-                        size_t packet_size,
-                        int64_t now_ms);
+  void OnIncomingPacket(size_t packet_size);
+
+  // Create a cluster used to probe for |bitrate_bps| with |num_packets| number
+  // of packets.
+  void CreateProbeCluster(int bitrate_bps, int num_packets);
 
   // Returns the number of milliseconds until the next packet should be sent to
   // get accurate probing.
@@ -55,7 +56,18 @@ class BitrateProber {
   void PacketSent(int64_t now_ms, size_t packet_size);
 
  private:
-  enum ProbingState { kDisabled, kAllowedToProbe, kProbing, kWait };
+  enum class ProbingState {
+    // Probing will not be triggered in this state at all times.
+    kDisabled,
+    // Probing is enabled and ready to trigger on the first packet arrival.
+    kInactive,
+    // Probe cluster is filled with the set of data rates to be probed and
+    // probes are being sent.
+    kActive,
+    // Probing is enabled, but currently suspended until an explicit trigger
+    // to start probing again.
+    kSuspended,
+  };
 
   struct ProbeCluster {
     int max_probe_packets = 0;
@@ -64,13 +76,17 @@ class BitrateProber {
     int id = -1;
   };
 
+  // Resets the state of the prober and clears any cluster/timing data tracked.
+  void ResetState();
+
   ProbingState probing_state_;
   // Probe bitrate per packet. These are used to compute the delta relative to
   // the previous probe packet based on the size and time when that packet was
   // sent.
   std::queue<ProbeCluster> clusters_;
-  size_t packet_size_last_send_;
-  int64_t time_last_send_ms_;
+  size_t packet_size_last_sent_;
+  // The last time a probe was sent.
+  int64_t time_last_probe_sent_ms_;
   int next_cluster_id_;
 };
 }  // namespace webrtc

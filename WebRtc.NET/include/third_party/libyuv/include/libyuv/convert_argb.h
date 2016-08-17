@@ -12,10 +12,8 @@
 #define INCLUDE_LIBYUV_CONVERT_ARGB_H_
 
 #include "libyuv/basic_types.h"
-// TODO(fbarchard): Remove the following headers includes
-#include "libyuv/convert_from.h"
-#include "libyuv/planar_functions.h"
-#include "libyuv/rotate.h"
+
+#include "libyuv/rotate.h"  // For enum RotationMode.
 
 // TODO(fbarchard): This set of functions should exactly match convert.h
 // TODO(fbarchard): Add tests. Create random content of right size and convert
@@ -39,6 +37,14 @@ int ARGBCopy(const uint8* src_argb, int src_stride_argb,
 // Convert I420 to ARGB.
 LIBYUV_API
 int I420ToARGB(const uint8* src_y, int src_stride_y,
+               const uint8* src_u, int src_stride_u,
+               const uint8* src_v, int src_stride_v,
+               uint8* dst_argb, int dst_stride_argb,
+               int width, int height);
+
+// Duplicate prototype for function in convert_from.h for remoting.
+LIBYUV_API
+int I420ToABGR(const uint8* src_y, int src_stride_y,
                const uint8* src_u, int src_stride_u,
                const uint8* src_v, int src_stride_v,
                uint8* dst_argb, int dst_stride_argb,

@@ -45,6 +45,7 @@ typedef struct {
   double intra_error;
   double coded_error;
   double sr_coded_error;
+  double frame_noise_energy;
   double pcnt_inter;
   double pcnt_motion;
   double pcnt_second_ref;
@@ -134,6 +135,7 @@ typedef struct {
   int extend_minq;
   int extend_maxq;
   int extend_minq_fast;
+  int arnr_strength_adjustment;
 
   GF_GROUP gf_group;
 } TWO_PASS;
@@ -152,8 +154,7 @@ void vp9_twopass_postencode_update(struct VP9_COMP *cpi);
 // Post encode update of the rate control parameters for 2-pass
 void vp9_twopass_postencode_update(struct VP9_COMP *cpi);
 
-void calculate_coded_size(struct VP9_COMP *cpi,
-                          int *scaled_frame_width,
+void calculate_coded_size(struct VP9_COMP *cpi, int *scaled_frame_width,
                           int *scaled_frame_height);
 
 #ifdef __cplusplus

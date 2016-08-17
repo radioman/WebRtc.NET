@@ -25,7 +25,6 @@
 #include "webrtc/media/base/codec.h"
 #include "webrtc/media/base/mediachannel.h"
 #include "webrtc/media/base/mediacommon.h"
-#include "webrtc/media/base/videocapturer.h"
 #include "webrtc/media/base/videocommon.h"
 #include "webrtc/modules/audio_coding/codecs/audio_decoder_factory.h"
 
@@ -39,8 +38,6 @@ class Call;
 }
 
 namespace cricket {
-
-class VideoCapturer;
 
 struct RtpCapabilities {
   std::vector<webrtc::RtpExtension> header_extensions;
@@ -171,11 +168,7 @@ class CompositeMediaEngine : public MediaEngineInterface {
   VIDEO video_;
 };
 
-enum DataChannelType {
-  DCT_NONE = 0,
-  DCT_RTP = 1,
-  DCT_SCTP = 2
-};
+enum DataChannelType { DCT_NONE = 0, DCT_RTP = 1, DCT_SCTP = 2, DCT_QUIC = 3 };
 
 class DataEngineInterface {
  public:

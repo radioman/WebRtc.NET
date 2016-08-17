@@ -107,6 +107,7 @@
 #pragma comment(lib,"video_processing.lib")
 #pragma comment(lib,"video_processing_sse2.lib")
 #pragma comment(lib,"voice_engine.lib")
+#pragma comment(lib,"level_indicator.lib")
 #pragma comment(lib,"webrtc.lib")
 #pragma comment(lib,"webrtc_common.lib")
 #pragma comment(lib,"webrtc_h264.lib")

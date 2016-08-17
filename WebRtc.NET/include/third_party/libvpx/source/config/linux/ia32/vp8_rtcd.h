@@ -182,23 +182,10 @@ int vp8_mbblock_error_mmx(struct macroblock *mb, int dc);
 int vp8_mbblock_error_xmm(struct macroblock *mb, int dc);
 RTCD_EXTERN int (*vp8_mbblock_error)(struct macroblock *mb, int dc);
 
-void vp8_mbpost_proc_across_ip_c(unsigned char *dst, int pitch, int rows, int cols,int flimit);
-void vp8_mbpost_proc_across_ip_xmm(unsigned char *dst, int pitch, int rows, int cols,int flimit);
-RTCD_EXTERN void (*vp8_mbpost_proc_across_ip)(unsigned char *dst, int pitch, int rows, int cols,int flimit);
-
-void vp8_mbpost_proc_down_c(unsigned char *dst, int pitch, int rows, int cols,int flimit);
-void vp8_mbpost_proc_down_mmx(unsigned char *dst, int pitch, int rows, int cols,int flimit);
-void vp8_mbpost_proc_down_xmm(unsigned char *dst, int pitch, int rows, int cols,int flimit);
-RTCD_EXTERN void (*vp8_mbpost_proc_down)(unsigned char *dst, int pitch, int rows, int cols,int flimit);
-
 int vp8_mbuverror_c(struct macroblock *mb);
 int vp8_mbuverror_mmx(struct macroblock *mb);
 int vp8_mbuverror_xmm(struct macroblock *mb);
 RTCD_EXTERN int (*vp8_mbuverror)(struct macroblock *mb);
-
-void vp8_post_proc_down_and_across_mb_row_c(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int cols, unsigned char *flimits, int size);
-void vp8_post_proc_down_and_across_mb_row_sse2(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int cols, unsigned char *flimits, int size);
-RTCD_EXTERN void (*vp8_post_proc_down_and_across_mb_row)(unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, int cols, unsigned char *flimits, int size);
 
 int vp8_refining_search_sad_c(struct macroblock *x, struct block *b, struct blockd *d, union int_mv *ref_mv, int sad_per_bit, int distance, struct variance_vtable *fn_ptr, int *mvcost[2], union int_mv *center_mv);
 int vp8_refining_search_sadx4(struct macroblock *x, struct block *b, struct blockd *d, union int_mv *ref_mv, int sad_per_bit, int distance, struct variance_vtable *fn_ptr, int *mvcost[2], union int_mv *center_mv);
@@ -350,16 +337,9 @@ static void setup_rtcd_internal(void)
     vp8_mbblock_error = vp8_mbblock_error_c;
     if (flags & HAS_MMX) vp8_mbblock_error = vp8_mbblock_error_mmx;
     if (flags & HAS_SSE2) vp8_mbblock_error = vp8_mbblock_error_xmm;
-    vp8_mbpost_proc_across_ip = vp8_mbpost_proc_across_ip_c;
-    if (flags & HAS_SSE2) vp8_mbpost_proc_across_ip = vp8_mbpost_proc_across_ip_xmm;
-    vp8_mbpost_proc_down = vp8_mbpost_proc_down_c;
-    if (flags & HAS_MMX) vp8_mbpost_proc_down = vp8_mbpost_proc_down_mmx;
-    if (flags & HAS_SSE2) vp8_mbpost_proc_down = vp8_mbpost_proc_down_xmm;
     vp8_mbuverror = vp8_mbuverror_c;
     if (flags & HAS_MMX) vp8_mbuverror = vp8_mbuverror_mmx;
     if (flags & HAS_SSE2) vp8_mbuverror = vp8_mbuverror_xmm;
-    vp8_post_proc_down_and_across_mb_row = vp8_post_proc_down_and_across_mb_row_c;
-    if (flags & HAS_SSE2) vp8_post_proc_down_and_across_mb_row = vp8_post_proc_down_and_across_mb_row_sse2;
     vp8_refining_search_sad = vp8_refining_search_sad_c;
     if (flags & HAS_SSE3) vp8_refining_search_sad = vp8_refining_search_sadx4;
     vp8_regular_quantize_b = vp8_regular_quantize_b_c;

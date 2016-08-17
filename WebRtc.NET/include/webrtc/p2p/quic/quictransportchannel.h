@@ -166,9 +166,6 @@ class QuicTransportChannel : public TransportChannelImpl,
   void SetIceConfig(const IceConfig& config) override {
     channel_->SetIceConfig(config);
   }
-  void Connect() override {
-    channel_->Connect();
-  }
 
   // QuicPacketWriter overrides.
   // Called from net::QuicConnection when |quic_| has packets to write.
@@ -213,6 +210,8 @@ class QuicTransportChannel : public TransportChannelImpl,
   QuicTransportState quic_state() const { return quic_state_; }
   // Creates a new QUIC stream that can send data.
   ReliableQuicStream* CreateQuicStream();
+
+  TransportChannelImpl* ice_transport_channel() { return channel_.get(); }
 
   // Emitted when |quic_| creates a QUIC stream to receive data from the remote
   // peer, when the stream did not exist previously.

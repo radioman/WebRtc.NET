@@ -36,7 +36,6 @@
 #include "webrtc/voice_engine/voice_engine_defines.h"
 
 namespace rtc {
-
 class TimestampWrapAroundHandler;
 }
 
@@ -47,6 +46,7 @@ class Config;
 class FileWrapper;
 class PacketRouter;
 class ProcessThread;
+class RateLimiter;
 class ReceiveStatistics;
 class RemoteNtpTimeEstimator;
 class RtcEventLog;
@@ -228,6 +228,7 @@ class Channel
   int32_t SetSendCNPayloadType(int type, PayloadFrequencies frequency);
   int SetOpusMaxPlaybackRate(int frequency_hz);
   int SetOpusDtx(bool enable_dtx);
+  int GetOpusDtx(bool* enabled);
 
   // VoENetwork
   int32_t RegisterExternalTransport(Transport* transport);
@@ -505,9 +506,9 @@ class Channel
   AudioFrame _audioFrame;
   // Downsamples to the codec rate if necessary.
   PushResampler<int16_t> input_resampler_;
-  FilePlayer* _inputFilePlayerPtr;
-  FilePlayer* _outputFilePlayerPtr;
-  FileRecorder* _outputFileRecorderPtr;
+  std::unique_ptr<FilePlayer> input_file_player_;
+  std::unique_ptr<FilePlayer> output_file_player_;
+  std::unique_ptr<FileRecorder> output_file_recorder_;
   int _inputFilePlayerId;
   int _outputFilePlayerId;
   int _outputFileRecorderId;
@@ -588,6 +589,7 @@ class Channel
   std::unique_ptr<TransportFeedbackProxy> feedback_observer_proxy_;
   std::unique_ptr<TransportSequenceNumberProxy> seq_num_allocator_proxy_;
   std::unique_ptr<RtpPacketSenderProxy> rtp_packet_sender_proxy_;
+  std::unique_ptr<RateLimiter> retransmission_rate_limiter_;
 
   // TODO(ossu): Remove once GetAudioDecoderFactory() is no longer needed.
   rtc::scoped_refptr<AudioDecoderFactory> decoder_factory_;

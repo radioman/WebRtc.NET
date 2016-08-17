@@ -31,6 +31,12 @@ const int SRTP_AES128_CM_SHA1_80 = 0x0001;
 #ifndef SRTP_AES128_CM_SHA1_32
 const int SRTP_AES128_CM_SHA1_32 = 0x0002;
 #endif
+#ifndef SRTP_AEAD_AES_128_GCM
+const int SRTP_AEAD_AES_128_GCM = 0x0007;
+#endif
+#ifndef SRTP_AEAD_AES_256_GCM
+const int SRTP_AEAD_AES_256_GCM = 0x0008;
+#endif
 
 // Cipher suite to use for SRTP. Typically a 80-bit HMAC will be used, except
 // in applications (voice) where the additional bandwidth may be significant.
@@ -39,6 +45,10 @@ const int SRTP_AES128_CM_SHA1_32 = 0x0002;
 extern const char CS_AES_CM_128_HMAC_SHA1_80[];
 // 128-bit AES with 32-bit SHA-1 HMAC.
 extern const char CS_AES_CM_128_HMAC_SHA1_32[];
+// 128-bit AES GCM with 16 byte AEAD auth tag.
+extern const char CS_AEAD_AES_128_GCM[];
+// 256-bit AES GCM with 16 byte AEAD auth tag.
+extern const char CS_AEAD_AES_256_GCM[];
 
 // Given the DTLS-SRTP protection profile ID, as defined in
 // https://tools.ietf.org/html/rfc4568#section-6.2 , return the SRTP profile
@@ -47,6 +57,30 @@ std::string SrtpCryptoSuiteToName(int crypto_suite);
 
 // The reverse of above conversion.
 int SrtpCryptoSuiteFromName(const std::string& crypto_suite);
+
+// Get key length and salt length for given crypto suite. Returns true for
+// valid suites, otherwise false.
+bool GetSrtpKeyAndSaltLengths(int crypto_suite, int *key_length,
+    int *salt_length);
+
+// Returns true if the given crypto suite id uses a GCM cipher.
+bool IsGcmCryptoSuite(int crypto_suite);
+
+// Returns true if the given crypto suite name uses a GCM cipher.
+bool IsGcmCryptoSuiteName(const std::string& crypto_suite);
+
+struct CryptoOptions {
+  CryptoOptions() {}
+
+  // Helper method to return an instance of the CryptoOptions with GCM crypto
+  // suites disabled. This method should be used instead of depending on current
+  // default values set by the constructor.
+  static CryptoOptions NoGcm();
+
+  // Enable GCM crypto suites from RFC 7714 for SRTP. GCM will only be used
+  // if both sides enable it.
+  bool enable_gcm_crypto_suites = false;
+};
 
 // SSLStreamAdapter : A StreamInterfaceAdapter that does SSL/TLS.
 // After SSL has been started, the stream will only open on successful
@@ -93,21 +127,18 @@ class SSLStreamAdapter : public StreamAdapterInterface {
   void set_client_auth_enabled(bool enabled) { client_auth_enabled_ = enabled; }
   bool client_auth_enabled() const { return client_auth_enabled_; }
 
-  // Specify our SSL identity: key and certificate. Mostly this is
-  // only used in the peer-to-peer mode (unless we actually want to
-  // provide a client certificate to a server).
-  // SSLStream takes ownership of the SSLIdentity object and will
-  // free it when appropriate. Should be called no more than once on a
-  // given SSLStream instance.
+  // Specify our SSL identity: key and certificate. SSLStream takes ownership
+  // of the SSLIdentity object and will free it when appropriate. Should be
+  // called no more than once on a given SSLStream instance.
   virtual void SetIdentity(SSLIdentity* identity) = 0;
 
-  // Call this to indicate that we are to play the server's role in
-  // the peer-to-peer mode.
-  // The default argument is for backward compatibility
+  // Call this to indicate that we are to play the server role (or client role,
+  // if the default argument is replaced by SSL_CLIENT).
+  // The default argument is for backward compatibility.
   // TODO(ekr@rtfm.com): rename this SetRole to reflect its new function
   virtual void SetServerRole(SSLRole role = SSL_SERVER) = 0;
 
-  // Do DTLS or TLS
+  // Do DTLS or TLS.
   virtual void SetMode(SSLMode mode) = 0;
 
   // Set maximum supported protocol version. The highest version supported by
@@ -117,42 +148,29 @@ class SSLStreamAdapter : public StreamAdapterInterface {
   // next lower will be used.
   virtual void SetMaxProtocolVersion(SSLProtocolVersion version) = 0;
 
-  // The mode of operation is selected by calling either
-  // StartSSLWithServer or StartSSLWithPeer.
-  // Use of the stream prior to calling either of these functions will
-  // pass data in clear text.
-  // Calling one of these functions causes SSL negotiation to begin as
-  // soon as possible: right away if the underlying wrapped stream is
-  // already opened, or else as soon as it opens.
+  // StartSSL starts negotiation with a peer, whose certificate is verified
+  // using the certificate digest. Generally, SetIdentity() and possibly
+  // SetServerRole() should have been called before this.
+  // SetPeerCertificateDigest() must also be called. It may be called after
+  // StartSSLWithPeer() but must be called before the underlying stream opens.
   //
-  // These functions return a negative error code on failure.
-  // Returning 0 means success so far, but negotiation is probably not
-  // complete and will continue asynchronously.  In that case, the
-  // exposed stream will open after successful negotiation and
-  // verification, or an SE_CLOSE event will be raised if negotiation
-  // fails.
+  // Use of the stream prior to calling StartSSL will pass data in clear text.
+  // Calling StartSSL causes SSL negotiation to begin as soon as possible: right
+  // away if the underlying wrapped stream is already opened, or else as soon as
+  // it opens.
+  //
+  // StartSSL returns a negative error code on failure. Returning 0 means
+  // success so far, but negotiation is probably not complete and will continue
+  // asynchronously. In that case, the exposed stream will open after
+  // successful negotiation and verification, or an SE_CLOSE event will be
+  // raised if negotiation fails.
+  virtual int StartSSL() = 0;
 
-  // StartSSLWithServer starts SSL negotiation with a server in
-  // traditional mode. server_name specifies the expected server name
-  // which the server's certificate needs to specify.
-  virtual int StartSSLWithServer(const char* server_name) = 0;
-
-  // StartSSLWithPeer starts negotiation in the special peer-to-peer
-  // mode.
-  // Generally, SetIdentity() and possibly SetServerRole() should have
-  // been called before this.
-  // SetPeerCertificate() or SetPeerCertificateDigest() must also be called.
-  // It may be called after StartSSLWithPeer() but must be called before the
-  // underlying stream opens.
-  virtual int StartSSLWithPeer() = 0;
-
-  // Specify the digest of the certificate that our peer is expected to use in
-  // peer-to-peer mode. Only this certificate will be accepted during
-  // SSL verification. The certificate is assumed to have been
-  // obtained through some other secure channel (such as the XMPP
-  // channel). Unlike SetPeerCertificate(), this must specify the
-  // terminal certificate, not just a CA.
-  // SSLStream makes a copy of the digest value.
+  // Specify the digest of the certificate that our peer is expected to use.
+  // Only this certificate will be accepted during SSL verification. The
+  // certificate is assumed to have been obtained through some other secure
+  // channel (such as the signaling channel). This must specify the terminal
+  // certificate, not just a CA. SSLStream makes a copy of the digest value.
   virtual bool SetPeerCertificateDigest(const std::string& digest_alg,
                                         const unsigned char* digest_val,
                                         size_t digest_len) = 0;
