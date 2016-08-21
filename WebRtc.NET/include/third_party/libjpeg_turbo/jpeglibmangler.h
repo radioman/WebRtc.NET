@@ -8,7 +8,8 @@
 // Mangle all externally visible function names so we can build our own libjpeg
 // without system libraries trying to use it.
 
-
+#define jsimd_can_huff_encode_one_block chromium_jsimd_can_huff_encode_one_block
+#define jsimd_huff_encode_one_block     chromium_jsimd_huff_encode_one_block
 #define jsimd_can_rgb_ycc 				chromium_jsimd_can_rgb_ycc 
 #define jsimd_can_rgb_gray 				chromium_jsimd_can_rgb_gray 
 #define jsimd_can_ycc_rgb 				chromium_jsimd_can_ycc_rgb 
