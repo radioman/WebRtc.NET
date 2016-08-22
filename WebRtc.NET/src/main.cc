@@ -36,6 +36,7 @@
 #pragma comment(lib,"credui.lib")
 #pragma comment(lib,"netapi32.lib")
 
+#pragma comment(lib,"liblept168.lib")
 #pragma comment(lib,"turbojpeg-static.lib")
 
 #pragma comment(lib,"audioproc_debug_proto.lib")

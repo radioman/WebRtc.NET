@@ -55,7 +55,7 @@ namespace WebRtc.NET.AppLib
                 {
                     var data = img.LockBits(bounds, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
                     {
-                        encoder.EncodeRGB24toI420((byte*)data.Scan0.ToPointer(), data.Width, data.Height, yuv, yuvSize, false);
+                        encoder.EncodeBGR24toI420((byte*)data.Scan0.ToPointer(), data.Width, data.Height, yuv, yuvSize, false);
                     }
                     img.UnlockBits(data);
                 }
