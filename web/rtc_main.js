@@ -111,33 +111,20 @@ function startStream() {
         else {
             console.log('onicecandidate: complete.')
 
-            if (remoteAnswer) {
-
-                remotestream.setRemoteDescription(
-                new RTCSessionDescription({ type: "answer", sdp: remoteAnswer }),
-                function () { },
-                function (errorInformation) {
-                    console.log('setRemoteDescription error: ' + errorInformation);
-                    socket.close();
-                });
-
-                for (var i = 0, lenr = remoteIce.length; i < lenr; i++) {
-                    var c = remoteIce[i];
-                    remotestream.addIceCandidate(c);
-                }
+            if (remoteAnswer) {                
 
                 // fill empty pairs using last remote ice
-                for (var i = 0, lenl = localIce.length; i < lenl; i++) {
-                    if (i >= remoteIce.length) {
-                        var c = remoteIce[remoteIce.length - 1];
+                //for (var i = 0, lenl = localIce.length; i < lenl; i++) {
+                //    if (i >= remoteIce.length) {
+                //        var c = remoteIce[remoteIce.length - 1];
 
-                        var ice = parseIce(c.candidate);
-                        ice.foundation += i;
-                        c.candidate = stringifyIce(ice);
+                //        var ice = parseIce(c.candidate);
+                //        ice.foundation += i;
+                //        c.candidate = stringifyIce(ice);
 
-                        remotestream.addIceCandidate(c);
-                    }
-                }
+                //        remotestream.addIceCandidate(c);
+                //    }
+                //}
             }
         }
     };
@@ -170,60 +157,68 @@ function connect() {
     document.getElementById('btnconnect').disabled = true;
 
     socket = new WebSocket("ws://" + server.value);
-    setSocketEvents(socket);
 
-    function setSocketEvents(Socket) {
-        Socket.onopen = function () {
-            console.log("Socket connected!");
+    socket.onopen = function () {
+        console.log("Socket connected!");
 
-            startStream();
-        };
+        startStream();
+    };
 
-        Socket.onclose = function () {
-            console.log("Socket connection has been disconnected!");
+    socket.onclose = function () {
+        console.log("Socket connection has been disconnected!");
 
-            if (remotestream) {
-                remotestream.close();
-                remotestream = null;
-            }
-            remoteAnswer = null;
-            remoteIce = [];
-            localIce = [];
-
-            document.getElementById('btnconnect').disabled = false;
+        if (remotestream) {
+            remotestream.close();
+            remotestream = null;
         }
+        remoteAnswer = null;
+        remoteIce = [];
+        localIce = [];
 
-        Socket.onmessage = function (Message) {
-            var obj = JSON.parse(Message.data);
-            var command = obj.command;
-            switch (command) {
-                case "OnSuccessAnswer": {
-                    if (remotestream) {
-                        console.log("OnSuccessAnswer[remote]: " + obj.sdp);
+        document.getElementById('btnconnect').disabled = false;
+    };
 
-                        remoteAnswer = obj.sdp;
-                    }
-                }
-                    break;
+    socket.onmessage = function (Message) {
+        var obj = JSON.parse(Message.data);
+        var command = obj.command;
+        switch (command) {
+            case "OnSuccessAnswer": {
+                if (remotestream) {
+                    console.log("OnSuccessAnswer[remote]: " + obj.sdp);
 
-                case "OnIceCandidate": {
-                    if (remotestream) {
-                        console.log("OnIceCandidate[remote]: " + obj.sdp);
+                    remoteAnswer = obj.sdp;
 
-                        remoteIce.push(new RTCIceCandidate({
-                            sdpMLineIndex: obj.sdp_mline_index,
-                            candidate: obj.sdp
-                        }));
-                    }
-                }
-                    break;
-
-                default: {
-                    console.log(Message.data);
+                    remotestream.setRemoteDescription(
+                    new RTCSessionDescription({ type: "answer", sdp: remoteAnswer }),
+                    function () { },
+                    function (errorInformation) {
+                        console.log('setRemoteDescription error: ' + errorInformation);
+                        socket.close();
+                    });
                 }
             }
-        };
-    }
+                break;
+
+            case "OnIceCandidate": {
+                if (remotestream) {
+                    console.log("OnIceCandidate[remote]: " + obj.sdp);
+
+                    var c = new RTCIceCandidate({
+                        sdpMLineIndex: obj.sdp_mline_index,
+                        candidate: obj.sdp
+                    });
+                    remoteIce.push(c);
+
+                    remotestream.addIceCandidate(c);
+                }
+            }
+                break;
+
+            default: {
+                console.log(Message.data);
+            }
+        }
+    };
 }
 
 function dumpStat(o) {
