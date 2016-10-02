@@ -13,16 +13,19 @@
 #include <string>
 #include <vector>
 
+#include "webrtc/base/ignore_wundef.h"
 #include "webrtc/call/rtc_event_log.h"
 #include "webrtc/video_receive_stream.h"
 #include "webrtc/video_send_stream.h"
 
 // Files generated at build-time by the protobuf compiler.
+RTC_PUSH_IGNORING_WUNDEF()
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/call/rtc_event_log.pb.h"
 #else
 #include "webrtc/call/rtc_event_log.pb.h"
 #endif
+RTC_POP_IGNORING_WUNDEF()
 
 namespace webrtc {
 
@@ -49,6 +52,12 @@ class ParsedRtcEventLog {
 
   // Reads an RtcEventLog file and returns true if parsing was successful.
   bool ParseFile(const std::string& file_name);
+
+  // Reads an RtcEventLog from a string and returns true if successful.
+  bool ParseString(const std::string& s);
+
+  // Reads an RtcEventLog from an istream and returns true if successful.
+  bool ParseStream(std::istream& stream);
 
   // Returns the number of events in an EventStream.
   size_t GetNumberOfEvents() const;
@@ -106,7 +115,7 @@ class ParsedRtcEventLog {
                              int32_t* total_packets) const;
 
  private:
-  std::vector<rtclog::Event> stream_;
+  std::vector<rtclog::Event> events_;
 };
 
 }  // namespace webrtc

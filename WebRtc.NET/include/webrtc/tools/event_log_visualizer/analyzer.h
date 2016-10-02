@@ -11,11 +11,12 @@
 #ifndef WEBRTC_TOOLS_EVENT_LOG_VISUALIZER_ANALYZER_H_
 #define WEBRTC_TOOLS_EVENT_LOG_VISUALIZER_ANALYZER_H_
 
-#include <vector>
 #include <map>
 #include <memory>
 #include <set>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "webrtc/call/rtc_event_log_parser.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -29,6 +30,7 @@ struct LoggedRtpPacket {
   LoggedRtpPacket(uint64_t timestamp, RTPHeader header, size_t total_length)
       : timestamp(timestamp), header(header), total_length(total_length) {}
   uint64_t timestamp;
+  // TODO(terelius): This allocates space for 15 CSRCs even if none are used.
   RTPHeader header;
   size_t total_length;
 };
@@ -59,9 +61,16 @@ class EventLogAnalyzer {
 
   void CreatePacketGraph(PacketDirection desired_direction, Plot* plot);
 
+  void CreateAccumulatedPacketsGraph(PacketDirection desired_direction,
+                                     Plot* plot);
+
   void CreatePlayoutGraph(Plot* plot);
 
+  void CreateAudioLevelGraph(Plot* plot);
+
   void CreateSequenceNumberGraph(Plot* plot);
+
+  void CreateIncomingPacketLossGraph(Plot* plot);
 
   void CreateDelayChangeGraph(Plot* plot);
 
@@ -98,11 +107,20 @@ class EventLogAnalyzer {
     webrtc::PacketDirection direction_;
   };
 
-  bool IsRtxSsrc(StreamId stream_id);
+  template <typename T>
+  void CreateAccumulatedPacketsTimeSeries(
+      PacketDirection desired_direction,
+      Plot* plot,
+      const std::map<StreamId, std::vector<T>>& packets,
+      const std::string& label_prefix);
 
-  bool IsVideoSsrc(StreamId stream_id);
+  bool IsRtxSsrc(StreamId stream_id) const;
 
-  bool IsAudioSsrc(StreamId stream_id);
+  bool IsVideoSsrc(StreamId stream_id) const;
+
+  bool IsAudioSsrc(StreamId stream_id) const;
+
+  std::string GetStreamName(StreamId) const;
 
   const ParsedRtcEventLog& parsed_log_;
 

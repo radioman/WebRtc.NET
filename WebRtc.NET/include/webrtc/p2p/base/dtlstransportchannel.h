@@ -163,13 +163,11 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
   void SetIceTiebreaker(uint64_t tiebreaker) override {
     channel_->SetIceTiebreaker(tiebreaker);
   }
-  void SetIceCredentials(const std::string& ice_ufrag,
-                         const std::string& ice_pwd) override {
-    channel_->SetIceCredentials(ice_ufrag, ice_pwd);
+  void SetIceParameters(const IceParameters& ice_params) override {
+    channel_->SetIceParameters(ice_params);
   }
-  void SetRemoteIceCredentials(const std::string& ice_ufrag,
-                               const std::string& ice_pwd) override {
-    channel_->SetRemoteIceCredentials(ice_ufrag, ice_pwd);
+  void SetRemoteIceParameters(const IceParameters& ice_params) override {
+    channel_->SetRemoteIceParameters(ice_params);
   }
   void SetRemoteIceMode(IceMode mode) override {
     channel_->SetRemoteIceMode(mode);
@@ -195,8 +193,12 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
   // Needed by DtlsTransport.
   TransportChannelImpl* channel() { return channel_; }
 
+  // For informational purposes. Tells if the DTLS handshake has finished.
+  // This may be true even if writable() is false, if the remote fingerprint
+  // has not yet been verified.
+  bool IsDtlsConnected();
+
  private:
-  void OnReadableState(TransportChannel* channel);
   void OnWritableState(TransportChannel* channel);
   void OnReadPacket(TransportChannel* channel, const char* data, size_t size,
                     const rtc::PacketTime& packet_time, int flags);
@@ -220,6 +222,7 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
       int last_sent_packet_id,
       bool ready_to_send);
   void OnChannelStateChanged(TransportChannelImpl* channel);
+  void OnDtlsHandshakeError(rtc::SSLHandshakeError error);
 
   rtc::Thread* worker_thread_;  // Everything should occur on this thread.
   // Underlying channel, not owned by this class.

@@ -11,125 +11,30 @@
 #ifndef WEBRTC_MODULES_RTP_RTCP_SOURCE_RTCP_RECEIVER_HELP_H_
 #define WEBRTC_MODULES_RTP_RTCP_SOURCE_RTCP_RECEIVER_HELP_H_
 
-#include <list>
-#include <memory>
-#include <vector>
-
-#include "webrtc/base/constructormagic.h"
-#include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"  // RTCPReportBlock
-#include "webrtc/modules/rtp_rtcp/source/rtcp_utility.h"
-#include "webrtc/modules/rtp_rtcp/source/tmmbr_help.h"
+#include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
-namespace rtcp {
-class TransportFeedback;
-}
-namespace RTCPHelp
-{
+namespace RTCPHelp {
 
-class RTCPReportBlockInformation
-{
-public:
-    RTCPReportBlockInformation();
-    ~RTCPReportBlockInformation();
+class RTCPReportBlockInformation {
+ public:
+  RTCPReportBlockInformation();
+  ~RTCPReportBlockInformation();
 
-    // Statistics
-    RTCPReportBlock remoteReceiveBlock;
-    uint32_t        remoteMaxJitter;
+  // Statistics
+  RTCPReportBlock remoteReceiveBlock;
+  uint32_t remoteMaxJitter;
 
-    // RTT
-    int64_t  RTT;
-    int64_t  minRTT;
-    int64_t  maxRTT;
-    int64_t  avgRTT;
-    uint32_t numAverageCalcs;
-};
-
-class RTCPPacketInformation
-{
-public:
-    RTCPPacketInformation();
-    ~RTCPPacketInformation();
-
-    void AddVoIPMetric(const RTCPVoIPMetric*  metric);
-
-    void AddApplicationData(const uint8_t* data,
-                            const uint16_t size);
-
-    void AddNACKPacket(const uint16_t packetID);
-    void ResetNACKPacketIdArray();
-
-    void AddReportInfo(const RTCPReportBlockInformation& report_block_info);
-
-    uint32_t  rtcpPacketTypeFlags; // RTCPPacketTypeFlags bit field
-    uint32_t  remoteSSRC;
-
-    std::list<uint16_t> nackSequenceNumbers;
-
-    uint8_t   applicationSubType;
-    uint32_t  applicationName;
-    uint8_t*  applicationData;
-    uint16_t  applicationLength;
-
-    ReportBlockList report_blocks;
-    int64_t rtt;
-
-    uint32_t  interArrivalJitter;
-
-    uint8_t   sliPictureId;
-    uint64_t  rpsiPictureId;
-    uint32_t  receiverEstimatedMaxBitrate;
-
-    uint32_t ntp_secs;
-    uint32_t ntp_frac;
-    uint32_t rtp_timestamp;
-
-    uint32_t xr_originator_ssrc;
-    bool xr_dlrr_item;
-    std::unique_ptr<RTCPVoIPMetric>  VoIPMetric;
-
-    std::unique_ptr<rtcp::TransportFeedback> transport_feedback_;
-
-private:
-    RTC_DISALLOW_COPY_AND_ASSIGN(RTCPPacketInformation);
-};
-
-class RTCPReceiveInformation
-{
-public:
-    RTCPReceiveInformation();
-    ~RTCPReceiveInformation();
-
-    void VerifyAndAllocateBoundingSet(const uint32_t minimumSize);
-    void VerifyAndAllocateTMMBRSet(const uint32_t minimumSize);
-
-    void InsertTMMBRItem(const uint32_t senderSSRC,
-                         const RTCPUtility::RTCPPacketRTPFBTMMBRItem& TMMBRItem,
-                         const int64_t currentTimeMS);
-
-    // get
-    void GetTMMBRSet(int64_t current_time_ms,
-                     std::vector<rtcp::TmmbItem>* candidates);
-
-    int64_t lastTimeReceived;
-
-    // FIR
-    int32_t lastFIRSequenceNumber;
-    int64_t lastFIRRequest;
-
-    // TMMBN
-    TMMBRSet        TmmbnBoundingSet;
-
-    // TMMBR
-    TMMBRSet        TmmbrSet;
-
-    bool            readyForDelete;
-private:
-    std::vector<int64_t> _tmmbrSetTimeouts;
+  // RTT
+  int64_t RTT;
+  int64_t minRTT;
+  int64_t maxRTT;
+  int64_t avgRTT;
+  uint32_t numAverageCalcs;
 };
 
 }  // end namespace RTCPHelp
 }  // namespace webrtc
 
-#endif // WEBRTC_MODULES_RTP_RTCP_SOURCE_RTCP_RECEIVER_HELP_H_
+#endif  // WEBRTC_MODULES_RTP_RTCP_SOURCE_RTCP_RECEIVER_HELP_H_

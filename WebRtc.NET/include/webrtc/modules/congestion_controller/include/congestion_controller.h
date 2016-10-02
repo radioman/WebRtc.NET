@@ -15,12 +15,12 @@
 
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/common_types.h"
+#include "webrtc/modules/congestion_controller/transport_feedback_adapter.h"
 #include "webrtc/modules/include/module.h"
 #include "webrtc/modules/include/module_common_types.h"
 #include "webrtc/modules/pacing/packet_router.h"
 #include "webrtc/modules/pacing/paced_sender.h"
 #include "webrtc/modules/remote_bitrate_estimator/remote_estimator_proxy.h"
-#include "webrtc/modules/remote_bitrate_estimator/transport_feedback_adapter.h"
 
 namespace rtc {
 struct SentPacket;
@@ -30,6 +30,7 @@ namespace webrtc {
 
 class BitrateController;
 class Clock;
+class ProbeController;
 class ProcessThread;
 class RateLimiter;
 class RemoteBitrateEstimator;
@@ -120,6 +121,7 @@ class CongestionController : public CallStatsObserver, public Module {
   const std::unique_ptr<PacedSender> pacer_;
   const std::unique_ptr<RemoteBitrateEstimator> remote_bitrate_estimator_;
   const std::unique_ptr<BitrateController> bitrate_controller_;
+  const std::unique_ptr<ProbeController> probe_controller_;
   const std::unique_ptr<RateLimiter> retransmission_rate_limiter_;
   RemoteEstimatorProxy remote_estimator_proxy_;
   TransportFeedbackAdapter transport_feedback_adapter_;

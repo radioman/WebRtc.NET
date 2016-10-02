@@ -18,6 +18,7 @@
 
 #include "webrtc/api/peerconnectionfactory.h"
 #include "webrtc/api/peerconnectioninterface.h"
+#include "webrtc/api/rtcstatscollector.h"
 #include "webrtc/api/rtpreceiver.h"
 #include "webrtc/api/rtpsender.h"
 #include "webrtc/api/statscollector.h"
@@ -102,6 +103,7 @@ class PeerConnection : public PeerConnectionInterface,
   bool GetStats(StatsObserver* observer,
                 webrtc::MediaStreamTrackInterface* track,
                 StatsOutputLevel level) override;
+  void GetStats(RTCStatsCollectorCallback* callback) override;
 
   SignalingState signaling_state() override;
 
@@ -237,6 +239,9 @@ class PeerConnection : public PeerConnectionInterface,
       cricket::MediaSessionOptions* session_options);
   virtual bool GetOptionsForAnswer(
       const RTCOfferAnswerOptions& options,
+      cricket::MediaSessionOptions* session_options);
+
+  void InitializeOptionsForAnswer(
       cricket::MediaSessionOptions* session_options);
 
   // Helper function for options processing.
@@ -414,6 +419,8 @@ class PeerConnection : public PeerConnectionInterface,
 
   bool remote_peer_supports_msid_ = false;
 
+  bool enable_ice_renomination_ = false;
+
   std::vector<rtc::scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>>>
       senders_;
   std::vector<
@@ -422,6 +429,7 @@ class PeerConnection : public PeerConnectionInterface,
 
   std::unique_ptr<WebRtcSession> session_;
   std::unique_ptr<StatsCollector> stats_;
+  rtc::scoped_refptr<RTCStatsCollector> stats_collector_;
 };
 
 }  // namespace webrtc

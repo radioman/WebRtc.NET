@@ -13,9 +13,8 @@
 
 #include <string>
 
-#include "testing/gmock/include/gmock/gmock.h"
-
 #include "webrtc/call/rtc_event_log.h"
+#include "webrtc/test/gmock.h"
 
 namespace webrtc {
 

@@ -41,6 +41,7 @@ class VideoQualityTest : public test::CallTest {
       int min_transmit_bps;
       bool send_side_bwe;
       bool fec;
+      std::string encoded_frame_base_path;
 
       Call::Config::BitrateConfig call_bitrate_config;
     } common;
@@ -62,7 +63,7 @@ class VideoQualityTest : public test::CallTest {
     } analyzer;
     FakeNetworkPipe::Config pipe;
     bool logs;
-    struct {                             // Spatial scalability.
+    struct {  // Spatial scalability.
       std::vector<VideoStream> streams;  // If empty, one stream is assumed.
       size_t selected_stream;
       int num_spatial_layers;
@@ -70,6 +71,8 @@ class VideoQualityTest : public test::CallTest {
       // If empty, bitrates are generated in VP9Impl automatically.
       std::vector<SpatialLayer> spatial_layers;
     } ss;
+    bool audio;
+    bool audio_video_sync;
   };
   // (*) Set to -1.1 if generating graph data for simulcast or SVC and the
   // selected stream/layer doesn't have the same resolution as the largest
@@ -77,7 +80,7 @@ class VideoQualityTest : public test::CallTest {
 
   VideoQualityTest();
   void RunWithAnalyzer(const Params& params);
-  void RunWithVideoRenderer(const Params& params);
+  void RunWithRenderers(const Params& params);
 
   static void FillScalabilitySettings(
       Params* params,
@@ -101,17 +104,22 @@ class VideoQualityTest : public test::CallTest {
   static std::vector<int> ParseCSV(const std::string& str);
 
   // Helper methods for setting up the call.
-  void CreateCapturer(VideoCaptureInput* input);
+  void CreateCapturer();
   void SetupCommon(Transport* send_transport, Transport* recv_transport);
   void SetupScreenshare();
+
+  void StartEncodedFrameLogs(VideoSendStream* stream);
+  void StartEncodedFrameLogs(VideoReceiveStream* stream);
 
   // We need a more general capturer than the FrameGeneratorCapturer.
   std::unique_ptr<test::VideoCapturer> capturer_;
   std::unique_ptr<test::TraceToStderr> trace_to_stderr_;
   std::unique_ptr<test::FrameGenerator> frame_generator_;
   std::unique_ptr<VideoEncoder> encoder_;
-  VideoCodecUnion codec_settings_;
   Clock* const clock_;
+
+  int receive_logs_;
+  int send_logs_;
 
   Params params_;
 };

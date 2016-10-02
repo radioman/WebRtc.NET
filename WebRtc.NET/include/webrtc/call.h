@@ -13,13 +13,13 @@
 #include <string>
 #include <vector>
 
-#include "webrtc/common_types.h"
-#include "webrtc/audio_receive_stream.h"
-#include "webrtc/audio_send_stream.h"
-#include "webrtc/audio_state.h"
+#include "webrtc/api/call/audio_receive_stream.h"
+#include "webrtc/api/call/audio_send_stream.h"
+#include "webrtc/api/call/audio_state.h"
 #include "webrtc/base/networkroute.h"
 #include "webrtc/base/platform_file.h"
 #include "webrtc/base/socket.h"
+#include "webrtc/common_types.h"
 #include "webrtc/video_receive_stream.h"
 #include "webrtc/video_send_stream.h"
 
@@ -113,8 +113,8 @@ class Call {
       AudioReceiveStream* receive_stream) = 0;
 
   virtual VideoSendStream* CreateVideoSendStream(
-      const VideoSendStream::Config& config,
-      const VideoEncoderConfig& encoder_config) = 0;
+      VideoSendStream::Config config,
+      VideoEncoderConfig encoder_config) = 0;
   virtual void DestroyVideoSendStream(VideoSendStream* send_stream) = 0;
 
   virtual VideoReceiveStream* CreateVideoReceiveStream(

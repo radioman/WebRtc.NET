@@ -29,12 +29,15 @@ namespace webrtc {
 
 class DesktopFrame;
 class DesktopRect;
-class Differ;
 
 // Captures the screen using the Magnification API to support window exclusion.
 // Each capturer must run on a dedicated thread because it uses thread local
 // storage for redirecting the library callback. Also the thread must have a UI
 // message loop to handle the window messages for the magnifier window.
+//
+// This class does not detect DesktopFrame::updated_region(), the field is
+// always set to the entire frame rectangle. ScreenCapturerDifferWrapper should
+// be used if that functionality is necessary.
 class ScreenCapturerWinMagnifier : public ScreenCapturer {
  public:
   // |fallback_capturer| will be used to capture the screen if a non-primary
@@ -113,18 +116,8 @@ class ScreenCapturerWinMagnifier : public ScreenCapturer {
   std::wstring current_device_key_;
   HWND excluded_window_ = NULL;
 
-  // A thread-safe list of invalid rectangles, and the size of the most
-  // recently captured screen.
-  ScreenCapturerHelper helper_;
-
   // Queue of the frames buffers.
   ScreenCaptureFrameQueue<SharedDesktopFrame> queue_;
-
-  // Class to calculate the difference between two screen bitmaps.
-  std::unique_ptr<Differ> differ_;
-
-  // Used to suppress duplicate logging of SetThreadExecutionState errors.
-  bool set_thread_execution_state_failed_ = false;
 
   ScopedThreadDesktop desktop_;
 

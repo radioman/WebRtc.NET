@@ -60,7 +60,6 @@ class WebRtcVideoChannelSendInfo;
 class WebRtcVoiceEngine;
 class WebRtcVoiceMediaChannel;
 
-struct CapturedFrame;
 struct Device;
 
 // Exposed here for unittests.
@@ -243,12 +242,13 @@ class WebRtcVideoChannel2 : public VideoMediaChannel, public webrtc::Transport {
   // frames are then converted from cricket frames to webrtc frames.
   class WebRtcVideoSendStream
       : public rtc::VideoSinkInterface<cricket::VideoFrame>,
+        public rtc::VideoSourceInterface<webrtc::VideoFrame>,
         public webrtc::LoadObserver {
    public:
     WebRtcVideoSendStream(
         webrtc::Call* call,
         const StreamParams& sp,
-        const webrtc::VideoSendStream::Config& config,
+        webrtc::VideoSendStream::Config config,
         const VideoOptions& options,
         WebRtcVideoEncoderFactory* external_encoder_factory,
         bool enable_cpu_overuse_detection,
@@ -261,6 +261,16 @@ class WebRtcVideoChannel2 : public VideoMediaChannel, public webrtc::Transport {
     void SetSendParameters(const ChangedSendParameters& send_params);
     bool SetRtpParameters(const webrtc::RtpParameters& parameters);
     webrtc::RtpParameters GetRtpParameters() const;
+
+    // Implements rtc::VideoSourceInterface<webrtc::VideoFrame>.
+    // WebRtcVideoSendStream acts as a source to the webrtc::VideoSendStream
+    // in |stream_|. The reason is that WebRtcVideoSendStream receives
+    // cricket::VideoFrames and forwards webrtc::VideoFrames to |source_|.
+    // TODO(perkj, nisse): Refactor WebRtcVideoSendStream to directly connect
+    // the camera input |source_|
+    void AddOrUpdateSink(VideoSinkInterface<webrtc::VideoFrame>* sink,
+                         const rtc::VideoSinkWants& wants) override;
+    void RemoveSink(VideoSinkInterface<webrtc::VideoFrame>* sink) override;
 
     void OnFrame(const cricket::VideoFrame& frame) override;
     bool SetVideoSend(bool mute,
@@ -284,7 +294,7 @@ class WebRtcVideoChannel2 : public VideoMediaChannel, public webrtc::Transport {
     // similar parameters depending on which options changed etc.
     struct VideoSendStreamParameters {
       VideoSendStreamParameters(
-          const webrtc::VideoSendStream::Config& config,
+          webrtc::VideoSendStream::Config config,
           const VideoOptions& options,
           int max_bitrate_bps,
           const rtc::Optional<VideoCodecSettings>& codec_settings);
@@ -328,12 +338,6 @@ class WebRtcVideoChannel2 : public VideoMediaChannel, public webrtc::Transport {
       bool is_texture;
     };
 
-    union VideoEncoderSettings {
-      webrtc::VideoCodecH264 h264;
-      webrtc::VideoCodecVP8 vp8;
-      webrtc::VideoCodecVP9 vp9;
-    };
-
     static std::vector<webrtc::VideoStream> CreateVideoStreams(
         const VideoCodec& codec,
         const VideoOptions& options,
@@ -345,7 +349,8 @@ class WebRtcVideoChannel2 : public VideoMediaChannel, public webrtc::Transport {
         int max_bitrate_bps,
         size_t num_streams);
 
-    void* ConfigureVideoEncoderSettings(const VideoCodec& codec)
+    rtc::scoped_refptr<webrtc::VideoEncoderConfig::EncoderSpecificSettings>
+    ConfigureVideoEncoderSettings(const VideoCodec& codec)
         EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
     AllocatedEncoder CreateVideoEncoder(const VideoCodec& codec)
@@ -364,6 +369,8 @@ class WebRtcVideoChannel2 : public VideoMediaChannel, public webrtc::Transport {
     // and whether or not the encoding in |rtp_parameters_| is active.
     void UpdateSendState() EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
+    void UpdateHistograms() const EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
     rtc::ThreadChecker thread_checker_;
     rtc::AsyncInvoker invoker_;
     rtc::Thread* worker_thread_;
@@ -377,12 +384,18 @@ class WebRtcVideoChannel2 : public VideoMediaChannel, public webrtc::Transport {
     // Total number of times resolution as been requested to be changed due to
     // CPU adaptation.
     int number_of_cpu_adapt_changes_;
+    // Total number of frames sent to |stream_|.
+    int frame_count_ GUARDED_BY(lock_);
+    // Total number of cpu restricted frames sent to |stream_|.
+    int cpu_restricted_frame_count_ GUARDED_BY(lock_);
     rtc::VideoSourceInterface<cricket::VideoFrame>* source_;
     WebRtcVideoEncoderFactory* const external_encoder_factory_
         GUARDED_BY(lock_);
 
     rtc::CriticalSection lock_;
     webrtc::VideoSendStream* stream_ GUARDED_BY(lock_);
+    rtc::VideoSinkInterface<webrtc::VideoFrame>* encoder_sink_
+        GUARDED_BY(lock_);
     // Contains settings that are the same for all streams in the MediaChannel,
     // such as codecs, header extensions, and the global bitrate limit for the
     // entire channel.
@@ -394,19 +407,14 @@ class WebRtcVideoChannel2 : public VideoMediaChannel, public webrtc::Transport {
     // one stream per MediaChannel.
     webrtc::RtpParameters rtp_parameters_ GUARDED_BY(lock_);
     bool pending_encoder_reconfiguration_ GUARDED_BY(lock_);
-    VideoEncoderSettings encoder_settings_ GUARDED_BY(lock_);
     AllocatedEncoder allocated_encoder_ GUARDED_BY(lock_);
     VideoFrameInfo last_frame_info_ GUARDED_BY(lock_);
 
     bool sending_ GUARDED_BY(lock_);
 
-    // The timestamp of the first frame received
-    // Used to generate the timestamps of subsequent frames
-    rtc::Optional<int64_t> first_frame_timestamp_ms_ GUARDED_BY(lock_);
-
     // The timestamp of the last frame received
     // Used to generate timestamp for the black frame when source is removed
-    int64_t last_frame_timestamp_ms_ GUARDED_BY(lock_);
+    int64_t last_frame_timestamp_us_ GUARDED_BY(lock_);
   };
 
   // Wrapper for the receiver part, contains configs etc. that are needed to
@@ -488,8 +496,6 @@ class WebRtcVideoChannel2 : public VideoMediaChannel, public webrtc::Transport {
 
     rtc::CriticalSection sink_lock_;
     rtc::VideoSinkInterface<cricket::VideoFrame>* sink_ GUARDED_BY(sink_lock_);
-    int last_width_ GUARDED_BY(sink_lock_);
-    int last_height_ GUARDED_BY(sink_lock_);
     // Expands remote RTP timestamps to int64_t to be able to estimate how long
     // the stream has been running.
     rtc::TimestampWrapAroundHandler timestamp_wraparound_handler_

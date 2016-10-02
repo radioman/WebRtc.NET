@@ -60,6 +60,7 @@
 #include "webrtc/api/dtmfsenderinterface.h"
 #include "webrtc/api/jsep.h"
 #include "webrtc/api/mediastreaminterface.h"
+#include "webrtc/api/rtcstatscollector.h"
 #include "webrtc/api/rtpreceiverinterface.h"
 #include "webrtc/api/rtpsenderinterface.h"
 #include "webrtc/api/statstypes.h"
@@ -227,6 +228,15 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     GATHER_CONTINUALLY
   };
 
+  enum class RTCConfigurationType {
+    // A configuration that is safer to use, despite not having the best
+    // performance. Currently this is the default configuration.
+    kSafe,
+    // An aggressive configuration that has better performance, although it
+    // may be riskier and may need extra support in the application.
+    kAggressive
+  };
+
   // TODO(hbos): Change into class with private data and public getters.
   // TODO(nisse): In particular, accessing fields directly from an
   // application is brittle, since the organization mirrors the
@@ -239,6 +249,23 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     // in the implementation. To do that, we need getter and setter
     // methods for all settings which are of interest to applications,
     // Chrome in particular.
+
+    RTCConfiguration() = default;
+    RTCConfiguration(RTCConfigurationType type) {
+      if (type == RTCConfigurationType::kAggressive) {
+        // These parameters are also defined in Java and IOS configurations,
+        // so their values may be overwritten by the Java or IOS configuration.
+        bundle_policy = kBundlePolicyMaxBundle;
+        rtcp_mux_policy = kRtcpMuxPolicyRequire;
+        ice_connection_receiving_timeout =
+            kAggressiveIceConnectionReceivingTimeout;
+
+        // These parameters are not defined in Java or IOS configuration,
+        // so their values will not be overwritten.
+        enable_ice_renomination = true;
+        redetermine_role_on_ice_restart = false;
+      }
+    }
 
     bool dscp() { return media_config.enable_dscp; }
     void set_dscp(bool enable) { media_config.enable_dscp = enable; }
@@ -272,6 +299,8 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     static const int kUndefined = -1;
     // Default maximum number of packets in the audio jitter buffer.
     static const int kAudioJitterBufferMaxPackets = 50;
+    // ICE connection receiving timeout for aggressive configuration.
+    static const int kAggressiveIceConnectionReceivingTimeout = 1000;
     // TODO(pthatcher): Rename this ice_transport_type, but update
     // Chromium at the same time.
     IceTransportsType type = kAll;
@@ -305,6 +334,12 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     // If set to true, this means the ICE transport should presume TURN-to-TURN
     // candidate pairs will succeed, even before a binding response is received.
     bool presume_writable_when_fully_relayed = false;
+    // If true, "renomination" will be added to the ice options in the transport
+    // description.
+    bool enable_ice_renomination = false;
+    // If true, ICE role is redetermined when peerconnection sets a local
+    // transport description that indicates an ICE restart.
+    bool redetermine_role_on_ice_restart = true;
   };
 
   struct RTCOfferAnswerOptions {
@@ -314,18 +349,13 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     // The default value for constraint offerToReceiveX:true.
     static const int kOfferToReceiveMediaTrue = 1;
 
-    int offer_to_receive_video;
-    int offer_to_receive_audio;
-    bool voice_activity_detection;
-    bool ice_restart;
-    bool use_rtp_mux;
+    int offer_to_receive_video = kUndefined;
+    int offer_to_receive_audio = kUndefined;
+    bool voice_activity_detection = true;
+    bool ice_restart = false;
+    bool use_rtp_mux = true;
 
-    RTCOfferAnswerOptions()
-        : offer_to_receive_video(kUndefined),
-          offer_to_receive_audio(kUndefined),
-          voice_activity_detection(true),
-          ice_restart(false),
-          use_rtp_mux(true) {}
+    RTCOfferAnswerOptions() = default;
 
     RTCOfferAnswerOptions(int offer_to_receive_video,
                           int offer_to_receive_audio,
@@ -411,6 +441,12 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
   virtual bool GetStats(StatsObserver* observer,
                         MediaStreamTrackInterface* track,
                         StatsOutputLevel level) = 0;
+  // Gets stats using the new stats collection API, see webrtc/api/stats/. These
+  // will replace old stats collection API when the new API has matured enough.
+  // TODO(hbos): Default implementation that does nothing only exists as to not
+  // break third party projects. As soon as they have been updated this should
+  // be changed to "= 0;".
+  virtual void GetStats(RTCStatsCollectorCallback* callback) {}
 
   virtual rtc::scoped_refptr<DataChannelInterface> CreateDataChannel(
       const std::string& label,
@@ -490,7 +526,10 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
   // TODO(bemasc): Remove ice_state when callers are changed to
   // IceConnection/GatheringState.
   // Returns the current IceState.
-  virtual IceState ice_state() = 0;
+  virtual IceState ice_state() {
+      RTC_NOTREACHED();
+    return kIceNew;
+  }
   virtual IceConnectionState ice_connection_state() = 0;
   virtual IceGatheringState ice_gathering_state() = 0;
 

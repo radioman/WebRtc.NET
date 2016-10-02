@@ -57,9 +57,6 @@ class VideoCapturerTrackSource : public VideoTrackSource,
 
   bool GetStats(Stats* stats) override;
 
-  void Stop() override;
-  void Restart() override;
-
  protected:
   VideoCapturerTrackSource(rtc::Thread* worker_thread,
                            cricket::VideoCapturer* capturer,
@@ -68,6 +65,8 @@ class VideoCapturerTrackSource : public VideoTrackSource,
   void Initialize(const webrtc::MediaConstraintsInterface* constraints);
 
  private:
+  void Stop();
+
   void OnStateChange(cricket::VideoCapturer* capturer,
                      cricket::CaptureState capture_state);
 

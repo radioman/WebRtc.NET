@@ -11,7 +11,6 @@
 #ifndef WEBRTC_MODULES_RTP_RTCP_SOURCE_RTP_SENDER_H_
 #define WEBRTC_MODULES_RTP_RTCP_SOURCE_RTP_SENDER_H_
 
-#include <list>
 #include <map>
 #include <memory>
 #include <utility>
@@ -19,6 +18,7 @@
 
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/base/criticalsection.h"
+#include "webrtc/base/deprecation.h"
 #include "webrtc/base/random.h"
 #include "webrtc/base/rate_statistics.h"
 #include "webrtc/base/thread_annotations.h"
@@ -90,8 +90,8 @@ class RTPSender {
   void GetDataCounters(StreamDataCounters* rtp_stats,
                        StreamDataCounters* rtx_stats) const;
 
-  uint32_t StartTimestamp() const;
-  void SetStartTimestamp(uint32_t timestamp, bool force);
+  uint32_t TimestampOffset() const;
+  void SetTimestampOffset(uint32_t timestamp);
 
   uint32_t GenerateNewSSRC();
   void SetSSRC(uint32_t ssrc);
@@ -183,7 +183,7 @@ class RTPSender {
   // NACK.
   int SelectiveRetransmissions() const;
   int SetSelectiveRetransmissions(uint8_t settings);
-  void OnReceivedNACK(const std::list<uint16_t>& nack_sequence_numbers,
+  void OnReceivedNack(const std::vector<uint16_t>& nack_sequence_numbers,
                       int64_t avg_rtt);
 
   void SetStorePacketsStatus(bool enable, uint16_t number_to_store);
@@ -204,6 +204,14 @@ class RTPSender {
 
   void SetRtxPayloadType(int payload_type, int associated_payload_type);
 
+  // Create empty packet, fills ssrc, csrcs and reserve place for header
+  // extensions RtpSender updates before sending.
+  std::unique_ptr<RtpPacketToSend> AllocatePacket() const;
+  // Allocate sequence number for provided packet.
+  // Save packet's fields to generate padding that doesn't break media stream.
+  // Return false if sending was turned off.
+  bool AssignSequenceNumber(RtpPacketToSend* packet);
+
   // Functions wrapping RTPSenderInterface.
   int32_t BuildRTPheader(uint8_t* data_buffer,
                          int8_t payload_type,
@@ -222,8 +230,6 @@ class RTPSender {
   uint16_t AllocateSequenceNumber(uint16_t packets_to_send);
   size_t MaxPayloadLength() const;
 
-  // Current timestamp.
-  uint32_t Timestamp() const;
   uint32_t SSRC() const;
 
   // Deprecated. Create RtpPacketToSend instead and use next function.
@@ -266,15 +272,11 @@ class RTPSender {
   int32_t SetFecParameters(const FecProtectionParams *delta_params,
                            const FecProtectionParams *key_params);
 
+  RTC_DEPRECATED
   size_t SendPadData(size_t bytes,
                      bool timestamp_provided,
                      uint32_t timestamp,
                      int64_t capture_time_ms);
-  size_t SendPadData(size_t bytes,
-                     bool timestamp_provided,
-                     uint32_t timestamp,
-                     int64_t capture_time_ms,
-                     int probe_cluster_id);
 
   // Called on update of RTP statistics.
   void RegisterRtpStatisticsCallback(StreamDataCountersCallback* callback);
@@ -296,6 +298,14 @@ class RTPSender {
   // Send-side delay is the difference between transmission time and capture
   // time.
   typedef std::map<int64_t, int> SendDelayMap;
+
+  size_t SendPadData(size_t bytes, int probe_cluster_id);
+
+  size_t DeprecatedSendPadData(size_t bytes,
+                               bool timestamp_provided,
+                               uint32_t timestamp,
+                               int64_t capture_time_ms,
+                               int probe_cluster_id);
 
   size_t CreateRtpHeader(uint8_t* header,
                          int8_t payload_type,
@@ -402,8 +412,7 @@ class RTPSender {
   BitrateStatisticsObserver* const bitrate_callback_;
 
   // RTP variables
-  bool start_timestamp_forced_ GUARDED_BY(send_critsect_);
-  uint32_t start_timestamp_ GUARDED_BY(send_critsect_);
+  uint32_t timestamp_offset_ GUARDED_BY(send_critsect_);
   SSRCDatabase* const ssrc_db_;
   uint32_t remote_ssrc_ GUARDED_BY(send_critsect_);
   bool sequence_number_forced_ GUARDED_BY(send_critsect_);
@@ -411,7 +420,7 @@ class RTPSender {
   uint16_t sequence_number_rtx_ GUARDED_BY(send_critsect_);
   bool ssrc_forced_ GUARDED_BY(send_critsect_);
   uint32_t ssrc_ GUARDED_BY(send_critsect_);
-  uint32_t timestamp_ GUARDED_BY(send_critsect_);
+  uint32_t last_rtp_timestamp_ GUARDED_BY(send_critsect_);
   int64_t capture_time_ms_ GUARDED_BY(send_critsect_);
   int64_t last_timestamp_time_ms_ GUARDED_BY(send_critsect_);
   bool media_has_been_sent_ GUARDED_BY(send_critsect_);

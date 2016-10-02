@@ -21,10 +21,11 @@
 #define WEBRTC_MEDIA_ENGINE_FAKEWEBRTCCALL_H_
 
 #include <memory>
+#include <string>
 #include <vector>
 
-#include "webrtc/audio_receive_stream.h"
-#include "webrtc/audio_send_stream.h"
+#include "webrtc/api/call/audio_receive_stream.h"
+#include "webrtc/api/call/audio_send_stream.h"
 #include "webrtc/base/buffer.h"
 #include "webrtc/call.h"
 #include "webrtc/video_frame.h"
@@ -99,13 +100,15 @@ class FakeAudioReceiveStream final : public webrtc::AudioReceiveStream {
   bool started_ = false;
 };
 
-class FakeVideoSendStream final : public webrtc::VideoSendStream,
-                                  public webrtc::VideoCaptureInput {
+class FakeVideoSendStream final
+    : public webrtc::VideoSendStream,
+      public rtc::VideoSinkInterface<webrtc::VideoFrame> {
  public:
-  FakeVideoSendStream(const webrtc::VideoSendStream::Config& config,
-                      const webrtc::VideoEncoderConfig& encoder_config);
-  webrtc::VideoSendStream::Config GetConfig() const;
-  webrtc::VideoEncoderConfig GetEncoderConfig() const;
+  FakeVideoSendStream(webrtc::VideoSendStream::Config config,
+                      webrtc::VideoEncoderConfig encoder_config);
+  ~FakeVideoSendStream() override;
+  const webrtc::VideoSendStream::Config& GetConfig() const;
+  const webrtc::VideoEncoderConfig& GetEncoderConfig() const;
   std::vector<webrtc::VideoStream> GetVideoStreams();
 
   bool IsSending() const;
@@ -121,16 +124,20 @@ class FakeVideoSendStream final : public webrtc::VideoSendStream,
     return num_encoder_reconfigurations_;
   }
 
+  void EnableEncodedFrameRecording(const std::vector<rtc::PlatformFile>& files,
+                                   size_t byte_limit) override;
+
  private:
-  void IncomingCapturedFrame(const webrtc::VideoFrame& frame) override;
+  // rtc::VideoSinkInterface<VideoFrame> implementation.
+  void OnFrame(const webrtc::VideoFrame& frame) override;
 
   // webrtc::VideoSendStream implementation.
   void Start() override;
   void Stop() override;
+  void SetSource(
+      rtc::VideoSourceInterface<webrtc::VideoFrame>* source) override;
   webrtc::VideoSendStream::Stats GetStats() override;
-  void ReconfigureVideoEncoder(
-      const webrtc::VideoEncoderConfig& config) override;
-  webrtc::VideoCaptureInput* Input() override;
+  void ReconfigureVideoEncoder(webrtc::VideoEncoderConfig config) override;
 
   bool sending_;
   webrtc::VideoSendStream::Config config_;
@@ -140,6 +147,7 @@ class FakeVideoSendStream final : public webrtc::VideoSendStream,
     webrtc::VideoCodecVP8 vp8;
     webrtc::VideoCodecVP9 vp9;
   } vpx_settings_;
+  rtc::VideoSourceInterface<webrtc::VideoFrame>* source_;
   int num_swapped_frames_;
   webrtc::VideoFrame last_frame_;
   webrtc::VideoSendStream::Stats stats_;
@@ -157,6 +165,9 @@ class FakeVideoReceiveStream final : public webrtc::VideoReceiveStream {
   void InjectFrame(const webrtc::VideoFrame& frame);
 
   void SetStats(const webrtc::VideoReceiveStream::Stats& stats);
+
+  void EnableEncodedFrameRecording(rtc::PlatformFile file,
+                                   size_t byte_limit) override;
 
  private:
   // webrtc::VideoReceiveStream implementation.
@@ -208,8 +219,8 @@ class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
       webrtc::AudioReceiveStream* receive_stream) override;
 
   webrtc::VideoSendStream* CreateVideoSendStream(
-      const webrtc::VideoSendStream::Config& config,
-      const webrtc::VideoEncoderConfig& encoder_config) override;
+      webrtc::VideoSendStream::Config config,
+      webrtc::VideoEncoderConfig encoder_config) override;
   void DestroyVideoSendStream(webrtc::VideoSendStream* send_stream) override;
 
   webrtc::VideoReceiveStream* CreateVideoReceiveStream(
@@ -253,4 +264,4 @@ class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
 };
 
 }  // namespace cricket
-#endif  // TALK_MEDIA_WEBRTC_WEBRTCVIDEOENGINE2_UNITTEST_H_
+#endif  // WEBRTC_MEDIA_ENGINE_FAKEWEBRTCCALL_H_

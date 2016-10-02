@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "webrtc/base/deprecation.h"
+#include "webrtc/base/function_view.h"
 #include "webrtc/base/optional.h"
 #include "webrtc/common_types.h"
 #include "webrtc/modules/audio_coding/codecs/audio_decoder_factory.h"
@@ -64,11 +65,9 @@ class AudioCodingModule {
 
  public:
   struct Config {
-    Config() : id(0), neteq_config(), clock(Clock::GetRealTimeClock()) {
-      // Post-decode VAD is disabled by default in NetEq, however, Audio
-      // Conference Mixer relies on VAD decisions and fails without them.
-      neteq_config.enable_post_decode_vad = true;
-    }
+    Config();
+    Config(const Config&);
+    ~Config();
 
     int id;
     NetEq::Config neteq_config;
@@ -211,48 +210,18 @@ class AudioCodingModule {
   virtual void RegisterExternalSendCodec(
       AudioEncoder* external_speech_encoder) = 0;
 
-  // Just like std::function, FunctionView will wrap any callable and hide its
-  // actual type, exposing only its signature. But unlike std::function,
-  // FunctionView doesn't own its callable---it just points to it. Thus, it's a
-  // good choice mainly as a function argument when the callable argument will
-  // not be called again once the function has returned.
-  template <typename T>
-  class FunctionView;  // Undefined.
-
-  template <typename RetT, typename... ArgT>
-  class FunctionView<RetT(ArgT...)> final {
-   public:
-    // This constructor is implicit, so that callers won't have to convert
-    // lambdas to FunctionView<Blah(Blah, Blah)> explicitly. This is safe
-    // because FunctionView is only a reference to the real callable.
-    template <typename F>
-    FunctionView(F&& f)
-        : f_(&f), call_(Call<typename std::remove_reference<F>::type>) {}
-
-    RetT operator()(ArgT... args) const {
-      return call_(f_, std::forward<ArgT>(args)...);
-    }
-
-   private:
-    template <typename F>
-    static RetT Call(void* f, ArgT... args) {
-      return (*static_cast<F*>(f))(std::forward<ArgT>(args)...);
-    }
-    void* f_;
-    RetT (*call_)(void* f, ArgT... args);
-  };
-
   // |modifier| is called exactly once with one argument: a pointer to the
   // unique_ptr that holds the current encoder (which is null if there is no
   // current encoder). For the duration of the call, |modifier| has exclusive
   // access to the unique_ptr; it may call the encoder, steal the encoder and
   // replace it with another encoder or with nullptr, etc.
   virtual void ModifyEncoder(
-      FunctionView<void(std::unique_ptr<AudioEncoder>*)> modifier) = 0;
+      rtc::FunctionView<void(std::unique_ptr<AudioEncoder>*)> modifier) = 0;
 
   // |modifier| is called exactly once with one argument: a const pointer to the
   // current encoder (which is null if there is no current encoder).
-  virtual void QueryEncoder(FunctionView<void(AudioEncoder const*)> query) = 0;
+  virtual void QueryEncoder(
+      rtc::FunctionView<void(AudioEncoder const*)> query) = 0;
 
   // Utility method for simply replacing the existing encoder with a new one.
   void SetEncoder(std::unique_ptr<AudioEncoder> new_encoder) {
@@ -531,7 +500,7 @@ class AudioCodingModule {
   // the decoder being registered is iSAC.
   virtual int RegisterReceiveCodec(
       const CodecInst& receive_codec,
-      FunctionView<std::unique_ptr<AudioDecoder>()> isac_factory) = 0;
+      rtc::FunctionView<std::unique_ptr<AudioDecoder>()> isac_factory) = 0;
 
   // Registers an external decoder. The name is only used to provide information
   // back to the caller about the decoder. Hence, the name is arbitrary, and may
@@ -677,6 +646,15 @@ class AudioCodingModule {
   // valid timestamp is available.
   //
   virtual rtc::Optional<uint32_t> PlayoutTimestamp() = 0;
+
+  ///////////////////////////////////////////////////////////////////////////
+  // int FilteredCurrentDelayMs()
+  // Returns the current total delay from NetEq (packet buffer and sync buffer)
+  // in ms, with smoothing applied to even out short-time fluctuations due to
+  // jitter. The packet buffer part of the delay is not updated during DTX/CNG
+  // periods.
+  //
+  virtual int FilteredCurrentDelayMs() const = 0;
 
   ///////////////////////////////////////////////////////////////////////////
   // int32_t PlayoutData10Ms(

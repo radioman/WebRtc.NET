@@ -16,26 +16,29 @@
 #include <vector>
 
 #include "webrtc/base/constructormagic.h"
-#include "webrtc/modules/include/module_common_types.h"
-#include "webrtc/modules/rtp_rtcp/source/rtcp_packet.h"
+#include "webrtc/base/deprecation.h"
+#include "webrtc/modules/rtp_rtcp/source/rtcp_packet/rtpfb.h"
 
 namespace webrtc {
 namespace rtcp {
+class CommonHeader;
 
-class PacketStatusChunk;
-
-class TransportFeedback : public RtcpPacket {
+class TransportFeedback : public Rtpfb {
  public:
-  TransportFeedback();
-  virtual ~TransportFeedback();
+  class PacketStatusChunk;
+  // TODO(sprang): IANA reg?
+  static constexpr uint8_t kFeedbackMessageType = 15;
+  // Convert to multiples of 0.25ms.
+  static constexpr int kDeltaScaleFactor = 250;
 
-  void WithPacketSenderSsrc(uint32_t ssrc);
-  void WithMediaSourceSsrc(uint32_t ssrc);
-  void WithBase(uint16_t base_sequence,     // Seq# of first packet in this msg.
-                int64_t ref_timestamp_us);  // Reference timestamp for this msg.
-  void WithFeedbackSequenceNumber(uint8_t feedback_sequence);
+  TransportFeedback();
+  ~TransportFeedback() override;
+
+  void SetBase(uint16_t base_sequence,     // Seq# of first packet in this msg.
+               int64_t ref_timestamp_us);  // Reference timestamp for this msg.
+  void SetFeedbackSequenceNumber(uint8_t feedback_sequence);
   // NOTE: This method requires increasing sequence numbers (excepting wraps).
-  bool WithReceivedPacket(uint16_t sequence_number, int64_t timestamp_us);
+  bool AddReceivedPacket(uint16_t sequence_number, int64_t timestamp_us);
 
   enum class StatusSymbol {
     kNotReceived,
@@ -53,14 +56,26 @@ class TransportFeedback : public RtcpPacket {
   // is relative the base time.
   std::vector<int64_t> GetReceiveDeltasUs() const;
 
-  uint32_t GetPacketSenderSsrc() const;
-  uint32_t GetMediaSourceSsrc() const;
-  static const int kDeltaScaleFactor = 250;  // Convert to multiples of 0.25ms.
-  static const uint8_t kFeedbackMessageType = 15;  // TODO(sprang): IANA reg?
-  static const uint8_t kPayloadType = 205;         // RTPFB, see RFC4585.
-
+  bool Parse(const CommonHeader& packet);
   static std::unique_ptr<TransportFeedback> ParseFrom(const uint8_t* buffer,
                                                       size_t length);
+
+  RTC_DEPRECATED
+  void WithPacketSenderSsrc(uint32_t ssrc) { SetSenderSsrc(ssrc); }
+  RTC_DEPRECATED
+  void WithMediaSourceSsrc(uint32_t ssrc) { SetMediaSsrc(ssrc); }
+  RTC_DEPRECATED
+  void WithBase(uint16_t base_sequence, int64_t ref_timestamp_us) {
+    SetBase(base_sequence, ref_timestamp_us);
+  }
+  RTC_DEPRECATED
+  void WithFeedbackSequenceNumber(uint8_t feedback_sequence) {
+    SetFeedbackSequenceNumber(feedback_sequence);
+  }
+  RTC_DEPRECATED
+  bool WithReceivedPacket(uint16_t sequence_number, int64_t timestamp_us) {
+    return AddReceivedPacket(sequence_number, timestamp_us);
+  }
 
  protected:
   bool Create(uint8_t* packet,
@@ -83,8 +98,6 @@ class TransportFeedback : public RtcpPacket {
   void EmitVectorChunk();
   void EmitRunLengthChunk();
 
-  uint32_t packet_sender_ssrc_;
-  uint32_t media_source_ssrc_;
   int32_t base_seq_;
   int64_t base_time_;
   uint8_t feedback_seq_;

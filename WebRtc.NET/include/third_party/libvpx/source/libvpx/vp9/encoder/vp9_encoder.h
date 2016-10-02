@@ -29,6 +29,7 @@
 #include "vp9/common/vp9_thread_common.h"
 #include "vp9/common/vp9_onyxc_int.h"
 
+#include "vp9/encoder/vp9_alt_ref_aq.h"
 #include "vp9/encoder/vp9_aq_cyclicrefresh.h"
 #include "vp9/encoder/vp9_context_tree.h"
 #include "vp9/encoder/vp9_encodemb.h"
@@ -116,6 +117,9 @@ typedef enum {
   COMPLEXITY_AQ = 2,
   CYCLIC_REFRESH_AQ = 3,
   EQUATOR360_AQ = 4,
+  // AQ based on lookahead temporal
+  // variance (only valid for altref frames)
+  LOOKAHEAD_AQ = 5,
   AQ_MODE_COUNT  // This should always be the last member of the enum
 } AQ_MODE;
 
@@ -177,6 +181,9 @@ typedef struct VP9EncoderConfig {
   int best_allowed_q;
   int cq_level;
   AQ_MODE aq_mode;  // Adaptive Quantization mode
+
+  // Special handling of Adaptive Quantization for AltRef frames
+  int alt_ref_aq;
 
   // Internal frame size scaling.
   RESIZE_TYPE resize_mode;
@@ -477,7 +484,14 @@ typedef struct VP9_COMP {
 
   TWO_PASS twopass;
 
+  // Force recalculation of segment_ids for each mode info
+  uint8_t force_update_segmentation;
+
   YV12_BUFFER_CONFIG alt_ref_buffer;
+
+  // class responsible for adaptive
+  // quantization of altref frames
+  struct ALT_REF_AQ *alt_ref_aq;
 
 #if CONFIG_INTERNAL_STATS
   unsigned int mode_chosen_counts[MAX_MODES];

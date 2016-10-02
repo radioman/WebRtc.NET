@@ -22,8 +22,6 @@
 
 namespace cricket {
 
-struct CapturedFrame;
-
 // TODO(nisse): This class will be deleted when the cricket::VideoFrame and
 // webrtc::VideoFrame classes are merged. See
 // https://bugs.chromium.org/p/webrtc/issues/detail?id=5682. Try to use only the
@@ -41,6 +39,12 @@ class WebRtcVideoFrame : public VideoFrame {
                    int64_t timestamp_us,
                    uint32_t transport_frame_id);
 
+  // Alternative constructor, when not knowing or caring about the
+  // transport_frame_id. Which is set to zero.
+  WebRtcVideoFrame(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& buffer,
+                   webrtc::VideoRotation rotation,
+                   int64_t timestamp_us);
+
   // TODO(nisse): Deprecated, delete as soon as all callers have switched to the
   // above constructor with microsecond timestamp.
   WebRtcVideoFrame(const rtc::scoped_refptr<webrtc::VideoFrameBuffer>& buffer,
@@ -48,6 +52,10 @@ class WebRtcVideoFrame : public VideoFrame {
                    webrtc::VideoRotation rotation);
 
   ~WebRtcVideoFrame();
+
+  // TODO(nisse): Init (and its helpers Reset and Validate) are used
+  // only by the LoadFrame function used in the VideoFrame unittests.
+  // Rewrite tests, and delete this function.
 
   // Creates a frame from a raw sample with FourCC "format" and size "w" x "h".
   // "h" can be negative indicating a vertically flipped image.
@@ -63,15 +71,6 @@ class WebRtcVideoFrame : public VideoFrame {
             int64_t timestamp_ns,
             webrtc::VideoRotation rotation);
 
-  // TODO(nisse): We're moving to have all timestamps use the same
-  // time scale as rtc::TimeMicros. However, this method is used by
-  // WebRtcVideoFrameFactory::CreateAliasedFrame this code path
-  // currently does not conform to the new timestamp conventions and
-  // may use the camera's own clock instead. It's unclear if this
-  // should be fixed, or if instead all of the VideoFrameFactory
-  // abstraction should be eliminated.
-  bool Init(const CapturedFrame* frame, int dw, int dh, bool apply_rotation);
-
   void InitToEmptyBuffer(int w, int h);
 
   int width() const override;
@@ -86,15 +85,6 @@ class WebRtcVideoFrame : public VideoFrame {
   void set_timestamp_us(int64_t time_us) override;
 
   webrtc::VideoRotation rotation() const override;
-
-  VideoFrame* Copy() const override;
-
-  size_t ConvertToRgbBuffer(uint32_t to_fourcc,
-                            uint8_t* buffer,
-                            size_t size,
-                            int stride_rgb) const override;
-
-  const VideoFrame* GetCopyWithRotationApplied() const override;
 
  protected:
   // Creates a frame from a raw sample with FourCC |format| and size |w| x |h|.

@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include <list>
+#include <vector>
 
 #include "webrtc/modules/include/module_common_types.h"
 #include "webrtc/system_wrappers/include/clock.h"
@@ -160,13 +161,6 @@ struct RTCPReportBlock {
   uint32_t delaySinceLastSR;
 };
 
-struct RtcpReceiveTimeInfo {
-  // Fields as described by RFC 3611 4.5.
-  uint32_t sourceSSRC;
-  uint32_t lastRR;
-  uint32_t delaySinceLastRR;
-};
-
 typedef std::list<RTCPReportBlock> ReportBlockList;
 
 struct RtpState {
@@ -310,6 +304,8 @@ class TransportFeedbackObserver {
                          int probe_cluster_id) = 0;
 
   virtual void OnTransportFeedback(const rtcp::TransportFeedback& feedback) = 0;
+
+  virtual std::vector<PacketInfo> GetTransportFeedbackVector() const = 0;
 };
 
 class RtcpRttStats {

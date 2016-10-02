@@ -13,9 +13,9 @@
 
 #include <string>
 
-#include "testing/gtest/include/gtest/gtest.h"
 #include "webrtc/modules/video_processing/include/video_processing.h"
 #include "webrtc/system_wrappers/include/trace.h"
+#include "webrtc/test/gtest.h"
 #include "webrtc/test/testsupport/fileutils.h"
 
 namespace webrtc {
@@ -33,7 +33,6 @@ class VideoProcessingTest : public ::testing::Test {
   static void TearDownTestCase() { Trace::ReturnTrace(); }
   VideoProcessing* vp_;
   FILE* source_file_;
-  VideoFrame video_frame_;
   const int width_;
   const int half_width_;
   const int height_;

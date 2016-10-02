@@ -13,7 +13,7 @@
 
 #include <list>
 
-#include "webrtc/base/sequenced_task_checker.h"
+#include "webrtc/base/race_checker.h"
 #include "webrtc/common_video/include/video_frame_buffer.h"
 
 namespace webrtc {
@@ -23,6 +23,8 @@ namespace webrtc {
 // When the I420Buffer is destructed, the memory is returned to the pool for use
 // by subsequent calls to CreateBuffer. If the resolution passed to CreateBuffer
 // changes, old buffers will be purged from the pool.
+// Note that CreateBuffer will crash if more than kMaxNumberOfFramesBeforeCrash
+// are created. This is to prevent memory leaks where frames are not returned.
 class I420BufferPool {
  public:
   I420BufferPool() : I420BufferPool(false) {}
@@ -36,11 +38,12 @@ class I420BufferPool {
   void Release();
 
  private:
+  static const size_t kMaxNumberOfFramesBeforeCrash;
   // Explicitly use a RefCountedObject to get access to HasOneRef,
   // needed by the pool to check exclusive access.
   using PooledI420Buffer = rtc::RefCountedObject<I420Buffer>;
 
-  rtc::SequencedTaskChecker sequenced_checker_;
+  rtc::RaceChecker race_checker_;
   std::list<rtc::scoped_refptr<PooledI420Buffer>> buffers_;
   // If true, newly allocated buffers are zero-initialized. Note that recycled
   // buffers are not zero'd before reuse. This is required of buffers used by

@@ -78,9 +78,24 @@ class StatsCounter {
  public:
   virtual ~StatsCounter();
 
+  // Gets metric within an interval. Returns true on success false otherwise.
   virtual bool GetMetric(int* metric) const = 0;
 
+  // Gets the value to use for an interval without samples.
+  virtual int GetValueForEmptyInterval() const = 0;
+
+  // Gets aggregated stats (i.e. aggregate of periodically computed metrics).
   AggregatedStats GetStats();
+
+  // Reports metrics for elapsed intervals to AggregatedCounter and GetStats.
+  AggregatedStats ProcessAndGetStats();
+
+  // Reports metrics for elapsed intervals to AggregatedCounter and pauses stats
+  // (i.e. empty intervals will be discarded until next sample is added).
+  void ProcessAndPause();
+
+  // Checks if a sample has been added (i.e. Add or Set called).
+  bool HasSample() const;
 
  protected:
   StatsCounter(Clock* clock,
@@ -95,15 +110,19 @@ class StatsCounter {
   int64_t num_samples_;
   int64_t last_sum_;
 
+  const std::unique_ptr<AggregatedCounter> aggregated_counter_;
+
  private:
-  bool TimeToProcess();
+  bool TimeToProcess(int* num_elapsed_intervals);
   void TryProcess();
+  void ReportMetricToAggregatedCounter(int value, int num_values_to_add) const;
+  bool IncludeEmptyIntervals() const;
 
   Clock* const clock_;
   const bool include_empty_intervals_;
   const std::unique_ptr<StatsCounterObserver> observer_;
-  const std::unique_ptr<AggregatedCounter> aggregated_counter_;
   int64_t last_process_time_ms_;
+  bool paused_;
 };
 
 // AvgCounter: average of samples
@@ -112,15 +131,24 @@ class StatsCounter {
 //           | Add(5) Add(1) Add(6) | Add(5)      Add(5)  |
 // GetMetric | (5 + 1 + 6) / 3      | (5 + 5) / 2         |
 //
+// |include_empty_intervals|: If set, intervals without samples will be included
+//                            in the stats. The value for an interval is
+//                            determined by GetValueForEmptyInterval().
+//
 class AvgCounter : public StatsCounter {
  public:
-  AvgCounter(Clock* clock, StatsCounterObserver* observer);
+  AvgCounter(Clock* clock,
+             StatsCounterObserver* observer,
+             bool include_empty_intervals);
   ~AvgCounter() override {}
 
   void Add(int sample);
 
  private:
   bool GetMetric(int* metric) const override;
+
+  // Returns the last computed metric (i.e. from GetMetric).
+  int GetValueForEmptyInterval() const override;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(AvgCounter);
 };
@@ -140,6 +168,7 @@ class MaxCounter : public StatsCounter {
 
  private:
   bool GetMetric(int* metric) const override;
+  int GetValueForEmptyInterval() const override;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(MaxCounter);
 };
@@ -159,6 +188,7 @@ class PercentCounter : public StatsCounter {
 
  private:
   bool GetMetric(int* metric) const override;
+  int GetValueForEmptyInterval() const override;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(PercentCounter);
 };
@@ -178,6 +208,7 @@ class PermilleCounter : public StatsCounter {
 
  private:
   bool GetMetric(int* metric) const override;
+  int GetValueForEmptyInterval() const override;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(PermilleCounter);
 };
@@ -188,6 +219,10 @@ class PermilleCounter : public StatsCounter {
 //           | Add(5) Add(1) Add(6) | Add(5)      Add(5)  |
 //           |<------ 2 sec ------->|                     |
 // GetMetric | (5 + 1 + 6) / 2      | (5 + 5) / 2         |
+//
+// |include_empty_intervals|: If set, intervals without samples will be included
+//                            in the stats. The value for an interval is
+//                            determined by GetValueForEmptyInterval().
 //
 class RateCounter : public StatsCounter {
  public:
@@ -200,6 +235,7 @@ class RateCounter : public StatsCounter {
 
  private:
   bool GetMetric(int* metric) const override;
+  int GetValueForEmptyInterval() const override;  // Returns zero.
 
   RTC_DISALLOW_COPY_AND_ASSIGN(RateCounter);
 };
@@ -210,6 +246,10 @@ class RateCounter : public StatsCounter {
 //           | Set(5) Set(6) Set(8) | Set(11)   Set(13)   |
 //           |<------ 2 sec ------->|                     |
 // GetMetric | 8 / 2                | (13 - 8) / 2        |
+//
+// |include_empty_intervals|: If set, intervals without samples will be included
+//                            in the stats. The value for an interval is
+//                            determined by GetValueForEmptyInterval().
 //
 class RateAccCounter : public StatsCounter {
  public:
@@ -222,6 +262,7 @@ class RateAccCounter : public StatsCounter {
 
  private:
   bool GetMetric(int* metric) const override;
+  int GetValueForEmptyInterval() const override;  // Returns zero.
 
   RTC_DISALLOW_COPY_AND_ASSIGN(RateAccCounter);
 };

@@ -52,6 +52,13 @@ typedef struct {
   uint8_t mode_context[MAX_REF_FRAMES];
 } MB_MODE_INFO_EXT;
 
+typedef struct {
+  int col_min;
+  int col_max;
+  int row_min;
+  int row_max;
+} MvLimits;
+
 typedef struct macroblock MACROBLOCK;
 struct macroblock {
   struct macroblock_plane plane[MAX_MB_PLANE];
@@ -64,6 +71,8 @@ struct macroblock {
   int skip_recode;
   int skip_optimize;
   int q_index;
+  int block_qcoeff_opt;
+  int block_tx_domain;
 
   // The equivalent error at the current rdmult of one whole bit (not one
   // bitcost unit).
@@ -103,10 +112,7 @@ struct macroblock {
 
   // These define limits to motion vector components to prevent them
   // from extending outside the UMV borders
-  int mv_col_min;
-  int mv_col_max;
-  int mv_row_min;
-  int mv_row_max;
+  MvLimits mv_limits;
 
   // Notes transform blocks where no coefficents are coded.
   // Set during mode selection. Read during block encoding.

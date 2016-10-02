@@ -123,14 +123,7 @@ class CopyOnWriteBuffer {
     return *this;
   }
 
-  bool operator==(const CopyOnWriteBuffer& buf) const {
-    // Must either use the same buffer internally or have the same contents.
-    RTC_DCHECK(IsConsistent());
-    RTC_DCHECK(buf.IsConsistent());
-    return buffer_.get() == buf.buffer_.get() ||
-        (buffer_.get() && buf.buffer_.get() &&
-        *buffer_.get() == *buf.buffer_.get());
-  }
+  bool operator==(const CopyOnWriteBuffer& buf) const;
 
   bool operator!=(const CopyOnWriteBuffer& buf) const {
     return !(*this == buf);
@@ -153,9 +146,10 @@ class CopyOnWriteBuffer {
                 internal::BufferCompat<uint8_t, T>::value>::type* = nullptr>
   void SetData(const T* data, size_t size) {
     RTC_DCHECK(IsConsistent());
-    if (!buffer_ || !buffer_->HasOneRef()) {
-      buffer_ = size > 0 ? new RefCountedObject<Buffer>(data, size)
-                         : nullptr;
+    if (!buffer_) {
+      buffer_ = size > 0 ? new RefCountedObject<Buffer>(data, size) : nullptr;
+    } else if (!buffer_->HasOneRef()) {
+      buffer_ = new RefCountedObject<Buffer>(data, size, buffer_->capacity());
     } else {
       buffer_->SetData(data, size);
     }
@@ -212,51 +206,16 @@ class CopyOnWriteBuffer {
   // buffer contents will be kept but truncated; if the new size is greater,
   // the existing contents will be kept and the new space will be
   // uninitialized.
-  void SetSize(size_t size) {
-    RTC_DCHECK(IsConsistent());
-    if (!buffer_) {
-      if (size > 0) {
-        buffer_ = new RefCountedObject<Buffer>(size);
-      }
-      RTC_DCHECK(IsConsistent());
-      return;
-    }
-
-    CloneDataIfReferenced(std::max(buffer_->capacity(), size));
-    buffer_->SetSize(size);
-    RTC_DCHECK(IsConsistent());
-  }
+  void SetSize(size_t size);
 
   // Ensure that the buffer size can be increased to at least capacity without
   // further reallocation. (Of course, this operation might need to reallocate
   // the buffer.)
-  void EnsureCapacity(size_t capacity) {
-    RTC_DCHECK(IsConsistent());
-    if (!buffer_) {
-      if (capacity > 0) {
-        buffer_ = new RefCountedObject<Buffer>(0, capacity);
-      }
-      RTC_DCHECK(IsConsistent());
-      return;
-    } else if (capacity <= buffer_->capacity()) {
-      return;
-    }
+  void EnsureCapacity(size_t capacity);
 
-    CloneDataIfReferenced(std::max(buffer_->capacity(), capacity));
-    buffer_->EnsureCapacity(capacity);
-    RTC_DCHECK(IsConsistent());
-  }
-
-  // Resets the buffer to zero size and capacity.
-  void Clear() {
-    RTC_DCHECK(IsConsistent());
-    if (!buffer_ || !buffer_->HasOneRef()) {
-      buffer_ = nullptr;
-    } else {
-      buffer_->Clear();
-    }
-    RTC_DCHECK(IsConsistent());
-  }
+  // Resets the buffer to zero size without altering capacity. Works even if the
+  // buffer has been moved from.
+  void Clear();
 
   // Swaps two buffers.
   friend void swap(CopyOnWriteBuffer& a, CopyOnWriteBuffer& b) {
@@ -266,15 +225,7 @@ class CopyOnWriteBuffer {
  private:
   // Create a copy of the underlying data if it is referenced from other Buffer
   // objects.
-  void CloneDataIfReferenced(size_t new_capacity) {
-    if (buffer_->HasOneRef()) {
-      return;
-    }
-
-    buffer_ = new RefCountedObject<Buffer>(buffer_->data(), buffer_->size(),
-        new_capacity);
-    RTC_DCHECK(IsConsistent());
-  }
+  void CloneDataIfReferenced(size_t new_capacity);
 
   // Pre- and postcondition of all methods.
   bool IsConsistent() const {

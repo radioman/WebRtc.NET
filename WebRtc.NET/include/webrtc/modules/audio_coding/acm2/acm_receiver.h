@@ -24,7 +24,6 @@
 #include "webrtc/engine_configurations.h"
 #include "webrtc/modules/audio_coding/acm2/acm_resampler.h"
 #include "webrtc/modules/audio_coding/acm2/call_statistics.h"
-#include "webrtc/modules/audio_coding/acm2/initial_delay_manager.h"
 #include "webrtc/modules/audio_coding/include/audio_coding_module.h"
 #include "webrtc/modules/audio_coding/neteq/include/neteq.h"
 #include "webrtc/modules/include/module_common_types.h"
@@ -39,15 +38,6 @@ namespace acm2 {
 
 class AcmReceiver {
  public:
-  struct Decoder {
-    int acm_codec_id;
-    uint8_t payload_type;
-    // This field is meaningful for codecs where both mono and
-    // stereo versions are registered under the same ID.
-    size_t channels;
-    int sample_rate_hz;
-  };
-
   // Constructor of the class
   explicit AcmReceiver(const AudioCodingModule::Config& config);
 
@@ -195,11 +185,18 @@ class AcmReceiver {
   //
   // Remove all registered codecs.
   //
-  int RemoveAllCodecs();
+  void RemoveAllCodecs();
 
   // Returns the RTP timestamp for the last sample delivered by GetAudio().
   // The return value will be empty if no valid timestamp is available.
   rtc::Optional<uint32_t> GetPlayoutTimestamp();
+
+  // Returns the current total delay from NetEq (packet buffer and sync buffer)
+  // in ms, with smoothing applied to even out short-time fluctuations due to
+  // jitter. The packet buffer part of the delay is not updated during DTX/CNG
+  // periods.
+  //
+  int FilteredCurrentDelayMs() const;
 
   //
   // Get the audio codec associated with the last non-CNG/non-DTMF received
@@ -255,20 +252,27 @@ class AcmReceiver {
   void GetDecodingCallStatistics(AudioDecodingCallStats* stats) const;
 
  private:
-  const Decoder* RtpHeaderToDecoder(const RTPHeader& rtp_header,
-                                    uint8_t payload_type) const
-      EXCLUSIVE_LOCKS_REQUIRED(crit_sect_);
+  struct Decoder {
+    int acm_codec_id;
+    uint8_t payload_type;
+    // This field is meaningful for codecs where both mono and
+    // stereo versions are registered under the same ID.
+    size_t channels;
+    int sample_rate_hz;
+  };
+
+  const rtc::Optional<CodecInst> RtpHeaderToDecoder(
+      const RTPHeader& rtp_header,
+      uint8_t first_payload_byte) const EXCLUSIVE_LOCKS_REQUIRED(crit_sect_);
 
   uint32_t NowInTimestamp(int decoder_sampling_rate) const;
 
   rtc::CriticalSection crit_sect_;
-  const Decoder* last_audio_decoder_ GUARDED_BY(crit_sect_);
+  rtc::Optional<CodecInst> last_audio_decoder_ GUARDED_BY(crit_sect_);
   ACMResampler resampler_ GUARDED_BY(crit_sect_);
   std::unique_ptr<int16_t[]> last_audio_buffer_ GUARDED_BY(crit_sect_);
   CallStatistics call_stats_ GUARDED_BY(crit_sect_);
   NetEq* neteq_;
-  // Decoders map is keyed by payload type
-  std::map<uint8_t, Decoder> decoders_ GUARDED_BY(crit_sect_);
   Clock* clock_;  // TODO(henrik.lundin) Make const if possible.
   bool resampled_last_output_frame_ GUARDED_BY(crit_sect_);
   rtc::Optional<int> last_packet_sample_rate_hz_ GUARDED_BY(crit_sect_);

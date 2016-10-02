@@ -10,6 +10,8 @@
 
 #import "WebRTC/RTCVideoSource.h"
 
+#import "RTCMediaSource+Private.h"
+
 #include "webrtc/api/mediastreaminterface.h"
 
 NS_ASSUME_NONNULL_BEGIN
@@ -29,13 +31,9 @@ NS_ASSUME_NONNULL_BEGIN
     (rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>)nativeVideoSource
     NS_DESIGNATED_INITIALIZER;
 
-+ (webrtc::MediaSourceInterface::SourceState)nativeSourceStateForState:
-    (RTCSourceState)state;
-
-+ (RTCSourceState)sourceStateForNativeState:
-    (webrtc::MediaSourceInterface::SourceState)nativeState;
-
-+ (NSString *)stringForState:(RTCSourceState)state;
+- (instancetype)initWithNativeMediaSource:
+    (rtc::scoped_refptr<webrtc::MediaSourceInterface>)nativeMediaSource
+                                     type:(RTCMediaSourceType)type NS_UNAVAILABLE;
 
 @end
 

@@ -48,6 +48,8 @@ class GainApplier {
  public:
   GainApplier(size_t freqs, float relative_change_limit);
 
+  ~GainApplier();
+
   // Copy |in_block| to |out_block|, multiplied by the current set of gains,
   // and step the current set of gains towards the target set.
   void Apply(const std::complex<float>* in_block,
@@ -61,6 +63,20 @@ class GainApplier {
   const float relative_change_limit_;
   std::vector<float> target_;
   std::vector<float> current_;
+};
+
+// Helper class to delay a signal by an integer number of samples.
+class DelayBuffer {
+ public:
+  DelayBuffer(size_t delay, size_t num_channels);
+
+  ~DelayBuffer();
+
+  void Delay(float* const* data, size_t length);
+
+ private:
+  std::vector<std::vector<float>> buffer_;
+  size_t read_index_;
 };
 
 }  // namespace intelligibility

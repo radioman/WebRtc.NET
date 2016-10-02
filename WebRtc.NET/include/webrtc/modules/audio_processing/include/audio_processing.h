@@ -21,8 +21,8 @@
 
 #include "webrtc/base/arraysize.h"
 #include "webrtc/base/platform_file.h"
-#include "webrtc/common.h"
 #include "webrtc/modules/audio_processing/beamformer/array_util.h"
+#include "webrtc/modules/audio_processing/include/config.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -91,14 +91,6 @@ struct RefinedAdaptiveFilter {
   bool enabled;
 };
 
-// Enables the adaptive level controller.
-struct LevelControl {
-  LevelControl() : enabled(false) {}
-  explicit LevelControl(bool enabled) : enabled(enabled) {}
-  static const ConfigOptionID identifier = ConfigOptionID::kLevelControl;
-  bool enabled;
-};
-
 // Enables delay-agnostic echo cancellation. This feature relies on internally
 // estimated delays between the process and reverse streams, thus not relying
 // on reported system delays. This configuration only applies to
@@ -145,22 +137,13 @@ struct ExperimentalNs {
 // Use to enable beamforming. Must be provided through the constructor. It will
 // have no impact if used with AudioProcessing::SetExtraOptions().
 struct Beamforming {
-  Beamforming()
-      : enabled(false),
-        array_geometry(),
-        target_direction(
-            SphericalPointf(static_cast<float>(M_PI) / 2.f, 0.f, 1.f)) {}
-  Beamforming(bool enabled, const std::vector<Point>& array_geometry)
-      : Beamforming(enabled,
-                    array_geometry,
-                    SphericalPointf(static_cast<float>(M_PI) / 2.f, 0.f, 1.f)) {
-  }
+  Beamforming();
+  Beamforming(bool enabled, const std::vector<Point>& array_geometry);
   Beamforming(bool enabled,
               const std::vector<Point>& array_geometry,
-              SphericalPointf target_direction)
-      : enabled(enabled),
-        array_geometry(array_geometry),
-        target_direction(target_direction) {}
+              SphericalPointf target_direction);
+  ~Beamforming();
+
   static const ConfigOptionID identifier = ConfigOptionID::kBeamforming;
   const bool enabled;
   const std::vector<Point> array_geometry;
@@ -214,6 +197,10 @@ struct Intelligibility {
 // Usage example, omitting error checking:
 // AudioProcessing* apm = AudioProcessing::Create(0);
 //
+// AudioProcessing::Config config;
+// config.level_controller.enabled = true;
+// apm->ApplyConfig(config)
+//
 // apm->high_pass_filter()->Enable(true);
 //
 // apm->echo_cancellation()->enable_drift_compensation(false);
@@ -253,14 +240,29 @@ struct Intelligibility {
 //
 class AudioProcessing {
  public:
+  // The struct below constitutes the new parameter scheme for the audio
+  // processing. It is being introduced gradually and until it is fully
+  // introduced, it is prone to change.
+  // TODO(peah): Remove this comment once the new config scheme is fully rolled
+  // out.
+  //
+  // The parameters and behavior of the audio processing module are controlled
+  // by changing the default values in the AudioProcessing::Config struct.
+  // The config is applied by passing the struct to the ApplyConfig method.
+  struct Config {
+    struct LevelController {
+      bool enabled = false;
+    } level_controller;
+  };
+
   // TODO(mgraczyk): Remove once all methods that use ChannelLayout are gone.
   enum ChannelLayout {
     kMono,
     // Left, right.
     kStereo,
-    // Mono, keyboard mic.
+    // Mono, keyboard, and mic.
     kMonoAndKeyboard,
-    // Left, right, keyboard mic.
+    // Left, right, keyboard, and mic.
     kStereoAndKeyboard
   };
 
@@ -271,9 +273,9 @@ class AudioProcessing {
   // be one instance for every incoming stream.
   static AudioProcessing* Create();
   // Allows passing in an optional configuration at create-time.
-  static AudioProcessing* Create(const Config& config);
+  static AudioProcessing* Create(const webrtc::Config& config);
   // Only for testing.
-  static AudioProcessing* Create(const Config& config,
+  static AudioProcessing* Create(const webrtc::Config& config,
                                  NonlinearBeamformer* beamformer);
   virtual ~AudioProcessing() {}
 
@@ -302,16 +304,20 @@ class AudioProcessing {
   // Initialize with unpacked parameters. See Initialize() above for details.
   //
   // TODO(mgraczyk): Remove once clients are updated to use the new interface.
-  virtual int Initialize(int input_sample_rate_hz,
-                         int output_sample_rate_hz,
-                         int reverse_sample_rate_hz,
-                         ChannelLayout input_layout,
-                         ChannelLayout output_layout,
-                         ChannelLayout reverse_layout) = 0;
+  virtual int Initialize(int capture_input_sample_rate_hz,
+                         int capture_output_sample_rate_hz,
+                         int render_sample_rate_hz,
+                         ChannelLayout capture_input_layout,
+                         ChannelLayout capture_output_layout,
+                         ChannelLayout render_input_layout) = 0;
+
+  // TODO(peah): This method is a temporary solution used to take control
+  // over the parameters in the audio processing module and is likely to change.
+  virtual void ApplyConfig(const Config& config) = 0;
 
   // Pass down additional options which don't have explicit setters. This
   // ensures the options are applied immediately.
-  virtual void SetExtraOptions(const Config& config) = 0;
+  virtual void SetExtraOptions(const webrtc::Config& config) = 0;
 
   // TODO(ajm): Only intended for internal use. Make private and friend the
   // necessary classes?
@@ -388,14 +394,14 @@ class AudioProcessing {
   // TODO(mgraczyk): Remove once clients are updated to use the new interface.
   virtual int AnalyzeReverseStream(const float* const* data,
                                    size_t samples_per_channel,
-                                   int rev_sample_rate_hz,
+                                   int sample_rate_hz,
                                    ChannelLayout layout) = 0;
 
   // Accepts deinterleaved float audio with the range [-1, 1]. Each element of
   // |data| points to a channel buffer, arranged according to |reverse_config|.
   virtual int ProcessReverseStream(const float* const* src,
-                                   const StreamConfig& reverse_input_config,
-                                   const StreamConfig& reverse_output_config,
+                                   const StreamConfig& input_config,
+                                   const StreamConfig& output_config,
                                    float* const* dest) = 0;
 
   // This must be called if and only if echo processing is enabled.
@@ -450,9 +456,7 @@ class AudioProcessing {
   // Same as above but uses an existing PlatformFile handle. Takes ownership
   // of |handle| and closes it at StopDebugRecording().
   // TODO(xians): Make this interface pure virtual.
-  virtual int StartDebugRecordingForPlatformFile(rtc::PlatformFile handle) {
-      return -1;
-  }
+  virtual int StartDebugRecordingForPlatformFile(rtc::PlatformFile handle);
 
   // Stops recording debugging information, and closes the file. Recording
   // cannot be resumed in the same file (without overwriting it).
@@ -509,9 +513,15 @@ class AudioProcessing {
     kSampleRate48kHz = 48000
   };
 
-  static const int kNativeSampleRatesHz[];
-  static const size_t kNumNativeSampleRates;
-  static const int kMaxNativeSampleRateHz;
+  // TODO(kwiberg): We currently need to support a compiler (Visual C++) that
+  // complains if we don't explicitly state the size of the array here. Remove
+  // the size when that's no longer the case.
+  static constexpr int kNativeSampleRatesHz[4] = {
+      kSampleRate8kHz, kSampleRate16kHz, kSampleRate32kHz, kSampleRate48kHz};
+  static constexpr size_t kNumNativeSampleRates =
+      arraysize(kNativeSampleRatesHz);
+  static constexpr int kMaxNativeSampleRateHz =
+      kNativeSampleRatesHz[kNumNativeSampleRates - 1];
 
   static const int kChunkSizeMs = 10;
 };

@@ -106,9 +106,18 @@ enum SSLProtocolVersion {
   SSL_PROTOCOL_DTLS_10 = SSL_PROTOCOL_TLS_11,
   SSL_PROTOCOL_DTLS_12 = SSL_PROTOCOL_TLS_12,
 };
+enum class SSLPeerCertificateDigestError {
+  NONE,
+  UNKNOWN_ALGORITHM,
+  INVALID_LENGTH,
+  VERIFICATION_FAILED,
+};
 
 // Errors for Read -- in the high range so no conflict with OpenSSL.
 enum { SSE_MSG_TRUNC = 0xff0001 };
+
+// Used to send back UMA histogram value. Logged when Dtls handshake fails.
+enum class SSLHandshakeError { UNKNOWN, INCOMPATIBLE_CIPHERSUITE, MAX_VALUE };
 
 class SSLStreamAdapter : public StreamAdapterInterface {
  public:
@@ -117,9 +126,8 @@ class SSLStreamAdapter : public StreamAdapterInterface {
   // Caller is responsible for freeing the returned object.
   static SSLStreamAdapter* Create(StreamInterface* stream);
 
-  explicit SSLStreamAdapter(StreamInterface* stream)
-      : StreamAdapterInterface(stream), ignore_bad_cert_(false),
-        client_auth_enabled_(true) { }
+  explicit SSLStreamAdapter(StreamInterface* stream);
+  ~SSLStreamAdapter() override;
 
   void set_ignore_bad_cert(bool ignore) { ignore_bad_cert_ = ignore; }
   bool ignore_bad_cert() const { return ignore_bad_cert_; }
@@ -171,9 +179,14 @@ class SSLStreamAdapter : public StreamAdapterInterface {
   // certificate is assumed to have been obtained through some other secure
   // channel (such as the signaling channel). This must specify the terminal
   // certificate, not just a CA. SSLStream makes a copy of the digest value.
-  virtual bool SetPeerCertificateDigest(const std::string& digest_alg,
-                                        const unsigned char* digest_val,
-                                        size_t digest_len) = 0;
+  //
+  // Returns true if successful.
+  // |error| is optional and provides more information about the failure.
+  virtual bool SetPeerCertificateDigest(
+      const std::string& digest_alg,
+      const unsigned char* digest_val,
+      size_t digest_len,
+      SSLPeerCertificateDigestError* error = nullptr) = 0;
 
   // Retrieves the peer's X.509 certificate, if a connection has been
   // established. It returns the transmitted over SSL, including the entire
@@ -209,6 +222,12 @@ class SSLStreamAdapter : public StreamAdapterInterface {
   virtual bool SetDtlsSrtpCryptoSuites(const std::vector<int>& crypto_suites);
   virtual bool GetDtlsSrtpCryptoSuite(int* crypto_suite);
 
+  // Returns true if a TLS connection has been established.
+  // The only difference between this and "GetState() == SE_OPEN" is that if
+  // the peer certificate digest hasn't been verified, the state will still be
+  // SS_OPENING but IsTlsConnected should return true.
+  virtual bool IsTlsConnected() = 0;
+
   // Capabilities testing
   static bool HaveDtls();
   static bool HaveDtlsSrtp();
@@ -224,6 +243,8 @@ class SSLStreamAdapter : public StreamAdapterInterface {
   // introduced such that any caller could depend on sslstreamadapter.h without
   // depending on specific SSL implementation.
   static std::string SslCipherSuiteToName(int cipher_suite);
+
+  sigslot::signal1<SSLHandshakeError> SignalSSLHandshakeError;
 
  private:
   // If true, the server certificate need not match the configured

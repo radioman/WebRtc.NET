@@ -387,19 +387,24 @@ void vpx_lpf_horizontal_8_neon(uint8_t *s, int pitch, const uint8_t *blimit, con
 #define vpx_lpf_horizontal_8 vpx_lpf_horizontal_8_neon
 
 void vpx_lpf_horizontal_8_dual_c(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
-#define vpx_lpf_horizontal_8_dual vpx_lpf_horizontal_8_dual_c
+void vpx_lpf_horizontal_8_dual_neon(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
+#define vpx_lpf_horizontal_8_dual vpx_lpf_horizontal_8_dual_neon
 
 void vpx_lpf_horizontal_edge_16_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
-#define vpx_lpf_horizontal_edge_16 vpx_lpf_horizontal_edge_16_c
+void vpx_lpf_horizontal_edge_16_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
+#define vpx_lpf_horizontal_edge_16 vpx_lpf_horizontal_edge_16_neon
 
 void vpx_lpf_horizontal_edge_8_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
-#define vpx_lpf_horizontal_edge_8 vpx_lpf_horizontal_edge_8_c
+void vpx_lpf_horizontal_edge_8_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
+#define vpx_lpf_horizontal_edge_8 vpx_lpf_horizontal_edge_8_neon
 
 void vpx_lpf_vertical_16_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
-#define vpx_lpf_vertical_16 vpx_lpf_vertical_16_c
+void vpx_lpf_vertical_16_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
+#define vpx_lpf_vertical_16 vpx_lpf_vertical_16_neon
 
 void vpx_lpf_vertical_16_dual_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
-#define vpx_lpf_vertical_16_dual vpx_lpf_vertical_16_dual_c
+void vpx_lpf_vertical_16_dual_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
+#define vpx_lpf_vertical_16_dual vpx_lpf_vertical_16_dual_neon
 
 void vpx_lpf_vertical_4_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
 void vpx_lpf_vertical_4_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
@@ -414,7 +419,8 @@ void vpx_lpf_vertical_8_neon(uint8_t *s, int pitch, const uint8_t *blimit, const
 #define vpx_lpf_vertical_8 vpx_lpf_vertical_8_neon
 
 void vpx_lpf_vertical_8_dual_c(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
-#define vpx_lpf_vertical_8_dual vpx_lpf_vertical_8_dual_c
+void vpx_lpf_vertical_8_dual_neon(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
+#define vpx_lpf_vertical_8_dual vpx_lpf_vertical_8_dual_neon
 
 void vpx_mbpost_proc_across_ip_c(unsigned char *dst, int pitch, int rows, int cols,int flimit);
 #define vpx_mbpost_proc_across_ip vpx_mbpost_proc_across_ip_c
@@ -815,15 +821,6 @@ unsigned int vpx_variance8x4_c(const uint8_t *src_ptr, int source_stride, const 
 unsigned int vpx_variance8x8_c(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 unsigned int vpx_variance8x8_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 #define vpx_variance8x8 vpx_variance8x8_neon
-
-uint32_t vpx_variance_halfpixvar16x16_h_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, uint32_t *sse);
-#define vpx_variance_halfpixvar16x16_h vpx_variance_halfpixvar16x16_h_c
-
-uint32_t vpx_variance_halfpixvar16x16_hv_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, uint32_t *sse);
-#define vpx_variance_halfpixvar16x16_hv vpx_variance_halfpixvar16x16_hv_c
-
-uint32_t vpx_variance_halfpixvar16x16_v_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, uint32_t *sse);
-#define vpx_variance_halfpixvar16x16_v vpx_variance_halfpixvar16x16_v_c
 
 void vpx_ve_predictor_4x4_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 #define vpx_ve_predictor_4x4 vpx_ve_predictor_4x4_c

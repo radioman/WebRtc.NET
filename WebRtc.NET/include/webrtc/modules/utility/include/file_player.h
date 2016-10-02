@@ -29,14 +29,9 @@ class FilePlayer {
   enum { MAX_AUDIO_BUFFER_IN_BYTES = MAX_AUDIO_BUFFER_IN_SAMPLES * 2 };
 
   // Note: will return NULL for unsupported formats.
-  static std::unique_ptr<FilePlayer> NewFilePlayer(
+  static std::unique_ptr<FilePlayer> CreateFilePlayer(
       const uint32_t instanceID,
       const FileFormats fileFormat);
-
-  // Deprecated creation/destruction functions. Use NewFilePlayer instead.
-  static FilePlayer* CreateFilePlayer(const uint32_t instanceID,
-                                      const FileFormats fileFormat);
-  static void DestroyFilePlayer(FilePlayer* player);
 
   virtual ~FilePlayer() = default;
 
@@ -44,7 +39,7 @@ class FilePlayer {
   // will be set to the number of samples read (not the number of samples per
   // channel).
   virtual int Get10msAudioFromFile(int16_t* outBuffer,
-                                   size_t& lengthInSamples,
+                                   size_t* lengthInSamples,
                                    int frequencyInHz) = 0;
 
   // Register callback for receiving file playing notifications.
@@ -57,25 +52,25 @@ class FilePlayer {
                                    uint32_t startPosition,
                                    float volumeScaling,
                                    uint32_t notification,
-                                   uint32_t stopPosition = 0,
-                                   const CodecInst* codecInst = NULL) = 0;
+                                   uint32_t stopPosition,
+                                   const CodecInst* codecInst) = 0;
 
   // Note: codecInst is used for pre-encoded files.
-  virtual int32_t StartPlayingFile(InStream& sourceStream,
+  virtual int32_t StartPlayingFile(InStream* sourceStream,
                                    uint32_t startPosition,
                                    float volumeScaling,
                                    uint32_t notification,
-                                   uint32_t stopPosition = 0,
-                                   const CodecInst* codecInst = NULL) = 0;
+                                   uint32_t stopPosition,
+                                   const CodecInst* codecInst) = 0;
 
   virtual int32_t StopPlayingFile() = 0;
 
   virtual bool IsPlayingFile() const = 0;
 
-  virtual int32_t GetPlayoutPosition(uint32_t& durationMs) = 0;
+  virtual int32_t GetPlayoutPosition(uint32_t* durationMs) = 0;
 
   // Set audioCodec to the currently used audio codec.
-  virtual int32_t AudioCodec(CodecInst& audioCodec) const = 0;
+  virtual int32_t AudioCodec(CodecInst* audioCodec) const = 0;
 
   virtual int32_t Frequency() const = 0;
 

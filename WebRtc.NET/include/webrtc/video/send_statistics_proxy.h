@@ -14,6 +14,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/exp_filter.h"
@@ -52,15 +53,14 @@ class SendStatisticsProxy : public CpuOveruseMetricsObserver,
   // Used to update incoming frame rate.
   void OnIncomingFrame(int width, int height);
 
-  void OnEncoderStatsUpdate(uint32_t framerate,
-                            uint32_t bitrate,
-                            const std::string& encoder_name);
+  void OnEncoderStatsUpdate(uint32_t framerate, uint32_t bitrate);
   void OnSuspendChange(bool is_suspended);
   void OnInactiveSsrc(uint32_t ssrc);
 
   // Used to indicate change in content type, which may require a change in
-  // how stats are collected.
-  void SetContentType(VideoEncoderConfig::ContentType content_type);
+  // how stats are collected and set the configured preferred media bitrate.
+  void OnEncoderReconfigured(const VideoEncoderConfig& encoder_config,
+                             uint32_t preferred_bitrate_bps);
 
   // Used to update the encoder target rate.
   void OnSetEncoderTargetRate(uint32_t bitrate_bps);
@@ -136,7 +136,8 @@ class SendStatisticsProxy : public CpuOveruseMetricsObserver,
       EXCLUSIVE_LOCKS_REQUIRED(crit_);
 
   Clock* const clock_;
-  const VideoSendStream::Config config_;
+  const std::string payload_name_;
+  const VideoSendStream::Config::Rtp rtp_config_;
   rtc::CriticalSection crit_;
   VideoEncoderConfig::ContentType content_type_ GUARDED_BY(crit_);
   const int64_t start_ms_;
@@ -154,7 +155,7 @@ class SendStatisticsProxy : public CpuOveruseMetricsObserver,
                         Clock* clock);
     ~UmaSamplesContainer();
 
-    void UpdateHistograms(const VideoSendStream::Config& config,
+    void UpdateHistograms(const VideoSendStream::Config::Rtp& rtp_config,
                           const VideoSendStream::Stats& current_stats);
 
     const std::string uma_prefix_;

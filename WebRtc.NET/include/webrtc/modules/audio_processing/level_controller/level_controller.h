@@ -38,12 +38,21 @@ class LevelController {
   void Process(AudioBuffer* audio);
   float GetLastGain() { return last_gain_; }
 
+  // Validates a config.
+  static bool Validate(const AudioProcessing::Config::LevelController& config);
+  // Dumps a config to a string.
+  static std::string ToString(
+      const AudioProcessing::Config::LevelController& config);
+
  private:
   class Metrics {
    public:
     Metrics() { Initialize(AudioProcessing::kSampleRate48kHz); }
     void Initialize(int sample_rate_hz);
-    void Update(float peak_level, float noise_level, float gain);
+    void Update(float long_term_peak_level,
+                float noise_level,
+                float gain,
+                float frame_peak_level);
 
    private:
     void Reset();

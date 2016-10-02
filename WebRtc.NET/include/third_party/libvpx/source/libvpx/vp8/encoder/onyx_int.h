@@ -55,9 +55,7 @@ extern "C" {
 #define MV_ZBIN_BOOST 4
 #define ZBIN_OQ_MAX 192
 
-#if !(CONFIG_REALTIME_ONLY)
-#define VP8_TEMPORAL_ALT_REF 1
-#endif
+#define VP8_TEMPORAL_ALT_REF !CONFIG_REALTIME_ONLY
 
 typedef struct {
   int kf_indicated;
@@ -509,6 +507,7 @@ typedef struct VP8_COMP {
   int mt_sync_range;
   int b_multi_threaded;
   int encoding_thread_count;
+  int b_lpf_running;
 
   pthread_t *h_encoding_thread;
   pthread_t h_filter_thread;
@@ -519,7 +518,7 @@ typedef struct VP8_COMP {
 
   /* events */
   sem_t *h_event_start_encoding;
-  sem_t h_event_end_encoding;
+  sem_t *h_event_end_encoding;
   sem_t h_event_start_lpf;
   sem_t h_event_end_lpf;
 #endif
@@ -688,7 +687,7 @@ void vp8_new_framerate(VP8_COMP *cpi, double framerate);
 void vp8_loopfilter_frame(VP8_COMP *cpi, VP8_COMMON *cm);
 
 void vp8_pack_bitstream(VP8_COMP *cpi, unsigned char *dest,
-                        unsigned char *dest_end, unsigned long *size);
+                        unsigned char *dest_end, size_t *size);
 
 void vp8_tokenize_mb(VP8_COMP *, MACROBLOCK *, TOKENEXTRA **);
 

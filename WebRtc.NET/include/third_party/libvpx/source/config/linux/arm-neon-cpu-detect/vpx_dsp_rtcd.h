@@ -822,15 +822,6 @@ unsigned int vpx_variance8x8_c(const uint8_t *src_ptr, int source_stride, const 
 unsigned int vpx_variance8x8_neon(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 RTCD_EXTERN unsigned int (*vpx_variance8x8)(const uint8_t *src_ptr, int source_stride, const uint8_t *ref_ptr, int ref_stride, unsigned int *sse);
 
-uint32_t vpx_variance_halfpixvar16x16_h_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, uint32_t *sse);
-#define vpx_variance_halfpixvar16x16_h vpx_variance_halfpixvar16x16_h_c
-
-uint32_t vpx_variance_halfpixvar16x16_hv_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, uint32_t *sse);
-#define vpx_variance_halfpixvar16x16_hv vpx_variance_halfpixvar16x16_hv_c
-
-uint32_t vpx_variance_halfpixvar16x16_v_c(const unsigned char *src_ptr, int source_stride, const unsigned char *ref_ptr, int  ref_stride, uint32_t *sse);
-#define vpx_variance_halfpixvar16x16_v vpx_variance_halfpixvar16x16_v_c
-
 void vpx_ve_predictor_4x4_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 #define vpx_ve_predictor_4x4 vpx_ve_predictor_4x4_c
 

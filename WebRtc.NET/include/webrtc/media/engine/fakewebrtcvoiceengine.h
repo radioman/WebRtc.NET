@@ -17,12 +17,10 @@
 
 #include "webrtc/base/basictypes.h"
 #include "webrtc/base/checks.h"
-#include "webrtc/base/gunit.h"
 #include "webrtc/base/stringutils.h"
 #include "webrtc/config.h"
 #include "webrtc/media/base/codec.h"
 #include "webrtc/media/base/rtputils.h"
-#include "webrtc/media/engine/fakewebrtccommon.h"
 #include "webrtc/media/engine/webrtcvoe.h"
 #include "webrtc/modules/audio_coding/acm2/rent_a_codec.h"
 #include "webrtc/modules/audio_processing/include/audio_processing.h"
@@ -37,6 +35,25 @@ static const int kOpusBandwidthFb = 20000;
 
 #define WEBRTC_CHECK_CHANNEL(channel) \
   if (channels_.find(channel) == channels_.end()) return -1;
+
+#define WEBRTC_STUB(method, args) \
+  int method args override { return 0; }
+
+#define WEBRTC_STUB_CONST(method, args) \
+  int method args const override { return 0; }
+
+#define WEBRTC_BOOL_STUB(method, args) \
+  bool method args override { return true; }
+
+#define WEBRTC_BOOL_STUB_CONST(method, args) \
+  bool method args const override { return true; }
+
+#define WEBRTC_VOID_STUB(method, args) \
+  void method args override {}
+
+#define WEBRTC_FUNC(method, args) int method args override
+
+#define WEBRTC_VOID_FUNC(method, args) void method args override
 
 class FakeAudioProcessing : public webrtc::AudioProcessing {
  public:
@@ -53,6 +70,7 @@ class FakeAudioProcessing : public webrtc::AudioProcessing {
   WEBRTC_STUB(Initialize, (
       const webrtc::ProcessingConfig& processing_config));
 
+  WEBRTC_VOID_STUB(ApplyConfig, (const AudioProcessing::Config& config));
   WEBRTC_VOID_FUNC(SetExtraOptions, (const webrtc::Config& config)) {
     experimental_ns_enabled_ = config.Get<webrtc::ExperimentalNs>().enabled;
   }
@@ -137,7 +155,7 @@ class FakeWebRtcVoiceEngine
     int associate_send_channel = -1;
     std::vector<webrtc::CodecInst> recv_codecs;
     webrtc::CodecInst send_codec;
-    int neteq_capacity = -1;
+    size_t neteq_capacity = 0;
     bool neteq_fast_accelerate = false;
   };
 
@@ -173,21 +191,6 @@ class FakeWebRtcVoiceEngine
   void set_fail_create_channel(bool fail_create_channel) {
     fail_create_channel_ = fail_create_channel;
   }
-  int AddChannel(const webrtc::Config& config) {
-    if (fail_create_channel_) {
-      return -1;
-    }
-    Channel* ch = new Channel();
-    auto db = webrtc::acm2::RentACodec::Database();
-    ch->recv_codecs.assign(db.begin(), db.end());
-    if (config.Get<webrtc::NetEqCapacityConfig>().enabled) {
-      ch->neteq_capacity = config.Get<webrtc::NetEqCapacityConfig>().capacity;
-    }
-    ch->neteq_fast_accelerate =
-        config.Get<webrtc::NetEqFastAccelerate>().enabled;
-    channels_[++last_channel_] = ch;
-    return last_channel_;
-  }
 
   int GetNumSetSendCodecs() const { return num_set_send_codecs_; }
 
@@ -220,11 +223,20 @@ class FakeWebRtcVoiceEngine
     return nullptr;
   }
   WEBRTC_FUNC(CreateChannel, ()) {
-    webrtc::Config empty_config;
-    return AddChannel(empty_config);
+    return CreateChannel(webrtc::VoEBase::ChannelConfig());
   }
-  WEBRTC_FUNC(CreateChannel, (const webrtc::Config& config)) {
-    return AddChannel(config);
+  WEBRTC_FUNC(CreateChannel, (const webrtc::VoEBase::ChannelConfig& config)) {
+    if (fail_create_channel_) {
+      return -1;
+    }
+    Channel* ch = new Channel();
+    auto db = webrtc::acm2::RentACodec::Database();
+    ch->recv_codecs.assign(db.begin(), db.end());
+    ch->neteq_capacity = config.acm_config.neteq_config.max_packets_in_buffer;
+    ch->neteq_fast_accelerate =
+        config.acm_config.neteq_config.enable_fast_accelerate;
+    channels_[++last_channel_] = ch;
+    return last_channel_;
   }
   WEBRTC_FUNC(DeleteChannel, (int channel)) {
     WEBRTC_CHECK_CHANNEL(channel);
@@ -476,18 +488,6 @@ class FakeWebRtcVoiceEngine
     enabledCNG = cng_enabled_;
     return 0;
   }
-  WEBRTC_STUB(SetRxNsStatus, (int channel, bool enable, webrtc::NsModes mode));
-  WEBRTC_STUB(GetRxNsStatus, (int channel, bool& enabled,
-                              webrtc::NsModes& mode));
-  WEBRTC_STUB(SetRxAgcStatus, (int channel, bool enable,
-                               webrtc::AgcModes mode));
-  WEBRTC_STUB(GetRxAgcStatus, (int channel, bool& enabled,
-                               webrtc::AgcModes& mode));
-  WEBRTC_STUB(SetRxAgcConfig, (int channel, webrtc::AgcConfig config));
-  WEBRTC_STUB(GetRxAgcConfig, (int channel, webrtc::AgcConfig& config));
-
-  WEBRTC_STUB(RegisterRxVadObserver, (int, webrtc::VoERxVadCallback&));
-  WEBRTC_STUB(DeRegisterRxVadObserver, (int channel));
   WEBRTC_STUB(VoiceActivityIndicator, (int channel));
   WEBRTC_FUNC(SetEcMetricsStatus, (bool enable)) {
     ec_metrics_enabled_ = enable;
@@ -530,7 +530,7 @@ class FakeWebRtcVoiceEngine
   void EnableStereoChannelSwapping(bool enable) override {
     stereo_swapping_enabled_ = enable;
   }
-  int GetNetEqCapacity() const {
+  size_t GetNetEqCapacity() const {
     auto ch = channels_.find(last_channel_);
     ASSERT(ch != channels_.end());
     return ch->second->neteq_capacity;

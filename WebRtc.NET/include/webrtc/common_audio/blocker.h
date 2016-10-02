@@ -71,12 +71,15 @@ class Blocker {
           const float* window,
           size_t shift_amount,
           BlockerCallback* callback);
+  ~Blocker();
 
   void ProcessChunk(const float* const* input,
                     size_t chunk_size,
                     size_t num_input_channels,
                     size_t num_output_channels,
                     float* const* output);
+
+  size_t initial_delay() const { return initial_delay_; }
 
  private:
   const size_t chunk_size_;

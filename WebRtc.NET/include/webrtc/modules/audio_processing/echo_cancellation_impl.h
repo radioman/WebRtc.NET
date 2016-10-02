@@ -28,7 +28,7 @@ class EchoCancellationImpl : public EchoCancellation {
  public:
   EchoCancellationImpl(rtc::CriticalSection* crit_render,
                        rtc::CriticalSection* crit_capture);
-  virtual ~EchoCancellationImpl();
+  ~EchoCancellationImpl() override;
 
   int ProcessRenderAudio(const AudioBuffer* audio);
   int ProcessCaptureAudio(AudioBuffer* audio, int stream_delay_ms);
@@ -43,17 +43,12 @@ class EchoCancellationImpl : public EchoCancellation {
                   size_t num_reverse_channels_,
                   size_t num_output_channels_,
                   size_t num_proc_channels_);
-  void SetExtraOptions(const Config& config);
+  void SetExtraOptions(const webrtc::Config& config);
   bool is_delay_agnostic_enabled() const;
   bool is_extended_filter_enabled() const;
   bool is_aec3_enabled() const;
   std::string GetExperimentsDescription();
   bool is_refined_adaptive_filter_enabled() const;
-
-  // Checks whether the module is enabled. Must only be
-  // called from the render side of APM as otherwise
-  // deadlocks may occur.
-  bool is_enabled_render_side_query() const;
 
   // Reads render side data that has been queued on the render call.
   // Called holding the capture lock.

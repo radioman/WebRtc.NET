@@ -35,15 +35,25 @@ struct SdpAudioFormat {
   SdpAudioFormat& operator=(const SdpAudioFormat&);
   SdpAudioFormat& operator=(SdpAudioFormat&&);
 
+  friend bool operator==(const SdpAudioFormat& a, const SdpAudioFormat& b);
+  friend bool operator!=(const SdpAudioFormat& a, const SdpAudioFormat& b) {
+    return !(a == b);
+  }
+
   std::string name;
   int clockrate_hz;
   int num_channels;
   Parameters parameters;
-  // Parameters feedback_parameters; ??
 };
 
 void swap(SdpAudioFormat& a, SdpAudioFormat& b);
 std::ostream& operator<<(std::ostream& os, const SdpAudioFormat& saf);
+
+struct AudioCodecSpec {
+  SdpAudioFormat format;
+  bool allow_comfort_noise;  // This encoder can be used with an external
+                             // comfort noise generator.
+};
 
 }  // namespace webrtc
 

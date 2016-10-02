@@ -42,8 +42,8 @@ typedef struct frame_contexts {
   vp8_prob ymode_prob[VP8_YMODES - 1]; /* interframe intra mode probs */
   vp8_prob uv_mode_prob[VP8_UV_MODES - 1];
   vp8_prob sub_mv_ref_prob[VP8_SUBMVREFS - 1];
-  vp8_prob
-      coef_probs[BLOCK_TYPES][COEF_BANDS][PREV_COEF_CONTEXTS][ENTROPY_NODES];
+  vp8_prob coef_probs[BLOCK_TYPES][COEF_BANDS][PREV_COEF_CONTEXTS]
+                     [ENTROPY_NODES];
   MV_CONTEXT mvc[2];
 } FRAME_CONTEXT;
 
@@ -59,9 +59,7 @@ typedef enum {
   RECON_CLAMP_NOTREQUIRED = 1
 } CLAMP_TYPE;
 
-typedef struct VP8Common
-
-    {
+typedef struct VP8Common {
   struct vpx_internal_error_info error;
 
   DECLARE_ALIGNED(16, short, Y1dequant[QINDEX_RANGE][2]);
@@ -161,10 +159,6 @@ typedef struct VP8Common
 
 #ifdef PACKET_TESTING
   VP8_HEADER oh;
-#endif
-#if CONFIG_POSTPROC_VISUALIZER
-  double bitrate;
-  double framerate;
 #endif
 
 #if CONFIG_MULTITHREAD

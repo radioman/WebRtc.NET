@@ -8,12 +8,16 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_AUDIO_CODING_NETEQ_INCLUDE_AUDIO_DECODER_H_
-#define WEBRTC_MODULES_AUDIO_CODING_NETEQ_INCLUDE_AUDIO_DECODER_H_
+#ifndef WEBRTC_MODULES_AUDIO_CODING_CODECS_AUDIO_DECODER_H_
+#define WEBRTC_MODULES_AUDIO_CODING_CODECS_AUDIO_DECODER_H_
 
-#include <stdlib.h>  // NULL
+#include <memory>
+#include <vector>
 
+#include "webrtc/base/array_view.h"
+#include "webrtc/base/buffer.h"
 #include "webrtc/base/constructormagic.h"
+#include "webrtc/base/optional.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -32,6 +36,57 @@ class AudioDecoder {
 
   AudioDecoder() = default;
   virtual ~AudioDecoder() = default;
+
+  class EncodedAudioFrame {
+   public:
+    struct DecodeResult {
+      size_t num_decoded_samples;
+      SpeechType speech_type;
+    };
+
+    virtual ~EncodedAudioFrame() = default;
+
+    // Returns the duration in samples-per-channel of this audio frame.
+    // If no duration can be ascertained, returns zero.
+    virtual size_t Duration() const = 0;
+
+    // Decodes this frame of audio and writes the result in |decoded|.
+    // |decoded| must be large enough to store as many samples as indicated by a
+    // call to Duration() . On success, returns an rtc::Optional containing the
+    // total number of samples across all channels, as well as whether the
+    // decoder produced comfort noise or speech. On failure, returns an empty
+    // rtc::Optional. Decode may be called at most once per frame object.
+    virtual rtc::Optional<DecodeResult> Decode(
+        rtc::ArrayView<int16_t> decoded) const = 0;
+  };
+
+  struct ParseResult {
+    ParseResult();
+    ParseResult(uint32_t timestamp,
+                int priority,
+                std::unique_ptr<EncodedAudioFrame> frame);
+    ParseResult(ParseResult&& b);
+    ~ParseResult();
+
+    ParseResult& operator=(ParseResult&& b);
+
+    // The timestamp of the frame is in samples per channel.
+    uint32_t timestamp;
+    // The relative priority of the frame compared to other frames of the same
+    // payload and the same timeframe. A higher value means a lower priority.
+    // The highest priority is zero - negative values are not allowed.
+    int priority;
+    std::unique_ptr<EncodedAudioFrame> frame;
+  };
+
+  // Let the decoder parse this payload and prepare zero or more decodable
+  // frames. Each frame must be between 10 ms and 120 ms long. The caller must
+  // ensure that the AudioDecoder object outlives any frame objects returned by
+  // this call. The decoder is free to swap or move the data from the |payload|
+  // buffer. |timestamp| is the input timestamp, in samples, corresponding to
+  // the start of the payload.
+  virtual std::vector<ParseResult> ParsePayload(rtc::Buffer&& payload,
+                                                uint32_t timestamp);
 
   // Decodes |encode_len| bytes from |encoded| and writes the result in
   // |decoded|. The maximum bytes allowed to be written into |decoded| is
@@ -121,4 +176,4 @@ class AudioDecoder {
 };
 
 }  // namespace webrtc
-#endif  // WEBRTC_MODULES_AUDIO_CODING_NETEQ_INCLUDE_AUDIO_DECODER_H_
+#endif  // WEBRTC_MODULES_AUDIO_CODING_CODECS_AUDIO_DECODER_H_
