@@ -2,7 +2,7 @@
 #include "defaults.h"
 #include "conductor.h"
 
-#include "webrtc/api/videosourceinterface.h"
+//#include "webrtc/api/videosourceinterface.h"
 #include "webrtc/api/test/fakeconstraints.h"
 
 #include "webrtc/video_encoder.h"
@@ -291,12 +291,6 @@ void Conductor::OnAddStream(webrtc::MediaStreamInterface* stream)
 void Conductor::OnRemoveStream(webrtc::MediaStreamInterface* stream)
 {
 	LOG(INFO) << __FUNCTION__ << " " << stream->label();
-	//stream->AddRef();
-	//main_wnd_->QueueUIThreadCallback(STREAM_REMOVED, stream);
-
-	// Remote peer stopped sending a stream.
-	//webrtc::MediaStreamInterface* stream = reinterpret_cast<webrtc::MediaStreamInterface*>(stream);
-	//stream->Release();
 }
 
 void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate)

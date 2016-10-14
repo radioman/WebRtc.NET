@@ -3,12 +3,6 @@
 #include "internals.h"
 #include "conductor.h"
 
-#include "webrtc/base/bind.h"
-
-///////////////////////////////////////////////////////////////////////
-// Definition of private class YuvFramesThread that periodically generates
-// frames.
-///////////////////////////////////////////////////////////////////////
 class YuvFramesCapturer2::YuvFramesThread : public rtc::Thread, public rtc::MessageHandler
 {
 public:
@@ -73,31 +67,28 @@ private:
 	RTC_DISALLOW_COPY_AND_ASSIGN(YuvFramesThread);
 };
 
-/////////////////////////////////////////////////////////////////////
-// Implementation of class YuvFramesCapturer.
-/////////////////////////////////////////////////////////////////////
+namespace
+{
+	int I420DataSize(int height, int stride_y, int stride_u, int stride_v)
+	{
+		return stride_y * height + (stride_u + stride_v) * ((height + 1) / 2);
+	}
+}
 
-// TODO(shaowei): allow width_ and height_ to be configurable.
 YuvFramesCapturer2::YuvFramesCapturer2(Conductor & c)
 	: frames_generator_thread(NULL),
 	width_(640),
 	height_(360),
 	frame_index_(0),
 	barcode_interval_(1),
-	startThread_(NULL),
 	con(&c)
 {
-	int size = width_ * height_;
-	int qsize = size / 4;
 	frame_generator_ = new cricket::YuvFrameGenerator(width_, height_, true);
-	frame_data_size_ = size + 2 * qsize;
-	captured_frame_.data = new char[frame_data_size_];
-	captured_frame_.fourcc = cricket::FOURCC_IYUV;
-	captured_frame_.pixel_height = 1;
-	captured_frame_.pixel_width = 1;
-	captured_frame_.width = width_;
-	captured_frame_.height = height_;
-	captured_frame_.data_size = frame_data_size_;
+	
+	video_buffer = webrtc::I420Buffer::Create(width_, height_);
+	frame_data_size_ = I420DataSize(height_, video_buffer->StrideY(), video_buffer->StrideU(), video_buffer->StrideV());
+
+	video_frame = new cricket::WebRtcVideoFrame(video_buffer, webrtc::VideoRotation::kVideoRotation_0, 0, 0);
 
 	// Enumerate the supported formats. We have only one supported format.
 	cricket::VideoFormat format(width_, height_, cricket::VideoFormat::FpsToInterval(con->caputureFps), cricket::FOURCC_IYUV);
@@ -112,7 +103,6 @@ YuvFramesCapturer2::YuvFramesCapturer2(Conductor & c)
 YuvFramesCapturer2::~YuvFramesCapturer2()
 {
 	Stop();
-	delete[] static_cast<char*>(captured_frame_.data);
 }
 
 cricket::CaptureState YuvFramesCapturer2::Start(const cricket::VideoFormat& capture_format)
@@ -124,9 +114,7 @@ cricket::CaptureState YuvFramesCapturer2::Start(const cricket::VideoFormat& capt
 	}
 	SetCaptureFormat(&capture_format);
 
-	barcode_reference_timestamp_millis_ = rtc::TimeNanos();
-		
-	startThread_ = rtc::Thread::Current();
+	barcode_reference_timestamp_millis_ = rtc::TimeNanos();		
 
 	// Create a thread to generate frames.
 	frames_generator_thread = new YuvFramesThread(this);
@@ -153,12 +141,11 @@ void YuvFramesCapturer2::Stop()
 	if (frames_generator_thread)
 	{
 		frames_generator_thread->Stop();
+		delete frames_generator_thread;
 		frames_generator_thread = NULL;
 		LOG(LS_INFO) << "Yuv Frame Generator stopped";
 	}
 	SetCaptureFormat(NULL);
-
-	startThread_ = NULL;
 }
 
 bool YuvFramesCapturer2::GetPreferredFourccs(std::vector<uint32_t>* fourccs)
@@ -174,40 +161,39 @@ bool YuvFramesCapturer2::GetPreferredFourccs(std::vector<uint32_t>* fourccs)
 // Executed in the context of YuvFramesThread.
 void YuvFramesCapturer2::ReadFrame(bool first_frame)
 {
-	// 1. Signal the previously read frame to downstream.
-	if (!first_frame)
-	{
-		//OnFrameCaptured(this, &captured_frame_);
+	int64_t camera_time_us = rtc::TimeMicros();
+	int64_t system_time_us = camera_time_us;
+	int out_width;
+	int out_height;
+	int crop_width;
+	int crop_height;
+	int crop_x;
+	int crop_y;
+	int64_t translated_camera_time_us;
 
-		if (startThread_->IsCurrent())
-		{
-			SignalFrameCaptured(this, &captured_frame_);
-		}
-		else
-		{
-			startThread_->Invoke<void>(RTC_FROM_HERE, rtc::Bind(&YuvFramesCapturer2::SignalFrameCapturedOnStartThread, this, &captured_frame_));
-		}
-	}
-	//else
+	if (AdaptFrame(width_,
+				   height_,
+				   camera_time_us,
+				   system_time_us,
+				   &out_width,
+				   &out_height,
+				   &crop_width,
+				   &crop_height,
+				   &crop_x,
+				   &crop_y,
+				   &translated_camera_time_us))
 	{
-		captured_frame_.time_stamp = rtc::TimeNanos();
-
 		if (con->barcodeEnabled)
 		{
-			frame_generator_->GenerateNextFrame((uint8_t*)captured_frame_.data, GetBarcodeValue());
+			frame_generator_->GenerateNextFrame((uint8_t*)video_buffer->DataY(), static_cast<int32_t>(rtc::TimeNanos() - barcode_reference_timestamp_millis_));
 		}
 		else
 		{
-			con->OnFillBuffer((uint8_t*)captured_frame_.data, captured_frame_.data_size);
+			con->OnFillBuffer((uint8_t*)video_buffer->DataY(), frame_data_size_);
 		}
-	}
-}
 
-int32_t YuvFramesCapturer2::GetBarcodeValue()
-{
-	if (barcode_reference_timestamp_millis_ == -1 || frame_index_ % barcode_interval_ != 0)
-	{
-		return -1;
+		video_frame->set_timestamp_us(translated_camera_time_us);
+
+		OnFrame(*video_frame, width_, height_);
 	}
-	return static_cast<int32_t>(captured_frame_.time_stamp - barcode_reference_timestamp_millis_);
 }

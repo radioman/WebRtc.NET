@@ -34,18 +34,13 @@ protected:
 private:
 	class YuvFramesThread;  // Forward declaration, defined in .cc.
 
-	rtc::Thread* startThread_;  // Set in Start(), unset in Stop().
-								// Used to signal frame capture on the thread that capturer was started on.
-	void SignalFrameCapturedOnStartThread(const cricket::CapturedFrame* frame)
-	{
-		SignalFrameCaptured(this, frame);
-	}
-
 	Conductor * con;
-
-	cricket::YuvFrameGenerator* frame_generator_;
-	cricket::CapturedFrame captured_frame_;
 	YuvFramesThread* frames_generator_thread;
+	cricket::YuvFrameGenerator* frame_generator_;	
+
+	rtc::scoped_refptr<webrtc::I420Buffer> video_buffer;
+	cricket::VideoFrame * video_frame;
+	
 	int width_;
 	int height_;
 	uint32_t frame_data_size_;
@@ -53,7 +48,6 @@ private:
 
 	int64_t barcode_reference_timestamp_millis_;
 	int32_t barcode_interval_;
-	int32_t GetBarcodeValue();
 
 	RTC_DISALLOW_COPY_AND_ASSIGN(YuvFramesCapturer2);
 };

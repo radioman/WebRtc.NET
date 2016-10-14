@@ -152,8 +152,8 @@
 #pragma comment(lib,"libvpx_intrinsics_ssse3.lib")
 #pragma comment(lib,"libvpx_yasm.lib")
 
-#pragma comment(lib,"webrtc_vp8.lib")           // original
-//#pragma comment(lib,"webrtc_vp8_no_impl.lib") // for hacking vp8_impl.cc
+//#pragma comment(lib,"webrtc_vp8.lib")       // original
+#pragma comment(lib,"webrtc_vp8_no_impl.lib") // for hacking vp8_impl.cc
 
 #include "stdafx.h"
 

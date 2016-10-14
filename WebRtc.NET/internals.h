@@ -11,7 +11,10 @@ extern bool CFG_quality_scaler_enabled_;
 void _InitializeSSL();
 void _CleanupSSL();
 
-//void _EncodeInternal(unsigned char * data, unsigned int size);
+namespace Internal
+{
+	void Encode(unsigned char * data, unsigned int size, int part_idx, bool keyFrame);
+}
 
 namespace Native
 {

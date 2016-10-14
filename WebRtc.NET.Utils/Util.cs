@@ -21,9 +21,9 @@ namespace WebRtc.NET.Utils
 
         static UInt64 i = 0;
 
-        public unsafe static void OnFillBuffer(byte * pData, long lDataLen)
+        public unsafe static void OnFillBuffer(byte * pData, long lDataLen, int part_idx, bool keyFrame)
         {
-            Trace.WriteLine(++i + ": _EncodeInternal: " + lDataLen);
+            Trace.WriteLine($"{i++}: Encode[{keyFrame}|{part_idx}]: {lDataLen}");
 
             using (var f = File.Open("dump.bin", FileMode.OpenOrCreate, FileAccess.ReadWrite))
             {
@@ -31,7 +31,7 @@ namespace WebRtc.NET.Utils
 
                 using (var b = new BinaryWriter(f))
                 {
-                    b.Write((int)lDataLen);
+                    //b.Write((int)lDataLen);
 
                     using (UnmanagedMemoryStream ms = new UnmanagedMemoryStream(pData, lDataLen))
                     {
