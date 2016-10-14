@@ -9,8 +9,8 @@
 
 last update from https://chromium.googlesource.com/external/webrtc.git
 
-Revision: 4a429005403dfa07b3f961b2f99eabaab63e8ac6
-Date: 2016-08-17 18:43:52
+Revision: ac9f876bc06b8152ecc3a328147cdab19136361b
+Date: 2016-10-01 08:29:43
 
 ![demo](/web/demo.gif?raw=true)
 
