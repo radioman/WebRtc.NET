@@ -160,7 +160,7 @@ namespace WebRtc
 				FreeGCHandle(onFailureHandle);
 				FreeGCHandle(onIceCandidateHandle);
 				FreeGCHandle(onFillBufferHandle);
-	
+
 				this->!ManagedConductor(); // call finalizer
 
 				m_isDisposed = true;
@@ -215,6 +215,25 @@ namespace WebRtc
 			{
 				cd->AddServerConfig(marshal_as<std::string>(uri), marshal_as<std::string>(username), marshal_as<std::string>(password));
 			}
+
+#pragma region -- Servers --
+			bool RunRelayServer(String ^ bindIp, String ^ ip)
+			{
+				return cd->RunRelayServer(marshal_as<std::string>(bindIp), marshal_as<std::string>(ip));
+			}
+
+			bool RunStunServer(String ^ bindIp)
+			{
+				return cd->RunStunServer(marshal_as<std::string>(bindIp));
+			}
+
+			// File is stored as lines of <username>=<HA1>.
+			// Generate HA1 via "echo -n "<username>:<realm>:<password>" | md5sum"
+			bool RunTurnServer(String ^ bindIp, String ^ ip, String ^ realm, String ^ authFile)
+			{
+				return cd->RunTurnServer(marshal_as<std::string>(bindIp), marshal_as<std::string>(ip), marshal_as<std::string>(realm), marshal_as<std::string>(authFile));
+			}
+#pragma endregion
 
 		protected:
 

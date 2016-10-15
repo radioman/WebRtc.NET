@@ -41,7 +41,12 @@ public:
 	OnSuccessCallbackNative onSuccess;
 	OnFailureCallbackNative onFailure;
 	OnIceCandidateCallbackNative onIceCandidate;
-	OnFillBufferCallbackNative onFillBuffer;	
+	OnFillBufferCallbackNative onFillBuffer;
+
+	bool RunRelayServer(const std::string & bindIp, const std::string & ip);
+	bool RunStunServer(const std::string & bindIp);
+	bool RunTurnServer(const std::string & bindIp, const std::string & ip,
+					   const std::string & realm, const std::string & authFile);
 
 protected:
 
