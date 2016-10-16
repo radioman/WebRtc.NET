@@ -13,11 +13,13 @@ var pcOptions = {
 }
 
 var servers = {
+    //iceTransportPolicy: 'relay',
     iceServers:
              [
                  { url: 'stun:stun.l.google.com:19302' },
                  { url: 'stun:stun.stunprotocol.org:3478' },
-                 { url: 'stun:stun.anyfirewall.com:3478' }
+                 { url: 'stun:stun.anyfirewall.com:3478' },
+                 { url: 'turn:127.0.0.1:444', username: 'test', credential: 'test' }
              ]
 };
 
@@ -94,6 +96,7 @@ function startStream() {
 
             var ice = parseIce(event.candidate.candidate);
             if (ice && ice.component_id == 1  // skip RTCP 
+                    && ice.type == 'relay'
                     && ice.localIP.indexOf(":") < 0) { // skip IP6
 
                 console.log('onicecandidate[local]: ' + event.candidate.candidate);
