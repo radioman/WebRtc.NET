@@ -13,7 +13,7 @@ var pcOptions = {
 }
 
 var servers = {
-    //iceTransportPolicy: 'relay',
+    //iceTransportPolicy: 'relay', // force turn
     iceServers:
              [
                  { url: 'stun:stun.l.google.com:19302' },
@@ -95,8 +95,8 @@ function startStream() {
         if (event.candidate) {
 
             var ice = parseIce(event.candidate.candidate);
-            if (ice && ice.component_id == 1  // skip RTCP 
-                    && ice.type == 'relay'
+            if (ice && ice.component_id == 1           // skip RTCP 
+                    //&& ice.type == 'relay'           // force turn
                     && ice.localIP.indexOf(":") < 0) { // skip IP6
 
                 console.log('onicecandidate[local]: ' + event.candidate.candidate);
