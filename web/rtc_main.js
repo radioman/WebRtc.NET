@@ -19,7 +19,7 @@ var servers = {
                  { url: 'stun:stun.l.google.com:19302' },
                  { url: 'stun:stun.stunprotocol.org:3478' },
                  { url: 'stun:stun.anyfirewall.com:3478' },
-                 { url: 'turn:127.0.0.1:444', username: 'test', credential: 'test' }
+                 { url: 'turn:127.0.0.1:3478', username: 'test', credential: 'test' }
              ]
 };
 

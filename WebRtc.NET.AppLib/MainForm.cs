@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace WebRtc.NET.AppLib
@@ -127,7 +129,7 @@ namespace WebRtc.NET.AppLib
             }
         }
 
-        private Timer timerDemo;
+        private System.Windows.Forms.Timer timerDemo;
 
         private void timerDemo_Tick(object sender, EventArgs e)
         {
@@ -179,11 +181,60 @@ namespace WebRtc.NET.AppLib
         {
             if (timerDemo == null)
             {
-                timerDemo = new Timer();
+                timerDemo = new System.Windows.Forms.Timer();
                 timerDemo.Interval = 200;
                 timerDemo.Tick += timerDemo_Tick;
             }
             timerDemo.Enabled = checkBoxDemo.Checked;
+        }
+
+        CancellationTokenSource turnCancel;
+        private void checkBoxTurn_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBoxTurn.Checked)
+            {
+                var ui = TaskScheduler.FromCurrentSynchronizationContext();
+
+                Task.Factory.StartNew(delegate ()
+                {
+                    using (var mc = new ManagedConductor())
+                    {
+                        var ok = mc.RunTurnServer("0.0.0.0:3478", textBoxExtIP.Text, "test", "auth.txt");
+                        if (!ok)
+                        {
+                            Task.Factory.StartNew(delegate ()
+                            {
+                                MessageBox.Show("TURN server start failed ;/");
+                            }, CancellationToken.None, TaskCreationOptions.None, ui);
+                        }
+                        else
+                        {
+                            using (turnCancel = new CancellationTokenSource())
+                            {
+                                var stop = turnCancel.Token; 
+                                while (!stop.IsCancellationRequested && mc.ProcessMessages(1000))
+                                {
+                                    Debug.WriteLine(".");
+                                }                                
+
+                                Task.Factory.StartNew(delegate ()
+                                {
+                                    MessageBox.Show("TURN server stoped.");
+                                }, CancellationToken.None, TaskCreationOptions.None, ui);
+                            }
+                        }
+                    }
+                }, TaskCreationOptions.LongRunning);
+            }
+            else
+            {
+                if (turnCancel != null && !turnCancel.IsCancellationRequested)
+                {
+                    turnCancel.Cancel();
+                    turnCancel = null;
+                    checkBoxTurn.Enabled = false; // after dispose it fails to start again wtf?.. ;/
+                }
+            }
         }
     }
 }

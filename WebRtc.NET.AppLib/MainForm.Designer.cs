@@ -34,12 +34,15 @@
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.checkBoxTurn = new System.Windows.Forms.CheckBox();
             this.checkBoxDemo = new System.Windows.Forms.CheckBox();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.checkBoxWebsocket = new System.Windows.Forms.CheckBox();
             this.numericWebSocket = new System.Windows.Forms.NumericUpDown();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.numericMaxClients = new System.Windows.Forms.NumericUpDown();
+            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.textBoxExtIP = new System.Windows.Forms.TextBox();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.tabControl1.SuspendLayout();
             this.tabPage1.SuspendLayout();
@@ -48,6 +51,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.numericWebSocket)).BeginInit();
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numericMaxClients)).BeginInit();
+            this.groupBox4.SuspendLayout();
             this.SuspendLayout();
             // 
             // pictureBox1
@@ -66,7 +70,7 @@
             this.checkBoxView.AutoSize = true;
             this.checkBoxView.Checked = true;
             this.checkBoxView.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBoxView.Location = new System.Drawing.Point(230, 48);
+            this.checkBoxView.Location = new System.Drawing.Point(164, 83);
             this.checkBoxView.Name = "checkBoxView";
             this.checkBoxView.Size = new System.Drawing.Size(48, 17);
             this.checkBoxView.TabIndex = 2;
@@ -80,7 +84,7 @@
             this.checkBoxEncode.Checked = true;
             this.checkBoxEncode.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxEncode.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(186)));
-            this.checkBoxEncode.Location = new System.Drawing.Point(230, 74);
+            this.checkBoxEncode.Location = new System.Drawing.Point(218, 83);
             this.checkBoxEncode.Name = "checkBoxEncode";
             this.checkBoxEncode.Size = new System.Drawing.Size(68, 17);
             this.checkBoxEncode.TabIndex = 4;
@@ -115,6 +119,7 @@
             // 
             this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.groupBox1.Controls.Add(this.groupBox4);
             this.groupBox1.Controls.Add(this.checkBoxDemo);
             this.groupBox1.Controls.Add(this.groupBox3);
             this.groupBox1.Controls.Add(this.groupBox2);
@@ -127,13 +132,24 @@
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Control";
             // 
+            // checkBoxTurn
+            // 
+            this.checkBoxTurn.AutoSize = true;
+            this.checkBoxTurn.Location = new System.Drawing.Point(103, 20);
+            this.checkBoxTurn.Name = "checkBoxTurn";
+            this.checkBoxTurn.Size = new System.Drawing.Size(53, 17);
+            this.checkBoxTurn.TabIndex = 19;
+            this.checkBoxTurn.Text = "RUN!";
+            this.checkBoxTurn.UseVisualStyleBackColor = true;
+            this.checkBoxTurn.CheckedChanged += new System.EventHandler(this.checkBoxTurn_CheckedChanged);
+            // 
             // checkBoxDemo
             // 
             this.checkBoxDemo.AutoSize = true;
             this.checkBoxDemo.Checked = true;
             this.checkBoxDemo.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxDemo.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(186)));
-            this.checkBoxDemo.Location = new System.Drawing.Point(230, 97);
+            this.checkBoxDemo.Location = new System.Drawing.Point(164, 106);
             this.checkBoxDemo.Name = "checkBoxDemo";
             this.checkBoxDemo.Size = new System.Drawing.Size(88, 17);
             this.checkBoxDemo.TabIndex = 18;
@@ -209,6 +225,25 @@
             0});
             this.numericMaxClients.ValueChanged += new System.EventHandler(this.numericMaxClients_ValueChanged);
             // 
+            // groupBox4
+            // 
+            this.groupBox4.Controls.Add(this.textBoxExtIP);
+            this.groupBox4.Controls.Add(this.checkBoxTurn);
+            this.groupBox4.Location = new System.Drawing.Point(158, 19);
+            this.groupBox4.Name = "groupBox4";
+            this.groupBox4.Size = new System.Drawing.Size(160, 49);
+            this.groupBox4.TabIndex = 20;
+            this.groupBox4.TabStop = false;
+            this.groupBox4.Text = "TURN @ external IP";
+            // 
+            // textBoxExtIP
+            // 
+            this.textBoxExtIP.Location = new System.Drawing.Point(6, 17);
+            this.textBoxExtIP.Name = "textBoxExtIP";
+            this.textBoxExtIP.Size = new System.Drawing.Size(92, 20);
+            this.textBoxExtIP.TabIndex = 20;
+            this.textBoxExtIP.Text = "185.58.66.37";
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -229,6 +264,8 @@
             ((System.ComponentModel.ISupportInitialize)(this.numericWebSocket)).EndInit();
             this.groupBox2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.numericMaxClients)).EndInit();
+            this.groupBox4.ResumeLayout(false);
+            this.groupBox4.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -246,5 +283,8 @@
         private System.Windows.Forms.GroupBox groupBox2;
         private System.Windows.Forms.CheckBox checkBoxWebsocket;
         private System.Windows.Forms.CheckBox checkBoxDemo;
+        private System.Windows.Forms.CheckBox checkBoxTurn;
+        private System.Windows.Forms.GroupBox groupBox4;
+        private System.Windows.Forms.TextBox textBoxExtIP;
     }
 }

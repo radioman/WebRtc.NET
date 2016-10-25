@@ -27,11 +27,15 @@ class TurnFileAuth : public cricket::TurnAuthInterface
 {
 public:
 	explicit TurnFileAuth(const std::string& path) : file_(path)
-	{
-		file_.Load();
+	{		
 	}
-	virtual bool GetKey(const std::string& username, const std::string& realm,
-						std::string* key)
+
+	bool Load()
+	{
+		return file_.Load();
+	}
+
+	virtual bool GetKey(const std::string& username, const std::string& realm, std::string* key)
 	{
 		// File is stored as lines of <username>=<HA1>.
 		// Generate HA1 via "echo -n "<username>:<realm>:<password>" | md5sum"
@@ -58,13 +62,32 @@ Conductor::Conductor()
 	capturer = nullptr;
 	caputureFps = 5;
 	barcodeEnabled = false;
+	turnServer = nullptr;
 }
 
 Conductor::~Conductor()
 {
 	DeletePeerConnection();
-
 	ASSERT(peer_connection_ == nullptr);
+	
+	if (turnServer)
+	{		
+		turnServer->disconnect_all();		
+		delete turnServer;
+		turnServer = nullptr;			
+	}
+
+	if (stunServer)
+	{
+		stunServer->disconnect_all();
+		delete stunServer;
+		stunServer = nullptr;
+	}
+
+	if (turnServer || stunServer)
+	{
+		rtc::Thread::Current()->Quit();
+	}
 }
 
 void Conductor::DeletePeerConnection()
@@ -378,54 +401,6 @@ void Conductor::OnError()
 	}
 }
 
-bool Conductor::RunRelayServer(const std::string & bindIp, const std::string & ip)
-{
-	LOG(INFO) << __FUNCTION__ << " " << bindIp << " -> " << ip;
-
-	rtc::SocketAddress int_addr;
-	if (!int_addr.FromString(bindIp))
-	{
-		LOG(LERROR) << "Unable to parse IP address: " << bindIp;
-		return false;
-	}
-
-	rtc::SocketAddress ext_addr;
-	if (!ext_addr.FromString(ip))
-	{
-		LOG(LERROR) << "Unable to parse IP address: " << ip;
-		return false;
-	}
-
-	rtc::Thread *pthMain = rtc::Thread::Current();
-
-	rtc::AsyncUDPSocket * int_socket = rtc::AsyncUDPSocket::Create(pthMain->socketserver(), int_addr);
-	if (!int_socket)
-	{
-		LOG(LERROR) << "Failed to create a UDP socket bound at"	<< int_addr.ToString() << std::endl;
-		return false;
-	}
-
-	rtc::AsyncUDPSocket * ext_socket = rtc::AsyncUDPSocket::Create(pthMain->socketserver(), ext_addr);
-	if (!ext_socket)
-	{
-		LOG(LERROR) << "Failed to create a UDP socket bound at"	<< ext_addr.ToString() << std::endl;
-		return false;
-	}
-
-	cricket::RelayServer * server = new cricket::RelayServer(pthMain);
-	server->AddInternalSocket(int_socket);
-	server->AddExternalSocket(ext_socket);
-
-	LOG(INFO) << "Listening internally at " << int_addr.ToString() << std::endl;
-	LOG(INFO) << "Listening externally at " << ext_addr.ToString() << std::endl;
-
-	pthMain->Run();
-
-	delete server;
-
-	return true;
-}
-
 bool Conductor::RunStunServer(const std::string & bindIp)
 {
 	rtc::SocketAddress server_addr;
@@ -435,22 +410,18 @@ bool Conductor::RunStunServer(const std::string & bindIp)
 		return false;
 	}
 
-	rtc::Thread *pthMain = rtc::Thread::Current();
+	rtc::Thread * main = rtc::Thread::Current();
 
-	rtc::AsyncUDPSocket* server_socket = rtc::AsyncUDPSocket::Create(pthMain->socketserver(), server_addr);
+	rtc::AsyncUDPSocket* server_socket = rtc::AsyncUDPSocket::Create(main->socketserver(), server_addr);
 	if (!server_socket)
 	{
 		LOG(LERROR) << "Failed to create a UDP socket" << std::endl;
 		return false;
 	}
 
-	cricket::StunServer * server = new cricket::StunServer(server_socket);
+	stunServer = new cricket::StunServer(server_socket);
 
 	LOG(INFO) << "Listening at " << server_addr.ToString() << std::endl;
-
-	pthMain->Run();
-
-	delete server;
 
 	return true;
 }
@@ -462,37 +433,40 @@ bool Conductor::RunTurnServer(const std::string & bindIp, const std::string & ip
 	if (!int_addr.FromString(bindIp))
 	{
 		LOG(LERROR) << "Unable to parse IP address: " << bindIp << std::endl;
-		return 1;
+		return false;
 	}
 
 	rtc::IPAddress ext_addr;
 	if (!IPFromString(ip, &ext_addr))
 	{
 		LOG(LERROR) << "Unable to parse IP address: " << ip << std::endl;
-		return 1;
+		return false;
 	}
 
 	rtc::Thread* main = rtc::Thread::Current();
-	rtc::AsyncUDPSocket* int_socket = rtc::AsyncUDPSocket::Create(main->socketserver(), int_addr);
+	rtc::AsyncUDPSocket * int_socket = rtc::AsyncUDPSocket::Create(main->socketserver(), int_addr);
 	if (!int_socket)
 	{
 		LOG(LERROR) << "Failed to create a UDP socket bound at"	<< int_addr.ToString() << std::endl;
-		return 1;
+		return false;
 	}	
 
-	cricket::TurnServer * server = new cricket::TurnServer(main);
 	TurnFileAuth * auth = new TurnFileAuth(authFile);
-	server->set_realm(realm);
-	server->set_software(kSoftware);
-	server->set_auth_hook(auth);
-	server->AddInternalSocket(int_socket, cricket::PROTO_UDP);
-	server->SetExternalSocketFactory(new rtc::BasicPacketSocketFactory(),
-									 rtc::SocketAddress(ext_addr, 0));
+	if (!auth->Load())
+	{
+		LOG(LERROR) << "Failed to load auth file " << authFile << std::endl;
+		return false;
+	}
+
+	turnServer = new cricket::TurnServer(main);
+	turnServer->set_realm(realm);
+	turnServer->set_software(kSoftware);
+	turnServer->set_auth_hook(auth);
+	turnServer->AddInternalSocket(int_socket, cricket::PROTO_UDP);
+	turnServer->SetExternalSocketFactory(new rtc::BasicPacketSocketFactory(),
+									     rtc::SocketAddress(ext_addr, 0));
 
 	LOG(INFO) << "Listening internally at " << int_addr.ToString() << std::endl;
 
-	main->Run();
-
-	delete auth;
-	delete server;
+	return true;
 }

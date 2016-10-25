@@ -217,11 +217,6 @@ namespace WebRtc
 			}
 
 #pragma region -- Servers --
-			bool RunRelayServer(String ^ bindIp, String ^ ip)
-			{
-				return cd->RunRelayServer(marshal_as<std::string>(bindIp), marshal_as<std::string>(ip));
-			}
-
 			bool RunStunServer(String ^ bindIp)
 			{
 				return cd->RunStunServer(marshal_as<std::string>(bindIp));

@@ -12,6 +12,12 @@ typedef void(__stdcall *OnFailureCallbackNative)(const char * error);
 typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdp_mid, int sdp_mline_index, const char * sdp);
 typedef void(__stdcall *OnFillBufferCallbackNative)(uint8_t * frame_buffer, uint32_t yuvSize);
 
+namespace cricket
+{
+	class TurnServer;
+	class StunServer;
+}
+
 class Conductor	: public webrtc::PeerConnectionObserver,
 	              public webrtc::CreateSessionDescriptionObserver,
 	              public webrtc::SetSessionDescriptionObserver
@@ -121,6 +127,9 @@ private:
 	std::map<std::string, rtc::scoped_refptr<webrtc::MediaStreamInterface> > active_streams_;
 
 	std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
+
+	cricket::TurnServer * turnServer;
+	cricket::StunServer * stunServer;
 
 public:
 	int caputureFps;
