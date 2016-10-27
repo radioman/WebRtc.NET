@@ -413,6 +413,9 @@ typedef struct VP8_COMP {
 
   int drop_frames_allowed; /* Are we permitted to drop frames? */
   int drop_frame;          /* Drop this frame? */
+#if defined(DROP_UNCODED_FRAMES)
+  int drop_frame_count;
+#endif
 
   vp8_prob frame_coef_probs[BLOCK_TYPES][COEF_BANDS][PREV_COEF_CONTEXTS]
                            [ENTROPY_NODES];
@@ -500,6 +503,11 @@ typedef struct VP8_COMP {
   int mse_source_denoised;
 
   int force_maxqp;
+
+  // GF update for 1 pass cbr.
+  int gf_update_onepass_cbr;
+  int gf_interval_onepass_cbr;
+  int gf_noboost_onepass_cbr;
 
 #if CONFIG_MULTITHREAD
   /* multithread data */

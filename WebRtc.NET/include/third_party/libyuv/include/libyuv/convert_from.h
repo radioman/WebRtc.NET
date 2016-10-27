@@ -8,7 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef INCLUDE_LIBYUV_CONVERT_FROM_H_  // NOLINT
+#ifndef INCLUDE_LIBYUV_CONVERT_FROM_H_
 #define INCLUDE_LIBYUV_CONVERT_FROM_H_
 
 #include "libyuv/basic_types.h"
@@ -34,15 +34,6 @@ int I420ToI422(const uint8* src_y, int src_stride_y,
 
 LIBYUV_API
 int I420ToI444(const uint8* src_y, int src_stride_y,
-               const uint8* src_u, int src_stride_u,
-               const uint8* src_v, int src_stride_v,
-               uint8* dst_y, int dst_stride_y,
-               uint8* dst_u, int dst_stride_u,
-               uint8* dst_v, int dst_stride_v,
-               int width, int height);
-
-LIBYUV_API
-int I420ToI411(const uint8* src_y, int src_stride_y,
                const uint8* src_u, int src_stride_u,
                const uint8* src_v, int src_stride_v,
                uint8* dst_y, int dst_stride_y,
@@ -176,4 +167,4 @@ int ConvertFromI420(const uint8* y, int y_stride,
 }  // namespace libyuv
 #endif
 
-#endif  // INCLUDE_LIBYUV_CONVERT_FROM_H_  NOLINT
+#endif  // INCLUDE_LIBYUV_CONVERT_FROM_H_

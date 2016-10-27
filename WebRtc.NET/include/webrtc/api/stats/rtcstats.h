@@ -62,9 +62,14 @@ class RTCStats {
   int64_t timestamp_us() const { return timestamp_us_; }
   // Returns the static member variable |kType| of the implementing class.
   virtual const char* type() const = 0;
-  // Returns a vector of pointers to all the RTCStatsMemberInterface members of
-  // this class. This allows for iteration of members.
+  // Returns a vector of pointers to all the |RTCStatsMemberInterface| members
+  // of this class. This allows for iteration of members. For a given class,
+  // |Members| always returns the same members in the same order.
   std::vector<const RTCStatsMemberInterface*> Members() const;
+  // Checks if the two stats objects are of the same type and have the same
+  // member values. These operators are exposed for testing.
+  bool operator==(const RTCStats& other) const;
+  bool operator!=(const RTCStats& other) const;
 
   // Creates a human readable string representation of the report, listing all
   // of its members (names and values).
@@ -91,14 +96,15 @@ class RTCStats {
   int64_t timestamp_us_;
 };
 
-// All |RTCStats| classes should use this macro in a public section of the class
-// definition.
+// All |RTCStats| classes should use these macros.
+// |WEBRTC_RTCSTATS_DECL| is placed in a public section of the class definition.
+// |WEBRTC_RTCSTATS_IMPL| is placed outside the class definition (in a .cc).
 //
-// This macro declares the static |kType| and overrides methods as required by
-// subclasses of |RTCStats|: |copy|, |type|, and
+// These macros declare (in _DECL) and define (in _IMPL) the static |kType| and
+// overrides methods as required by subclasses of |RTCStats|: |copy|, |type| and
 // |MembersOfThisObjectAndAncestors|. The |...| argument is a list of addresses
-// to each member defined in the implementing class (list cannot be empty, must
-// have at least one new member).
+// to each member defined in the implementing class. The list must have at least
+// one member.
 //
 // (Since class names need to be known to implement these methods this cannot be
 // part of the base |RTCStats|. While these methods could be implemented using
@@ -112,34 +118,53 @@ class RTCStats {
 // rtcfoostats.h:
 //   class RTCFooStats : public RTCStats {
 //    public:
-//     RTCFooStats(const std::string& id, int64_t timestamp_us)
-//         : RTCStats(id, timestamp_us),
-//           foo("foo"),
-//           bar("bar") {
-//     }
+//     WEBRTC_RTCSTATS_DECL();
 //
-//     WEBRTC_RTCSTATS_IMPL(RTCStats, RTCFooStats,
-//         &foo,
-//         &bar);
+//     RTCFooStats(const std::string& id, int64_t timestamp_us);
 //
 //     RTCStatsMember<int32_t> foo;
 //     RTCStatsMember<int32_t> bar;
 //   };
 //
 // rtcfoostats.cc:
-//   const char RTCFooStats::kType[] = "foo-stats";
+//   WEBRTC_RTCSTATS_IMPL(RTCFooStats, RTCStats, "foo-stats"
+//       &foo,
+//       &bar);
 //
-#define WEBRTC_RTCSTATS_IMPL(parent_class, this_class, ...)                    \
+//   RTCFooStats::RTCFooStats(const std::string& id, int64_t timestamp_us)
+//       : RTCStats(id, timestamp_us),
+//         foo("foo"),
+//         bar("bar") {
+//   }
+//
+#define WEBRTC_RTCSTATS_DECL()                                                 \
  public:                                                                       \
   static const char kType[];                                                   \
-  std::unique_ptr<webrtc::RTCStats> copy() const override {                    \
-    return std::unique_ptr<webrtc::RTCStats>(new this_class(*this));           \
-  }                                                                            \
-  const char* type() const override { return this_class::kType; }              \
+                                                                               \
+  std::unique_ptr<webrtc::RTCStats> copy() const override;                     \
+  const char* type() const override;                                           \
+                                                                               \
  protected:                                                                    \
   std::vector<const webrtc::RTCStatsMemberInterface*>                          \
   MembersOfThisObjectAndAncestors(                                             \
-      size_t local_var_additional_capacity) const override {                   \
+      size_t local_var_additional_capacity) const override;                    \
+                                                                               \
+ public:
+
+#define WEBRTC_RTCSTATS_IMPL(this_class, parent_class, type_str, ...)          \
+  const char this_class::kType[] = type_str;                                   \
+                                                                               \
+  std::unique_ptr<webrtc::RTCStats> this_class::copy() const {                 \
+    return std::unique_ptr<webrtc::RTCStats>(new this_class(*this));           \
+  }                                                                            \
+                                                                               \
+  const char* this_class::type() const {                                       \
+    return this_class::kType;                                                  \
+  }                                                                            \
+                                                                               \
+  std::vector<const webrtc::RTCStatsMemberInterface*>                          \
+  this_class::MembersOfThisObjectAndAncestors(                                 \
+      size_t local_var_additional_capacity) const {                            \
     const webrtc::RTCStatsMemberInterface* local_var_members[] = {             \
       __VA_ARGS__                                                              \
     };                                                                         \
@@ -155,8 +180,7 @@ class RTCStats {
                                  &local_var_members[0],                        \
                                  &local_var_members[local_var_members_count]); \
     return local_var_members_vec;                                              \
-  }                                                                            \
- public:
+  }
 
 // Interface for |RTCStats| members, which have a name and a value of a type
 // defined in a subclass. Only the types listed in |Type| are supported, these
@@ -166,6 +190,7 @@ class RTCStatsMemberInterface {
  public:
   // Member value types.
   enum Type {
+    kBool,                  // bool
     kInt32,                 // int32_t
     kUint32,                // uint32_t
     kInt64,                 // int64_t
@@ -173,6 +198,7 @@ class RTCStatsMemberInterface {
     kDouble,                // double
     kString,                // std::string
 
+    kSequenceBool,          // std::vector<bool>
     kSequenceInt32,         // std::vector<int32_t>
     kSequenceUint32,        // std::vector<uint32_t>
     kSequenceInt64,         // std::vector<int64_t>
@@ -188,6 +214,12 @@ class RTCStatsMemberInterface {
   virtual bool is_sequence() const = 0;
   virtual bool is_string() const = 0;
   bool is_defined() const { return is_defined_; }
+  // Type and value comparator. The names are not compared. These operators are
+  // exposed for testing.
+  virtual bool operator==(const RTCStatsMemberInterface& other) const = 0;
+  bool operator!=(const RTCStatsMemberInterface& other) const {
+    return !(*this == other);
+  }
   virtual std::string ValueToString() const = 0;
 
   template<typename T>
@@ -232,6 +264,15 @@ class RTCStatsMember : public RTCStatsMemberInterface {
   Type type() const override { return kType; }
   bool is_sequence() const override;
   bool is_string() const override;
+  bool operator==(const RTCStatsMemberInterface& other) const override {
+    if (type() != other.type())
+      return false;
+    const RTCStatsMember<T>& other_t =
+        static_cast<const RTCStatsMember<T>&>(other);
+    if (!is_defined_)
+      return !other_t.is_defined();
+    return value_ == other_t.value_;
+  }
   std::string ValueToString() const override;
 
   // Assignment operators.

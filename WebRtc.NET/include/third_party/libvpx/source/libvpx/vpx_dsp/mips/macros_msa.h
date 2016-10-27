@@ -168,20 +168,20 @@
     val_m;                                                 \
   })
 #else  // !(__mips == 64)
-#define LD(psrc)                                            \
-  ({                                                        \
-    const uint8_t *psrc_m1 = (const uint8_t *)(psrc);       \
-    uint32_t val0_m, val1_m;                                \
-    uint64_t val_m = 0;                                     \
-                                                            \
-    val0_m = LW(psrc_m1);                                   \
-    val1_m = LW(psrc_m1 + 4);                               \
-                                                            \
-    val_m = (uint64_t)(val1_m);                             \
-    val_m = (uint64_t)((val_m << 32) & 0xFFFFFFFF00000000); \
-    val_m = (uint64_t)(val_m | (uint64_t)val0_m);           \
-                                                            \
-    val_m;                                                  \
+#define LD(psrc)                                                              \
+  ({                                                                          \
+    const uint8_t *psrc_m1 = (const uint8_t *)(psrc);                         \
+    uint32_t val0_m, val1_m;                                                  \
+    uint64_t val_m_combined = 0;                                              \
+                                                                              \
+    val0_m = LW(psrc_m1);                                                     \
+    val1_m = LW(psrc_m1 + 4);                                                 \
+                                                                              \
+    val_m_combined = (uint64_t)(val1_m);                                      \
+    val_m_combined = (uint64_t)((val_m_combined << 32) & 0xFFFFFFFF00000000); \
+    val_m_combined = (uint64_t)(val_m_combined | (uint64_t)val0_m);           \
+                                                                              \
+    val_m_combined;                                                           \
   })
 #endif  // (__mips == 64)
 
@@ -909,25 +909,40 @@
     sum_m;                                         \
   })
 
-/* Description : Horizontal addition of 8 unsigned halfword elements
-   Arguments   : Inputs  - in       (unsigned halfword vector)
-                 Outputs - sum_m    (u32 sum)
-                 Return Type - unsigned word
-   Details     : 8 unsigned halfword elements of input vector are added
-                 together and the resulting integer sum is returned
+/* Description : Horizontal addition of 4 unsigned word elements
+   Arguments   : Input  - in       (unsigned word vector)
+                 Output - sum_m    (u32 sum)
+                 Return Type - unsigned word (GP)
+   Details     : 4 unsigned word elements of 'in' vector are added together and
+                 the resulting integer sum is returned
 */
-#define HADD_UH_U32(in)                               \
+#define HADD_UW_U32(in)                               \
   ({                                                  \
-    v4u32 res_m;                                      \
     v2u64 res0_m, res1_m;                             \
     uint32_t sum_m;                                   \
                                                       \
-    res_m = __msa_hadd_u_w((v8u16)in, (v8u16)in);     \
-    res0_m = __msa_hadd_u_d(res_m, res_m);            \
+    res0_m = __msa_hadd_u_d((v4u32)in, (v4u32)in);    \
     res1_m = (v2u64)__msa_splati_d((v2i64)res0_m, 1); \
-    res0_m = res0_m + res1_m;                         \
+    res0_m += res1_m;                                 \
     sum_m = __msa_copy_u_w((v4i32)res0_m, 0);         \
     sum_m;                                            \
+  })
+
+/* Description : Horizontal addition of 8 unsigned halfword elements
+   Arguments   : Input  - in       (unsigned halfword vector)
+                 Output - sum_m    (u32 sum)
+                 Return Type - unsigned word
+   Details     : 8 unsigned halfword elements of 'in' vector are added
+                 together and the resulting integer sum is returned
+*/
+#define HADD_UH_U32(in)                           \
+  ({                                              \
+    v4u32 res_m;                                  \
+    uint32_t sum_m;                               \
+                                                  \
+    res_m = __msa_hadd_u_w((v8u16)in, (v8u16)in); \
+    sum_m = HADD_UW_U32(res_m);                   \
+    sum_m;                                        \
   })
 
 /* Description : Horizontal addition of unsigned byte vector elements
@@ -2019,13 +2034,12 @@
                                 pdst, stride)                               \
   {                                                                         \
     v16u8 tmp0_m, tmp1_m, tmp2_m, tmp3_m;                                   \
-    uint8_t *pdst_m = (uint8_t *)(pdst);                                    \
                                                                             \
     tmp0_m = PCKEV_XORI128_UB(in0, in1);                                    \
     tmp1_m = PCKEV_XORI128_UB(in2, in3);                                    \
     ILVR_D2_UB(dst1, dst0, dst3, dst2, tmp2_m, tmp3_m);                     \
     AVER_UB2_UB(tmp0_m, tmp2_m, tmp1_m, tmp3_m, tmp0_m, tmp1_m);            \
-    ST8x4_UB(tmp0_m, tmp1_m, pdst_m, stride);                               \
+    ST8x4_UB(tmp0_m, tmp1_m, pdst, stride);                                 \
   }
 
 /* Description : Pack even byte elements and store byte vector in destination

@@ -24,6 +24,10 @@
 
 namespace rtc {
 class Thread;
+class PacketTransportInterface;
+}
+namespace webrtc {
+class MetricsObserverInterface;
 }
 
 namespace cricket {
@@ -129,6 +133,8 @@ class TransportController : public sigslot::has_slots<>,
 
   sigslot::signal1<rtc::SSLHandshakeError> SignalDtlsHandshakeError;
 
+  void SetMetricsObserver(webrtc::MetricsObserverInterface* metrics_observer);
+
  protected:
   // Protected and virtual so we can override it in unit tests.
   virtual Transport* CreateTransport_n(const std::string& transport_name);
@@ -199,7 +205,7 @@ class TransportController : public sigslot::has_slots<>,
   bool GetStats_n(const std::string& transport_name, TransportStats* stats);
 
   // Handlers for signals from Transport.
-  void OnChannelWritableState_n(TransportChannel* channel);
+  void OnChannelWritableState_n(rtc::PacketTransportInterface* transport);
   void OnChannelReceivingState_n(TransportChannel* channel);
   void OnChannelGatheringState_n(TransportChannelImpl* channel);
   void OnChannelCandidateGathered_n(TransportChannelImpl* channel,
@@ -238,6 +244,8 @@ class TransportController : public sigslot::has_slots<>,
   rtc::AsyncInvoker invoker_;
   // True if QUIC is used instead of DTLS.
   bool quic_ = false;
+
+  webrtc::MetricsObserverInterface* metrics_observer_ = nullptr;
 };
 
 }  // namespace cricket

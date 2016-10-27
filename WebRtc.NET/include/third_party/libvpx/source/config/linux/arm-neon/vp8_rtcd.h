@@ -54,9 +54,6 @@ void vp8_blend_mb_outer_c(unsigned char *y, unsigned char *u, unsigned char *v, 
 int vp8_block_error_c(short *coeff, short *dqcoeff);
 #define vp8_block_error vp8_block_error_c
 
-void vp8_clear_system_state_c();
-#define vp8_clear_system_state vp8_clear_system_state_c
-
 void vp8_copy_mem16x16_c(unsigned char *src, int src_pitch, unsigned char *dst, int dst_pitch);
 void vp8_copy_mem16x16_neon(unsigned char *src, int src_pitch, unsigned char *dst, int dst_pitch);
 #define vp8_copy_mem16x16 vp8_copy_mem16x16_neon
@@ -188,7 +185,8 @@ void vp8_sixtap_predict16x16_neon(unsigned char *src, int src_pitch, int xofst, 
 #define vp8_sixtap_predict16x16 vp8_sixtap_predict16x16_neon
 
 void vp8_sixtap_predict4x4_c(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
-#define vp8_sixtap_predict4x4 vp8_sixtap_predict4x4_c
+void vp8_sixtap_predict4x4_neon(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
+#define vp8_sixtap_predict4x4 vp8_sixtap_predict4x4_neon
 
 void vp8_sixtap_predict8x4_c(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);
 void vp8_sixtap_predict8x4_neon(unsigned char *src, int src_pitch, int xofst, int yofst, unsigned char *dst, int dst_pitch);

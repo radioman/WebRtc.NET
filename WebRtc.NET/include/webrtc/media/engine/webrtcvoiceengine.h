@@ -37,26 +37,6 @@ class AudioSource;
 class VoEWrapper;
 class WebRtcVoiceMediaChannel;
 
-struct SendCodecSpec {
-  SendCodecSpec() {
-    webrtc::CodecInst empty_inst = {0};
-    codec_inst = empty_inst;
-    codec_inst.pltype = -1;
-  }
-  bool operator==(const SendCodecSpec& rhs) const;
-  bool operator!=(const SendCodecSpec& rhs) const;
-
-  bool nack_enabled = false;
-  bool transport_cc_enabled = false;
-  bool enable_codec_fec = false;
-  bool enable_opus_dtx = false;
-  int opus_max_playback_rate = 0;
-  int red_payload_type = -1;
-  int cng_payload_type = -1;
-  int cng_plfreq = -1;
-  webrtc::CodecInst codec_inst;
-};
-
 // WebRtcVoiceEngine is a class to be used with CompositeMediaEngine.
 // It uses the WebRtc VoiceEngine library for audio handling.
 class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
@@ -121,6 +101,7 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
   void StartAecDump(const std::string& filename);
   int CreateVoEChannel();
   webrtc::AudioDeviceModule* adm();
+  webrtc::AudioProcessing* apm();
 
   AudioCodecs CollectRecvCodecs() const;
 
@@ -130,6 +111,8 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
   // The audio device manager.
   rtc::scoped_refptr<webrtc::AudioDeviceModule> adm_;
   rtc::scoped_refptr<webrtc::AudioDecoderFactory> decoder_factory_;
+  // Reference to the APM, owned by VoE.
+  webrtc::AudioProcessing* apm_ = nullptr;
   // The primary instance of WebRtc VoiceEngine.
   std::unique_ptr<VoEWrapper> voe_wrapper_;
   rtc::scoped_refptr<webrtc::AudioState> audio_state_;
@@ -237,27 +220,18 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   bool SetOptions(const AudioOptions& options);
   bool SetRecvCodecs(const std::vector<AudioCodec>& codecs);
   bool SetSendCodecs(const std::vector<AudioCodec>& codecs);
-  bool SetSendCodecs(int channel, const webrtc::RtpParameters& rtp_parameters);
-  bool SetSendCodec(int channel, const webrtc::CodecInst& send_codec);
   bool SetLocalSource(uint32_t ssrc, AudioSource* source);
   bool MuteStream(uint32_t ssrc, bool mute);
 
   WebRtcVoiceEngine* engine() { return engine_; }
   int GetLastEngineError() { return engine()->GetLastEngineError(); }
   int GetOutputLevel(int channel);
-  void ChangePlayout(bool playout);
   int CreateVoEChannel();
   bool DeleteVoEChannel(int channel);
   bool IsDefaultRecvStream(uint32_t ssrc) {
     return default_recv_ssrc_ == static_cast<int64_t>(ssrc);
   }
   bool SetMaxSendBitrate(int bps);
-  bool SetChannelSendParameters(int channel,
-                                const webrtc::RtpParameters& parameters);
-  bool SetMaxSendBitrate(int channel, int bps);
-  bool HasSendCodec() const {
-    return send_codec_spec_.codec_inst.pltype != -1;
-  }
   bool ValidateRtpParameters(const webrtc::RtpParameters& parameters);
   void SetupRecording();
 
@@ -269,7 +243,6 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   int max_send_bitrate_bps_ = 0;
   AudioOptions options_;
   rtc::Optional<int> dtmf_payload_type_;
-  bool desired_playout_ = false;
   bool recv_transport_cc_enabled_ = false;
   bool recv_nack_enabled_ = false;
   bool playout_ = false;
@@ -295,7 +268,7 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   std::map<uint32_t, WebRtcAudioReceiveStream*> recv_streams_;
   std::vector<webrtc::RtpExtension> recv_rtp_extensions_;
 
-  SendCodecSpec send_codec_spec_;
+  webrtc::AudioSendStream::Config::SendCodecSpec send_codec_spec_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(WebRtcVoiceMediaChannel);
 };

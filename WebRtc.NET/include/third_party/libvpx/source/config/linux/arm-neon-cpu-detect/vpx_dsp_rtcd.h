@@ -374,6 +374,14 @@ void vpx_iwht4x4_16_add_c(const tran_low_t *input, uint8_t *dest, int dest_strid
 void vpx_iwht4x4_1_add_c(const tran_low_t *input, uint8_t *dest, int dest_stride);
 #define vpx_iwht4x4_1_add vpx_iwht4x4_1_add_c
 
+void vpx_lpf_horizontal_16_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
+void vpx_lpf_horizontal_16_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
+RTCD_EXTERN void (*vpx_lpf_horizontal_16)(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
+
+void vpx_lpf_horizontal_16_dual_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
+void vpx_lpf_horizontal_16_dual_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
+RTCD_EXTERN void (*vpx_lpf_horizontal_16_dual)(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
+
 void vpx_lpf_horizontal_4_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
 void vpx_lpf_horizontal_4_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
 RTCD_EXTERN void (*vpx_lpf_horizontal_4)(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
@@ -389,14 +397,6 @@ RTCD_EXTERN void (*vpx_lpf_horizontal_8)(uint8_t *s, int pitch, const uint8_t *b
 void vpx_lpf_horizontal_8_dual_c(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
 void vpx_lpf_horizontal_8_dual_neon(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
 RTCD_EXTERN void (*vpx_lpf_horizontal_8_dual)(uint8_t *s, int pitch, const uint8_t *blimit0, const uint8_t *limit0, const uint8_t *thresh0, const uint8_t *blimit1, const uint8_t *limit1, const uint8_t *thresh1);
-
-void vpx_lpf_horizontal_edge_16_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
-void vpx_lpf_horizontal_edge_16_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
-RTCD_EXTERN void (*vpx_lpf_horizontal_edge_16)(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
-
-void vpx_lpf_horizontal_edge_8_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
-void vpx_lpf_horizontal_edge_8_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
-RTCD_EXTERN void (*vpx_lpf_horizontal_edge_8)(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
 
 void vpx_lpf_vertical_16_c(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
 void vpx_lpf_vertical_16_neon(uint8_t *s, int pitch, const uint8_t *blimit, const uint8_t *limit, const uint8_t *thresh);
@@ -951,6 +951,10 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_NEON) vpx_int_pro_col = vpx_int_pro_col_neon;
     vpx_int_pro_row = vpx_int_pro_row_c;
     if (flags & HAS_NEON) vpx_int_pro_row = vpx_int_pro_row_neon;
+    vpx_lpf_horizontal_16 = vpx_lpf_horizontal_16_c;
+    if (flags & HAS_NEON) vpx_lpf_horizontal_16 = vpx_lpf_horizontal_16_neon;
+    vpx_lpf_horizontal_16_dual = vpx_lpf_horizontal_16_dual_c;
+    if (flags & HAS_NEON) vpx_lpf_horizontal_16_dual = vpx_lpf_horizontal_16_dual_neon;
     vpx_lpf_horizontal_4 = vpx_lpf_horizontal_4_c;
     if (flags & HAS_NEON) vpx_lpf_horizontal_4 = vpx_lpf_horizontal_4_neon;
     vpx_lpf_horizontal_4_dual = vpx_lpf_horizontal_4_dual_c;
@@ -959,10 +963,6 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_NEON) vpx_lpf_horizontal_8 = vpx_lpf_horizontal_8_neon;
     vpx_lpf_horizontal_8_dual = vpx_lpf_horizontal_8_dual_c;
     if (flags & HAS_NEON) vpx_lpf_horizontal_8_dual = vpx_lpf_horizontal_8_dual_neon;
-    vpx_lpf_horizontal_edge_16 = vpx_lpf_horizontal_edge_16_c;
-    if (flags & HAS_NEON) vpx_lpf_horizontal_edge_16 = vpx_lpf_horizontal_edge_16_neon;
-    vpx_lpf_horizontal_edge_8 = vpx_lpf_horizontal_edge_8_c;
-    if (flags & HAS_NEON) vpx_lpf_horizontal_edge_8 = vpx_lpf_horizontal_edge_8_neon;
     vpx_lpf_vertical_16 = vpx_lpf_vertical_16_c;
     if (flags & HAS_NEON) vpx_lpf_vertical_16 = vpx_lpf_vertical_16_neon;
     vpx_lpf_vertical_16_dual = vpx_lpf_vertical_16_dual_c;

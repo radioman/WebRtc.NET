@@ -34,9 +34,14 @@ class FrameLengthController final : public Controller {
     ~Config();
     std::vector<int> encoder_frame_lengths_ms;
     int initial_frame_length_ms;
+    // Uplink packet loss fraction below which frame length can increase.
     float fl_increasing_packet_loss_fraction;
+    // Uplink packet loss fraction below which frame length should decrease.
     float fl_decreasing_packet_loss_fraction;
+    // Uplink bandwidth below which frame length can switch from 20ms to 60ms.
     int fl_20ms_to_60ms_bandwidth_bps;
+    // Uplink bandwidth above which frame length should switch from 60ms to
+    // 20ms.
     int fl_60ms_to_20ms_bandwidth_bps;
   };
 
@@ -46,8 +51,6 @@ class FrameLengthController final : public Controller {
 
   void MakeDecision(const NetworkMetrics& metrics,
                     AudioNetworkAdaptor::EncoderRuntimeConfig* config) override;
-
-  void SetConstraints(const Constraints& constraints) override;
 
  private:
   friend class FrameLengthControllerForTest;
@@ -60,9 +63,6 @@ class FrameLengthController final : public Controller {
     int to_frame_length_ms;
   };
 
-  void SetReceiverFrameLengthRange(int min_frame_length_ms,
-                                   int max_frame_length_ms);
-
   bool FrameLengthIncreasingDecision(
       const NetworkMetrics& metrics,
       const AudioNetworkAdaptor::EncoderRuntimeConfig& config) const;
@@ -73,9 +73,7 @@ class FrameLengthController final : public Controller {
 
   const Config config_;
 
-  std::vector<int> run_time_frame_lengths_ms_;
-
-  std::vector<int>::iterator frame_length_ms_;
+  std::vector<int>::const_iterator frame_length_ms_;
 
   std::map<FrameLengthChange, int> frame_length_change_criteria_;
 

@@ -8,7 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef INCLUDE_LIBYUV_PLANAR_FUNCTIONS_H_  // NOLINT
+#ifndef INCLUDE_LIBYUV_PLANAR_FUNCTIONS_H_
 #define INCLUDE_LIBYUV_PLANAR_FUNCTIONS_H_
 
 #include "libyuv/basic_types.h"
@@ -110,6 +110,11 @@ int UYVYToNV12(const uint8* src_uyvy, int src_stride_uyvy,
                uint8* dst_y, int dst_stride_y,
                uint8* dst_uv, int dst_stride_uv,
                int width, int height);
+
+LIBYUV_API
+int YUY2ToY(const uint8* src_yuy2, int src_stride_yuy2,
+             uint8* dst_y, int dst_stride_y,
+             int width, int height);
 
 // Convert I420 to I400. (calls CopyPlane ignoring u/v).
 LIBYUV_API
@@ -279,6 +284,14 @@ LIBYUV_API
 int ARGBPolynomial(const uint8* src_argb, int src_stride_argb,
                    uint8* dst_argb, int dst_stride_argb,
                    const float* poly,
+                   int width, int height);
+
+// Convert plane of 16 bit shorts to half floats.
+// Source values are multiplied by scale before storing as half float.
+LIBYUV_API
+int HalfFloatPlane(const uint16* src_y, int src_stride_y,
+                   uint16* dst_y, int dst_stride_y,
+                   float scale,
                    int width, int height);
 
 // Quantize a rectangle of ARGB. Alpha unaffected.
@@ -518,4 +531,4 @@ int ARGBSobelXY(const uint8* src_argb, int src_stride_argb,
 }  // namespace libyuv
 #endif
 
-#endif  // INCLUDE_LIBYUV_PLANAR_FUNCTIONS_H_  NOLINT
+#endif  // INCLUDE_LIBYUV_PLANAR_FUNCTIONS_H_

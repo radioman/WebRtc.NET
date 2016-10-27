@@ -33,12 +33,12 @@ class ScreenCapturerWinDirectx : public ScreenCapturer {
 
   explicit ScreenCapturerWinDirectx(const DesktopCaptureOptions& options);
 
-  virtual ~ScreenCapturerWinDirectx();
+  ~ScreenCapturerWinDirectx() override;
 
   void Start(Callback* callback) override;
   void SetSharedMemoryFactory(
       std::unique_ptr<SharedMemoryFactory> shared_memory_factory) override;
-  void Capture(const DesktopRegion& region) override;
+  void CaptureFrame() override;
   bool GetScreenList(ScreenList* screens) override;
   bool SelectScreen(ScreenId id) override;
 
@@ -52,7 +52,7 @@ class ScreenCapturerWinDirectx : public ScreenCapturer {
 
   DxgiDuplicatorController::Context context_;
 
-  ScreenId current_screen_id = kFullDesktopScreenId;
+  ScreenId current_screen_id_ = kFullDesktopScreenId;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(ScreenCapturerWinDirectx);
 };

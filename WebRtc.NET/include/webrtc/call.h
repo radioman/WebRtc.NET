@@ -16,6 +16,7 @@
 #include "webrtc/api/call/audio_receive_stream.h"
 #include "webrtc/api/call/audio_send_stream.h"
 #include "webrtc/api/call/audio_state.h"
+#include "webrtc/api/call/flexfec_receive_stream.h"
 #include "webrtc/base/networkroute.h"
 #include "webrtc/base/platform_file.h"
 #include "webrtc/base/socket.h"
@@ -26,6 +27,7 @@
 namespace webrtc {
 
 class AudioProcessing;
+class RtcEventLog;
 
 const char* Version();
 
@@ -72,6 +74,10 @@ class LoadObserver {
 class Call {
  public:
   struct Config {
+    explicit Config(RtcEventLog* event_log) : event_log(event_log) {
+      RTC_DCHECK(event_log);
+    }
+
     static const int kDefaultStartBitrateBps;
 
     // Bitrate config used until valid bitrate estimates are calculated. Also
@@ -89,6 +95,10 @@ class Call {
     // Audio Processing Module to be used in this call.
     // TODO(solenberg): Change this to a shared_ptr once we can use C++11.
     AudioProcessing* audio_processing = nullptr;
+
+    // RtcEventLog to use for this call. Required.
+    // Use webrtc::RtcEventLog::CreateNull() for a null implementation.
+    RtcEventLog* event_log = nullptr;
   };
 
   struct Stats {
@@ -122,6 +132,11 @@ class Call {
   virtual void DestroyVideoReceiveStream(
       VideoReceiveStream* receive_stream) = 0;
 
+  virtual FlexfecReceiveStream* CreateFlexfecReceiveStream(
+      FlexfecReceiveStream::Config configuration) = 0;
+  virtual void DestroyFlexfecReceiveStream(
+      FlexfecReceiveStream* receive_stream) = 0;
+
   // All received RTP and RTCP packets for the call should be inserted to this
   // PacketReceiver. The PacketReceiver pointer is valid as long as the
   // Call instance exists.
@@ -150,10 +165,6 @@ class Call {
       const rtc::NetworkRoute& network_route) = 0;
 
   virtual void OnSentPacket(const rtc::SentPacket& sent_packet) = 0;
-
-  virtual bool StartEventLog(rtc::PlatformFile log_file,
-                             int64_t max_size_bytes) = 0;
-  virtual void StopEventLog() = 0;
 
   virtual ~Call() {}
 };

@@ -252,6 +252,9 @@ class AudioCodingModule {
   ///////////////////////////////////////////////////////////////////////////
   // Sets the bitrate to the specified value in bits/sec. If the value is not
   // supported by the codec, it will choose another appropriate value.
+  //
+  // This is only used in test code that rely on old ACM APIs.
+  // TODO(minyue): Remove it when possible.
   virtual void SetBitRate(int bitrate_bps) = 0;
 
   // int32_t RegisterTransportCallback()
@@ -371,6 +374,8 @@ class AudioCodingModule {
   //   -1 if failed to set packet loss rate,
   //   0 if succeeded.
   //
+  // This is only used in test code that rely on old ACM APIs.
+  // TODO(minyue): Remove it when possible.
   virtual int SetPacketLossRate(int packet_loss_rate) = 0;
 
   ///////////////////////////////////////////////////////////////////////////
@@ -479,6 +484,11 @@ class AudioCodingModule {
   //
   virtual int32_t PlayoutFrequency() const = 0;
 
+  // Registers a decoder for the given payload type. Returns true iff
+  // successful.
+  virtual bool RegisterReceiveCodec(int rtp_payload_type,
+                                    const SdpAudioFormat& audio_format) = 0;
+
   ///////////////////////////////////////////////////////////////////////////
   // int32_t RegisterReceiveCodec()
   // Register possible decoders, can be called multiple times for
@@ -541,6 +551,17 @@ class AudioCodingModule {
   //    0 if the codec is successfully retrieved.
   //
   virtual int32_t ReceiveCodec(CodecInst* curr_receive_codec) const = 0;
+
+  ///////////////////////////////////////////////////////////////////////////
+  // rtc::Optional<SdpAudioFormat> ReceiveFormat()
+  // Get the format associated with last received payload.
+  //
+  // Return value:
+  //    An SdpAudioFormat describing the format associated with the last
+  //    received payload.
+  //    An empty Optional if no payload has yet been received.
+  //
+  virtual rtc::Optional<SdpAudioFormat> ReceiveFormat() const = 0;
 
   ///////////////////////////////////////////////////////////////////////////
   // int32_t IncomingPacket()

@@ -48,36 +48,24 @@ config("compiler") {
   cflags_c = [ "/TC" ]
   cflags_cc = [ "/TP" ]
 
-  # Flags not supported in version 2013.
-  if (visual_studio_version != "2013" && visual_studio_version != "2013e") {
-    cflags += [
-      # Tell the compiler to crash on failures. This is undocumented
-      # and unsupported but very handy.
-      "/d2FastFail",
-    ]
-  }
+  cflags += [
+    # Tell the compiler to crash on failures. This is undocumented
+    # and unsupported but very handy.
+    "/d2FastFail",
 
-  if (visual_studio_version == "2015") {
-    cflags += [
-      # Work around crbug.com/526851, bug in VS 2015 RTM compiler.
-      "/Zc:sizedDealloc-",
+    # Work around crbug.com/526851, bug in VS 2015 RTM compiler.
+    "/Zc:sizedDealloc-",
 
-      # Disable thread-safe statics to avoid overhead and because
-      # they are disabled on other platforms. See crbug.com/587210
-      # and -fno-threadsafe-statics.
-      "/Zc:threadSafeInit-",
-    ]
-  }
+    # Disable thread-safe statics to avoid overhead and because
+    # they are disabled on other platforms. See crbug.com/587210
+    # and -fno-threadsafe-statics.
+    "/Zc:threadSafeInit-",
+  ]
 
   # Building with Clang on Windows is a work in progress and very
   # experimental. See crbug.com/82385.
-  # Keep this in sync with the similar block in build/common.gypi
   if (is_clang) {
-    if (visual_studio_version == "2013") {
-      cflags += [ "-fmsc-version=1800" ]
-    } else if (visual_studio_version == "2015") {
-      cflags += [ "-fmsc-version=1900" ]
-    }
+    cflags += [ "-fmsc-version=1900" ]
 
     if (current_cpu == "x86") {
       cflags += [ "-m32" ]
@@ -193,17 +181,6 @@ config("runtime_library") {
     # However it is prohibited when using /analyze
     defines += [ "_USING_V110_SDK71_" ]
   }
-
-
-    # Component mode: dynamic CRT. Since the library is shared, it requires
-    # exceptions or will give errors about things not matching, so keep
-    # exceptions on.
-    if (is_debug) {
-      cflags += [ "/MDd" ]
-    } else {
-      cflags += [ "/MD" ]
-    }
-
 }
 
 # Sets the default Windows build version. This is separated because some
@@ -272,6 +249,51 @@ config("common_linker_setup") {
       "/time",
       "/verbose:incr",
     ]
+  }
+}
+
+# Control Flow Guard (CFG)
+# https://msdn.microsoft.com/en-us/library/windows/desktop/mt637065.aspx
+config("win_msvc_cfg") {
+  # /DYNAMICBASE (ASLR) is turned off in debug builds, therefore CFG can’t be
+  # turned on either.
+  if (!is_clang && !is_debug) {
+    cflags = [ "/guard:cf" ]
+    ldflags = [ "/guard:cf" ]
+  }
+}
+
+# CRT --------------------------------------------------------------------------
+
+# Configures how the runtime library (CRT) is going to be used.
+# See https://msdn.microsoft.com/en-us/library/2kzt1wy3.aspx for a reference of
+# what each value does.
+config("default_crt") {
+  if (is_component_build) {
+    # Component mode: dynamic CRT. Since the library is shared, it requires
+    # exceptions or will give errors about things not matching, so keep
+    # exceptions on.
+    configs = [ ":dynamic_crt" ]
+  } else {
+
+      # WindowsRT: use the dynamic CRT.
+      configs = [ ":dynamic_crt" ] 
+  }
+}
+
+config("dynamic_crt") {
+  if (is_debug) {
+    cflags = [ "/MDd" ]
+  } else {
+    cflags = [ "/MD" ]
+  }
+}
+
+config("static_crt") {
+  if (is_debug) {
+    cflags = [ "/MTd" ]
+  } else {
+    cflags = [ "/MT" ]
   }
 }
 

@@ -45,96 +45,10 @@ static const int kOpusBandwidthFb = 20000;
 #define WEBRTC_BOOL_STUB(method, args) \
   bool method args override { return true; }
 
-#define WEBRTC_BOOL_STUB_CONST(method, args) \
-  bool method args const override { return true; }
-
 #define WEBRTC_VOID_STUB(method, args) \
   void method args override {}
 
 #define WEBRTC_FUNC(method, args) int method args override
-
-#define WEBRTC_VOID_FUNC(method, args) void method args override
-
-class FakeAudioProcessing : public webrtc::AudioProcessing {
- public:
-  FakeAudioProcessing() : experimental_ns_enabled_(false) {}
-
-  WEBRTC_STUB(Initialize, ())
-  WEBRTC_STUB(Initialize, (
-      int input_sample_rate_hz,
-      int output_sample_rate_hz,
-      int reverse_sample_rate_hz,
-      webrtc::AudioProcessing::ChannelLayout input_layout,
-      webrtc::AudioProcessing::ChannelLayout output_layout,
-      webrtc::AudioProcessing::ChannelLayout reverse_layout));
-  WEBRTC_STUB(Initialize, (
-      const webrtc::ProcessingConfig& processing_config));
-
-  WEBRTC_VOID_STUB(ApplyConfig, (const AudioProcessing::Config& config));
-  WEBRTC_VOID_FUNC(SetExtraOptions, (const webrtc::Config& config)) {
-    experimental_ns_enabled_ = config.Get<webrtc::ExperimentalNs>().enabled;
-  }
-
-  WEBRTC_STUB_CONST(proc_sample_rate_hz, ());
-  WEBRTC_STUB_CONST(proc_split_sample_rate_hz, ());
-  size_t num_input_channels() const override { return 0; }
-  size_t num_proc_channels() const override { return 0; }
-  size_t num_output_channels() const override { return 0; }
-  size_t num_reverse_channels() const override { return 0; }
-  WEBRTC_VOID_STUB(set_output_will_be_muted, (bool muted));
-  WEBRTC_STUB(ProcessStream, (webrtc::AudioFrame* frame));
-  WEBRTC_STUB(ProcessStream, (
-      const float* const* src,
-      size_t samples_per_channel,
-      int input_sample_rate_hz,
-      webrtc::AudioProcessing::ChannelLayout input_layout,
-      int output_sample_rate_hz,
-      webrtc::AudioProcessing::ChannelLayout output_layout,
-      float* const* dest));
-  WEBRTC_STUB(ProcessStream,
-              (const float* const* src,
-               const webrtc::StreamConfig& input_config,
-               const webrtc::StreamConfig& output_config,
-               float* const* dest));
-  WEBRTC_STUB(ProcessReverseStream, (webrtc::AudioFrame * frame));
-  WEBRTC_STUB(AnalyzeReverseStream, (
-      const float* const* data,
-      size_t samples_per_channel,
-      int sample_rate_hz,
-      webrtc::AudioProcessing::ChannelLayout layout));
-  WEBRTC_STUB(ProcessReverseStream,
-              (const float* const* src,
-               const webrtc::StreamConfig& reverse_input_config,
-               const webrtc::StreamConfig& reverse_output_config,
-               float* const* dest));
-  WEBRTC_STUB(set_stream_delay_ms, (int delay));
-  WEBRTC_STUB_CONST(stream_delay_ms, ());
-  WEBRTC_BOOL_STUB_CONST(was_stream_delay_set, ());
-  WEBRTC_VOID_STUB(set_stream_key_pressed, (bool key_pressed));
-  WEBRTC_VOID_STUB(set_delay_offset_ms, (int offset));
-  WEBRTC_STUB_CONST(delay_offset_ms, ());
-  WEBRTC_STUB(StartDebugRecording,
-              (const char filename[kMaxFilenameSize], int64_t max_size_bytes));
-  WEBRTC_STUB(StartDebugRecording, (FILE * handle, int64_t max_size_bytes));
-  WEBRTC_STUB(StopDebugRecording, ());
-  WEBRTC_VOID_STUB(UpdateHistogramsOnCallEnd, ());
-  webrtc::EchoCancellation* echo_cancellation() const override { return NULL; }
-  webrtc::EchoControlMobile* echo_control_mobile() const override {
-    return NULL;
-  }
-  webrtc::GainControl* gain_control() const override { return NULL; }
-  webrtc::HighPassFilter* high_pass_filter() const override { return NULL; }
-  webrtc::LevelEstimator* level_estimator() const override { return NULL; }
-  webrtc::NoiseSuppression* noise_suppression() const override { return NULL; }
-  webrtc::VoiceDetection* voice_detection() const override { return NULL; }
-
-  bool experimental_ns_enabled() {
-    return experimental_ns_enabled_;
-  }
-
- private:
-  bool experimental_ns_enabled_;
-};
 
 class FakeWebRtcVoiceEngine
     : public webrtc::VoEAudioProcessing,
@@ -143,23 +57,13 @@ class FakeWebRtcVoiceEngine
       public webrtc::VoEVolumeControl {
  public:
   struct Channel {
-    Channel() {
-      memset(&send_codec, 0, sizeof(send_codec));
-    }
-    bool vad = false;
-    bool codec_fec = false;
-    int max_encoding_bandwidth = 0;
-    bool opus_dtx = false;
-    int cn8_type = 13;
-    int cn16_type = 105;
     int associate_send_channel = -1;
     std::vector<webrtc::CodecInst> recv_codecs;
-    webrtc::CodecInst send_codec;
     size_t neteq_capacity = 0;
     bool neteq_fast_accelerate = false;
   };
 
-  FakeWebRtcVoiceEngine() {
+  explicit FakeWebRtcVoiceEngine(webrtc::AudioProcessing* apm) : apm_(apm) {
     memset(&agc_config_, 0, sizeof(agc_config_));
   }
   ~FakeWebRtcVoiceEngine() override {
@@ -171,28 +75,9 @@ class FakeWebRtcVoiceEngine
   bool IsInited() const { return inited_; }
   int GetLastChannel() const { return last_channel_; }
   int GetNumChannels() const { return static_cast<int>(channels_.size()); }
-  bool GetVAD(int channel) {
-    return channels_[channel]->vad;
-  }
-  bool GetOpusDtx(int channel) {
-    return channels_[channel]->opus_dtx;
-  }
-  bool GetCodecFEC(int channel) {
-    return channels_[channel]->codec_fec;
-  }
-  int GetMaxEncodingBandwidth(int channel) {
-    return channels_[channel]->max_encoding_bandwidth;
-  }
-  int GetSendCNPayloadType(int channel, bool wideband) {
-    return (wideband) ?
-        channels_[channel]->cn16_type :
-        channels_[channel]->cn8_type;
-  }
   void set_fail_create_channel(bool fail_create_channel) {
     fail_create_channel_ = fail_create_channel;
   }
-
-  int GetNumSetSendCodecs() const { return num_set_send_codecs_; }
 
   int GetAssociateSendChannel(int channel) {
     return channels_[channel]->associate_send_channel;
@@ -217,7 +102,7 @@ class FakeWebRtcVoiceEngine
     return 0;
   }
   webrtc::AudioProcessing* audio_processing() override {
-    return &audio_processing_;
+    return apm_;
   }
   webrtc::AudioDeviceModule* audio_device_module() override {
     return nullptr;
@@ -267,24 +152,8 @@ class FakeWebRtcVoiceEngine
   // webrtc::VoECodec
   WEBRTC_STUB(NumOfCodecs, ());
   WEBRTC_STUB(GetCodec, (int index, webrtc::CodecInst& codec));
-  WEBRTC_FUNC(SetSendCodec, (int channel, const webrtc::CodecInst& codec)) {
-    WEBRTC_CHECK_CHANNEL(channel);
-    // To match the behavior of the real implementation.
-    if (_stricmp(codec.plname, "telephone-event") == 0 ||
-        _stricmp(codec.plname, "audio/telephone-event") == 0 ||
-        _stricmp(codec.plname, "CN") == 0 ||
-        _stricmp(codec.plname, "red") == 0) {
-      return -1;
-    }
-    channels_[channel]->send_codec = codec;
-    ++num_set_send_codecs_;
-    return 0;
-  }
-  WEBRTC_FUNC(GetSendCodec, (int channel, webrtc::CodecInst& codec)) {
-    WEBRTC_CHECK_CHANNEL(channel);
-    codec = channels_[channel]->send_codec;
-    return 0;
-  }
+  WEBRTC_STUB(SetSendCodec, (int channel, const webrtc::CodecInst& codec));
+  WEBRTC_STUB(GetSendCodec, (int channel, webrtc::CodecInst& codec));
   WEBRTC_STUB(SetBitRate, (int channel, int bitrate_bps));
   WEBRTC_STUB(GetRecCodec, (int channel, webrtc::CodecInst& codec));
   WEBRTC_FUNC(SetRecPayloadType, (int channel,
@@ -314,16 +183,8 @@ class FakeWebRtcVoiceEngine
     }
     return result;
   }
-  WEBRTC_FUNC(SetSendCNPayloadType, (int channel, int type,
-                                     webrtc::PayloadFrequencies frequency)) {
-    WEBRTC_CHECK_CHANNEL(channel);
-    if (frequency == webrtc::kFreq8000Hz) {
-      channels_[channel]->cn8_type = type;
-    } else if (frequency == webrtc::kFreq16000Hz) {
-      channels_[channel]->cn16_type = type;
-    }
-    return 0;
-  }
+  WEBRTC_STUB(SetSendCNPayloadType, (int channel, int type,
+                                     webrtc::PayloadFrequencies frequency));
   WEBRTC_FUNC(GetRecPayloadType, (int channel, webrtc::CodecInst& codec)) {
     WEBRTC_CHECK_CHANNEL(channel);
     Channel* ch = channels_[channel];
@@ -339,63 +200,14 @@ class FakeWebRtcVoiceEngine
     }
     return -1;  // not found
   }
-  WEBRTC_FUNC(SetVADStatus, (int channel, bool enable, webrtc::VadModes mode,
-                             bool disableDTX)) {
-    WEBRTC_CHECK_CHANNEL(channel);
-    if (channels_[channel]->send_codec.channels == 2) {
-      // Replicating VoE behavior; VAD cannot be enabled for stereo.
-      return -1;
-    }
-    channels_[channel]->vad = enable;
-    return 0;
-  }
+  WEBRTC_STUB(SetVADStatus, (int channel, bool enable, webrtc::VadModes mode,
+                             bool disableDTX));
   WEBRTC_STUB(GetVADStatus, (int channel, bool& enabled,
                              webrtc::VadModes& mode, bool& disabledDTX));
-
-  WEBRTC_FUNC(SetFECStatus, (int channel, bool enable)) {
-    WEBRTC_CHECK_CHANNEL(channel);
-    if (_stricmp(channels_[channel]->send_codec.plname, "opus") != 0) {
-      // Return -1 if current send codec is not Opus.
-      // TODO(minyue): Excludes other codecs if they support inband FEC.
-      return -1;
-    }
-    channels_[channel]->codec_fec = enable;
-    return 0;
-  }
-  WEBRTC_FUNC(GetFECStatus, (int channel, bool& enable)) {
-    WEBRTC_CHECK_CHANNEL(channel);
-    enable = channels_[channel]->codec_fec;
-    return 0;
-  }
-
-  WEBRTC_FUNC(SetOpusMaxPlaybackRate, (int channel, int frequency_hz)) {
-    WEBRTC_CHECK_CHANNEL(channel);
-    if (_stricmp(channels_[channel]->send_codec.plname, "opus") != 0) {
-      // Return -1 if current send codec is not Opus.
-      return -1;
-    }
-    if (frequency_hz <= 8000)
-      channels_[channel]->max_encoding_bandwidth = kOpusBandwidthNb;
-    else if (frequency_hz <= 12000)
-      channels_[channel]->max_encoding_bandwidth = kOpusBandwidthMb;
-    else if (frequency_hz <= 16000)
-      channels_[channel]->max_encoding_bandwidth = kOpusBandwidthWb;
-    else if (frequency_hz <= 24000)
-      channels_[channel]->max_encoding_bandwidth = kOpusBandwidthSwb;
-    else
-      channels_[channel]->max_encoding_bandwidth = kOpusBandwidthFb;
-    return 0;
-  }
-
-  WEBRTC_FUNC(SetOpusDtx, (int channel, bool enable_dtx)) {
-    WEBRTC_CHECK_CHANNEL(channel);
-    if (_stricmp(channels_[channel]->send_codec.plname, "opus") != 0) {
-      // Return -1 if current send codec is not Opus.
-      return -1;
-    }
-    channels_[channel]->opus_dtx = enable_dtx;
-    return 0;
-  }
+  WEBRTC_STUB(SetFECStatus, (int channel, bool enable));
+  WEBRTC_STUB(GetFECStatus, (int channel, bool& enable));
+  WEBRTC_STUB(SetOpusMaxPlaybackRate, (int channel, int frequency_hz));
+  WEBRTC_STUB(SetOpusDtx, (int channel, bool enable_dtx));
 
   // webrtc::VoEHardware
   WEBRTC_STUB(GetNumOfRecordingDevices, (int& num));
@@ -444,7 +256,6 @@ class FakeWebRtcVoiceEngine
     mode = ns_mode_;
     return 0;
   }
-
   WEBRTC_FUNC(SetAgcStatus, (bool enable, webrtc::AgcModes mode)) {
     agc_enabled_ = enable;
     agc_mode_ = mode;
@@ -455,7 +266,6 @@ class FakeWebRtcVoiceEngine
     mode = agc_mode_;
     return 0;
   }
-
   WEBRTC_FUNC(SetAgcConfig, (webrtc::AgcConfig config)) {
     agc_config_ = config;
     return 0;
@@ -497,11 +307,9 @@ class FakeWebRtcVoiceEngine
   WEBRTC_STUB(GetEchoMetrics, (int& ERL, int& ERLE, int& RERL, int& A_NLP));
   WEBRTC_STUB(GetEcDelayMetrics, (int& delay_median, int& delay_std,
       float& fraction_poor_delays));
-
   WEBRTC_STUB(StartDebugRecording, (const char* fileNameUTF8));
   WEBRTC_STUB(StartDebugRecording, (FILE* handle));
   WEBRTC_STUB(StopDebugRecording, ());
-
   WEBRTC_FUNC(SetTypingDetectionStatus, (bool enable)) {
     typing_detection_enabled_ = enable;
     return 0;
@@ -510,7 +318,6 @@ class FakeWebRtcVoiceEngine
     enabled = typing_detection_enabled_;
     return 0;
   }
-
   WEBRTC_STUB(TimeSinceLastTyping, (int& seconds));
   WEBRTC_STUB(SetTypingDetectionParameters, (int timeWindow,
                                              int costPerTyping,
@@ -546,7 +353,6 @@ class FakeWebRtcVoiceEngine
   int last_channel_ = -1;
   std::map<int, Channel*> channels_;
   bool fail_create_channel_ = false;
-  int num_set_send_codecs_ = 0;  // how many times we call SetSendCodec().
   bool ec_enabled_ = false;
   bool ec_metrics_enabled_ = false;
   bool cng_enabled_ = false;
@@ -560,7 +366,9 @@ class FakeWebRtcVoiceEngine
   webrtc::NsModes ns_mode_ = webrtc::kNsDefault;
   webrtc::AgcModes agc_mode_ = webrtc::kAgcDefault;
   webrtc::AgcConfig agc_config_;
-  FakeAudioProcessing audio_processing_;
+  webrtc::AudioProcessing* apm_ = nullptr;
+
+  RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(FakeWebRtcVoiceEngine);
 };
 
 }  // namespace cricket

@@ -26,6 +26,7 @@ extern "C" {
 #include "webrtc/common_audio/wav_file.h"
 #include "webrtc/modules/audio_processing/aec/aec_common.h"
 #include "webrtc/modules/audio_processing/utility/block_mean_calculator.h"
+#include "webrtc/modules/audio_processing/utility/ooura_fft.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -134,6 +135,7 @@ struct AecCore {
   ~AecCore();
 
   std::unique_ptr<ApmDataDumper> data_dumper;
+  const OouraFft ooura_fft;
 
   CoherenceState coherence_state;
 
@@ -226,7 +228,6 @@ struct AecCore {
   void* delay_estimator;
   // Variables associated with delay correction through signal based delay
   // estimation feedback.
-  int signal_delay_correction;
   int previous_delay;
   int delay_correction_count;
   int shift_offset;

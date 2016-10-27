@@ -252,6 +252,11 @@ class AudioProcessing {
   struct Config {
     struct LevelController {
       bool enabled = false;
+
+      // Sets the initial peak level to use inside the level controller in order
+      // to compute the signal gain. The unit for the peak level is dBFS and
+      // the allowed range is [-100, 0].
+      float initial_peak_level_dbfs = -6.0206f;
     } level_controller;
   };
 
@@ -449,14 +454,12 @@ class AudioProcessing {
   virtual int StartDebugRecording(FILE* handle, int64_t max_log_size_bytes) = 0;
 
   // TODO(ivoc): Remove this function after Chrome stops using it.
-  int StartDebugRecording(FILE* handle) {
-    return StartDebugRecording(handle, -1);
-  }
+  virtual int StartDebugRecording(FILE* handle) = 0;
 
   // Same as above but uses an existing PlatformFile handle. Takes ownership
   // of |handle| and closes it at StopDebugRecording().
   // TODO(xians): Make this interface pure virtual.
-  virtual int StartDebugRecordingForPlatformFile(rtc::PlatformFile handle);
+  virtual int StartDebugRecordingForPlatformFile(rtc::PlatformFile handle) = 0;
 
   // Stops recording debugging information, and closes the file. Recording
   // cannot be resumed in the same file (without overwriting it).

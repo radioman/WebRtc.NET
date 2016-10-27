@@ -31,6 +31,9 @@
 #include "webrtc/media/base/codec.h"
 #include "webrtc/media/base/mediaconstants.h"
 #include "webrtc/media/base/streamparams.h"
+// TODO(nisse): Temporarily; to be replaced with a forward declaration
+// of webrtc::VideoFrame when dependency on cricket::VideoFrame is deleted.
+#include "webrtc/media/base/videoframe.h"
 #include "webrtc/media/base/videosinkinterface.h"
 #include "webrtc/media/base/videosourceinterface.h"
 // TODO(juberti): re-evaluate this include
@@ -48,9 +51,7 @@ class AudioSinkInterface;
 namespace cricket {
 
 class AudioSource;
-class ScreencastId;
 class VideoCapturer;
-class VideoFrame;
 struct RtpHeader;
 struct VideoFormat;
 
@@ -166,6 +167,8 @@ struct AudioOptions {
     SetFrom(&recording_sample_rate, change.recording_sample_rate);
     SetFrom(&playout_sample_rate, change.playout_sample_rate);
     SetFrom(&combined_audio_video_bwe, change.combined_audio_video_bwe);
+    SetFrom(&level_control_initial_peak_level_dbfs,
+            change.level_control_initial_peak_level_dbfs);
   }
 
   bool operator==(const AudioOptions& o) const {
@@ -193,7 +196,9 @@ struct AudioOptions {
            tx_agc_limiter == o.tx_agc_limiter &&
            recording_sample_rate == o.recording_sample_rate &&
            playout_sample_rate == o.playout_sample_rate &&
-           combined_audio_video_bwe == o.combined_audio_video_bwe;
+           combined_audio_video_bwe == o.combined_audio_video_bwe &&
+           level_control_initial_peak_level_dbfs ==
+               o.level_control_initial_peak_level_dbfs;
   }
   bool operator!=(const AudioOptions& o) const { return !(*this == o); }
 
@@ -218,6 +223,8 @@ struct AudioOptions {
     ost << ToStringIfSet("experimental_ns", experimental_ns);
     ost << ToStringIfSet("intelligibility_enhancer", intelligibility_enhancer);
     ost << ToStringIfSet("level_control", level_control);
+    ost << ToStringIfSet("level_control_initial_peak_level_dbfs",
+                         level_control_initial_peak_level_dbfs);
     ost << ToStringIfSet("tx_agc_target_dbov", tx_agc_target_dbov);
     ost << ToStringIfSet("tx_agc_digital_compression_gain",
         tx_agc_digital_compression_gain);
@@ -254,6 +261,8 @@ struct AudioOptions {
   rtc::Optional<bool> experimental_ns;
   rtc::Optional<bool> intelligibility_enhancer;
   rtc::Optional<bool> level_control;
+  // Specifies an optional initialization value for the level controller.
+  rtc::Optional<float> level_control_initial_peak_level_dbfs;
   // Note that tx_agc_* only applies to non-experimental AGC.
   rtc::Optional<uint16_t> tx_agc_target_dbov;
   rtc::Optional<uint16_t> tx_agc_digital_compression_gain;
@@ -587,6 +596,7 @@ struct VoiceSenderInfo : public MediaSenderInfo {
         echo_delay_std_ms(0),
         echo_return_loss(0),
         echo_return_loss_enhancement(0),
+        residual_echo_likelihood(0.0f),
         typing_noise_detected(false) {
   }
 
@@ -598,6 +608,7 @@ struct VoiceSenderInfo : public MediaSenderInfo {
   int echo_delay_std_ms;
   int echo_return_loss;
   int echo_return_loss_enhancement;
+  float residual_echo_likelihood;
   bool typing_noise_detected;
 };
 
@@ -665,8 +676,8 @@ struct VideoSenderInfo : public MediaSenderInfo {
         adapt_reason(0),
         adapt_changes(0),
         avg_encode_ms(0),
-        encode_usage_percent(0) {
-  }
+        encode_usage_percent(0),
+        frames_encoded(0) {}
 
   std::vector<SsrcGroup> ssrc_groups;
   std::string encoder_implementation_name;
@@ -684,6 +695,7 @@ struct VideoSenderInfo : public MediaSenderInfo {
   int adapt_changes;
   int avg_encode_ms;
   int encode_usage_percent;
+  uint32_t frames_encoded;
 };
 
 struct VideoReceiverInfo : public MediaReceiverInfo {
@@ -699,6 +711,7 @@ struct VideoReceiverInfo : public MediaReceiverInfo {
         framerate_output(0),
         framerate_render_input(0),
         framerate_render_output(0),
+        frames_decoded(0),
         decode_ms(0),
         max_decode_ms(0),
         jitter_buffer_ms(0),
@@ -724,6 +737,7 @@ struct VideoReceiverInfo : public MediaReceiverInfo {
   int framerate_render_input;
   // Framerate that the renderer reports.
   int framerate_render_output;
+  uint32_t frames_decoded;
 
   // All stats below are gathered per-VideoReceiver, but some will be correlated
   // across MediaStreamTracks.  NOTE(hta): when sinking stats into per-SSRC

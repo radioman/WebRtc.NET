@@ -299,6 +299,9 @@ class FakeTransportChannel : public TransportChannelImpl,
     return ssl_max_version_;
   }
 
+  void SetMetricsObserver(webrtc::MetricsObserverInterface* observer) override {
+  }
+
  private:
   void NegotiateSrtpCiphers() {
     for (std::vector<int>::const_iterator it1 = srtp_ciphers_.begin();
@@ -527,12 +530,12 @@ class FakeTransportController : public TransportController {
     SetIceRole(role);
   }
 
-  explicit FakeTransportController(rtc::Thread* worker_thread)
-      : TransportController(rtc::Thread::Current(), worker_thread, nullptr),
+  explicit FakeTransportController(rtc::Thread* network_thread)
+      : TransportController(rtc::Thread::Current(), network_thread, nullptr),
         fail_create_channel_(false) {}
 
-  FakeTransportController(rtc::Thread* worker_thread, IceRole role)
-      : TransportController(rtc::Thread::Current(), worker_thread, nullptr),
+  FakeTransportController(rtc::Thread* network_thread, IceRole role)
+      : TransportController(rtc::Thread::Current(), network_thread, nullptr),
         fail_create_channel_(false) {
     SetIceRole(role);
   }

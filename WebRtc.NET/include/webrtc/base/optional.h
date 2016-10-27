@@ -132,10 +132,8 @@ class Optional final {
         new (&value_) T(m.value_);  // T's copy constructor.
         has_value_ = true;
       }
-    } else if (has_value_) {
-      value_.~T();
-      has_value_ = false;
-      PoisonValue();
+    } else {
+      reset();
     }
     return *this;
   }
@@ -152,10 +150,8 @@ class Optional final {
         new (&value_) T(std::move(m.value_));  // T's move constructor.
         has_value_ = true;
       }
-    } else if (has_value_) {
-      value_.~T();
-      has_value_ = false;
-      PoisonValue();
+    } else {
+      reset();
     }
     return *this;
   }
@@ -186,6 +182,25 @@ class Optional final {
       m2.has_value_ = false;
       m2.PoisonValue();
     }
+  }
+
+  // Destroy any contained value. Has no effect if we have no value.
+  void reset() {
+    if (!has_value_)
+      return;
+    value_.~T();
+    has_value_ = false;
+    PoisonValue();
+  }
+
+  template <class... Args>
+  void emplace(Args&&... args) {
+    if (has_value_)
+      value_.~T();
+    else
+      UnpoisonValue();
+    new (&value_) T(std::forward<Args>(args)...);
+    has_value_ = true;
   }
 
   // Conversion to bool to test if we have a value.
@@ -219,15 +234,27 @@ class Optional final {
   }
 
   // Equality tests. Two Optionals are equal if they contain equivalent values,
-  // or
-  // if they're both empty.
+  // or if they're both empty.
   friend bool operator==(const Optional& m1, const Optional& m2) {
     return m1.has_value_ && m2.has_value_ ? m1.value_ == m2.value_
                                           : m1.has_value_ == m2.has_value_;
   }
+  friend bool operator==(const Optional& opt, const T& value) {
+    return opt.has_value_ && opt.value_ == value;
+  }
+  friend bool operator==(const T& value, const Optional& opt) {
+    return opt.has_value_ && value == opt.value_;
+  }
+
   friend bool operator!=(const Optional& m1, const Optional& m2) {
     return m1.has_value_ && m2.has_value_ ? m1.value_ != m2.value_
                                           : m1.has_value_ != m2.has_value_;
+  }
+  friend bool operator!=(const Optional& opt, const T& value) {
+    return !opt.has_value_ || opt.value_ != value;
+  }
+  friend bool operator!=(const T& value, const Optional& opt) {
+    return !opt.has_value_ || value != opt.value_;
   }
 
  private:

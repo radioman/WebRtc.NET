@@ -11,17 +11,19 @@
 #ifndef WEBRTC_MODULES_AUDIO_MIXER_AUDIO_FRAME_MANIPULATOR_H_
 #define WEBRTC_MODULES_AUDIO_MIXER_AUDIO_FRAME_MANIPULATOR_H_
 
-#include "webrtc/typedefs.h"
+#include "webrtc/modules/include/module_common_types.h"
 
 namespace webrtc {
-class AudioFrame;
 
 // Updates the audioFrame's energy (based on its samples).
-uint32_t NewMixerCalculateEnergy(const AudioFrame& audio_frame);
+uint32_t AudioMixerCalculateEnergy(const AudioFrame& audio_frame);
 
-// Apply linear step function that ramps in/out the audio samples in audio_frame
-void NewMixerRampIn(AudioFrame* audio_frame);
-void NewMixerRampOut(AudioFrame* audio_frame);
+// Ramps up or down the provided audio frame. Ramp(0, 1, frame) will
+// linearly increase the samples in the frame from 0 to full volume.
+void Ramp(float start_gain, float target_gain, AudioFrame* audio_frame);
+
+// Downmixes or upmixes a frame between stereo and mono.
+void RemixFrame(size_t target_number_of_channels, AudioFrame* frame);
 
 }  // namespace webrtc
 

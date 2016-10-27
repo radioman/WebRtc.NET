@@ -26,13 +26,13 @@ class CroppingWindowCapturer : public WindowCapturer,
                                public DesktopCapturer::Callback {
  public:
   static WindowCapturer* Create(const DesktopCaptureOptions& options);
-  virtual ~CroppingWindowCapturer();
+  ~CroppingWindowCapturer() override;
 
   // DesktopCapturer implementation.
   void Start(DesktopCapturer::Callback* callback) override;
   void SetSharedMemoryFactory(
       std::unique_ptr<SharedMemoryFactory> shared_memory_factory) override;
-  void Capture(const DesktopRegion& region) override;
+  void CaptureFrame() override;
   void SetExcludedWindow(WindowId window) override;
 
   // WindowCapturer implementation.

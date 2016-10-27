@@ -88,7 +88,7 @@ YuvFramesCapturer2::YuvFramesCapturer2(Conductor & c)
 	video_buffer = webrtc::I420Buffer::Create(width_, height_);
 	frame_data_size_ = I420DataSize(height_, video_buffer->StrideY(), video_buffer->StrideU(), video_buffer->StrideV());
 
-	video_frame = new cricket::WebRtcVideoFrame(video_buffer, webrtc::VideoRotation::kVideoRotation_0, 0, 0);
+	video_frame = new webrtc::VideoFrame(video_buffer, 0, 0, webrtc::VideoRotation::kVideoRotation_0);
 
 	// Enumerate the supported formats. We have only one supported format.
 	cricket::VideoFormat format(width_, height_, cricket::VideoFormat::FpsToInterval(con->caputureFps), cricket::FOURCC_IYUV);

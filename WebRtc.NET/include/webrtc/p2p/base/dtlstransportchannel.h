@@ -22,6 +22,10 @@
 #include "webrtc/base/sslstreamadapter.h"
 #include "webrtc/base/stream.h"
 
+namespace rtc {
+class PacketTransportInterface;
+}
+
 namespace cricket {
 
 // A bridge between a packet-oriented/channel-type interface on
@@ -186,6 +190,10 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
     channel_->RemoveRemoteCandidate(candidate);
   }
 
+  void SetMetricsObserver(webrtc::MetricsObserverInterface* observer) override {
+    channel_->SetMetricsObserver(observer);
+  }
+
   void SetIceConfig(const IceConfig& config) override {
     channel_->SetIceConfig(config);
   }
@@ -199,12 +207,15 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
   bool IsDtlsConnected();
 
  private:
-  void OnWritableState(TransportChannel* channel);
-  void OnReadPacket(TransportChannel* channel, const char* data, size_t size,
-                    const rtc::PacketTime& packet_time, int flags);
-  void OnSentPacket(TransportChannel* channel,
+  void OnWritableState(rtc::PacketTransportInterface* transport);
+  void OnReadPacket(rtc::PacketTransportInterface* transport,
+                    const char* data,
+                    size_t size,
+                    const rtc::PacketTime& packet_time,
+                    int flags);
+  void OnSentPacket(rtc::PacketTransportInterface* transport,
                     const rtc::SentPacket& sent_packet);
-  void OnReadyToSend(TransportChannel* channel);
+  void OnReadyToSend(rtc::PacketTransportInterface* transport);
   void OnReceivingState(TransportChannel* channel);
   void OnDtlsEvent(rtc::StreamInterface* stream_, int sig, int err);
   bool SetupDtls();
@@ -224,7 +235,7 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
   void OnChannelStateChanged(TransportChannelImpl* channel);
   void OnDtlsHandshakeError(rtc::SSLHandshakeError error);
 
-  rtc::Thread* worker_thread_;  // Everything should occur on this thread.
+  rtc::Thread* network_thread_;  // Everything should occur on this thread.
   // Underlying channel, not owned by this class.
   TransportChannelImpl* const channel_;
   std::unique_ptr<rtc::SSLStreamAdapter> dtls_;  // The DTLS stream

@@ -17,6 +17,7 @@
 
 #include "webrtc/base/event.h"
 #include "webrtc/call.h"
+#include "webrtc/logging/rtc_event_log/rtc_event_log.h"
 #include "webrtc/test/call_test.h"
 
 namespace webrtc {
@@ -57,6 +58,7 @@ class RampUpTester : public test::EndToEndTest {
                     const std::string& units) const;
   void TriggerTestDone();
 
+  webrtc::RtcEventLogNullImpl event_log_;
   rtc::Event event_;
   Clock* const clock_;
   FakeNetworkPipe::Config forward_transport_config_;
@@ -70,6 +72,7 @@ class RampUpTester : public test::EndToEndTest {
 
  private:
   typedef std::map<uint32_t, uint32_t> SsrcMap;
+  class VideoStreamFactory;
 
   Call::Config GetSenderCallConfig() override;
   void OnVideoStreamsCreated(

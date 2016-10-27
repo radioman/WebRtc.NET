@@ -44,22 +44,6 @@ class VideoFrame {
              int64_t render_time_ms,
              VideoRotation rotation);
 
-  // CreateEmptyFrame: Sets frame dimensions and allocates buffers based
-  // on set dimensions - height and plane stride.
-  // If required size is bigger than the allocated one, new buffers of adequate
-  // size will be allocated.
-
-  // TODO(nisse): Deprecated. Should be deleted in the cricket::VideoFrame and
-  // webrtc::VideoFrame merge. If you need to write into the frame, create a
-  // VideoFrameBuffer of the desired size, e.g, using I420Buffer::Create and
-  // write to that. And if you need to wrap it into a VideoFrame, pass it to the
-  // constructor.
-  void CreateEmptyFrame(int width,
-                        int height,
-                        int stride_y,
-                        int stride_u,
-                        int stride_v);
-
   // CreateFrame: Sets the frame's members and buffers. If required size is
   // bigger than allocated one, new buffers of adequate size will be allocated.
 
@@ -85,13 +69,6 @@ class VideoFrame {
                   int width,
                   int height,
                   VideoRotation rotation);
-
-  // Deep copy frame: If required size is bigger than allocated one, new
-  // buffers of adequate size will be allocated.
-  // TODO(nisse): Should be deleted in the cricket::VideoFrame and
-  // webrtc::VideoFrame merge. Instead, use I420Buffer::Copy to make a copy of
-  // the pixel data, and use the constructor to wrap it into a VideoFrame.
-  void CopyFrame(const VideoFrame& videoFrame);
 
   // Creates a shallow copy of |videoFrame|, i.e, the this object will retain a
   // reference to the video buffer also retained by |videoFrame|.
@@ -121,6 +98,10 @@ class VideoFrame {
 
   // Get frame timestamp (90kHz).
   uint32_t timestamp() const { return timestamp_rtp_; }
+
+  // For now, transport_frame_id and rtp timestamp are the same.
+  // TODO(nisse): Must be handled differently for QUIC.
+  uint32_t transport_frame_id() const { return timestamp(); }
 
   // Set capture ntp time in milliseconds.
   void set_ntp_time_ms(int64_t ntp_time_ms) {
@@ -172,7 +153,7 @@ class VideoFrame {
       const;
 
   // Return true if the frame is stored in a texture.
-  bool is_texture() {
+  bool is_texture() const {
     return video_frame_buffer() &&
            video_frame_buffer()->native_handle() != nullptr;
   }

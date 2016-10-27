@@ -11,19 +11,31 @@
 #ifndef WEBRTC_API_RTCSTATSCOLLECTOR_H_
 #define WEBRTC_API_RTCSTATSCOLLECTOR_H_
 
+#include <map>
 #include <memory>
 #include <vector>
 
+#include "webrtc/api/datachannelinterface.h"
 #include "webrtc/api/stats/rtcstats_objects.h"
 #include "webrtc/api/stats/rtcstatsreport.h"
 #include "webrtc/base/asyncinvoker.h"
 #include "webrtc/base/refcount.h"
 #include "webrtc/base/scoped_ref_ptr.h"
+#include "webrtc/base/sslidentity.h"
 #include "webrtc/base/timeutils.h"
+
+namespace cricket {
+class Candidate;
+}  // namespace cricket
+
+namespace rtc {
+class SSLCertificate;
+}  // namespace rtc
 
 namespace webrtc {
 
 class PeerConnection;
+struct SessionStats;
 
 class RTCStatsCollectorCallback : public virtual rtc::RefCountInterface {
  public:
@@ -66,11 +78,44 @@ class RTCStatsCollector : public virtual rtc::RefCountInterface {
       const rtc::scoped_refptr<RTCStatsReport>& partial_report);
 
  private:
+  struct CertificateStatsPair {
+    std::unique_ptr<rtc::SSLCertificateStats> local;
+    std::unique_ptr<rtc::SSLCertificateStats> remote;
+  };
+
   void AddPartialResults_s(rtc::scoped_refptr<RTCStatsReport> partial_report);
   void DeliverCachedReport();
 
-  std::unique_ptr<RTCPeerConnectionStats> ProducePeerConnectionStats_s(
-      int64_t timestamp_us) const;
+  // Produces |RTCCertificateStats|.
+  void ProduceCertificateStats_s(
+      int64_t timestamp_us,
+      const std::map<std::string, CertificateStatsPair>& transport_cert_stats,
+      RTCStatsReport* report) const;
+  void ProduceCertificateStatsFromSSLCertificateStats_s(
+      int64_t timestamp_us, const rtc::SSLCertificateStats& certificate_stats,
+      RTCStatsReport* report) const;
+  // Produces |RTCDataChannelStats|.
+  void ProduceDataChannelStats_s(
+      int64_t timestamp_us, RTCStatsReport* report) const;
+  // Produces |RTCIceCandidatePairStats| and |RTCIceCandidateStats|.
+  void ProduceIceCandidateAndPairStats_s(
+      int64_t timestamp_us, const SessionStats& session_stats,
+      RTCStatsReport* report) const;
+  const std::string& ProduceIceCandidateStats_s(
+      int64_t timestamp_us, const cricket::Candidate& candidate, bool is_local,
+      RTCStatsReport* report) const;
+  // Produces |RTCPeerConnectionStats|.
+  void ProducePeerConnectionStats_s(
+      int64_t timestamp_us, RTCStatsReport* report) const;
+  // Produces |RTCTransportStats|.
+  void ProduceTransportStats_s(
+      int64_t timestamp_us, const SessionStats& session_stats,
+      const std::map<std::string, CertificateStatsPair>& transport_cert_stats,
+      RTCStatsReport* report) const;
+
+  // Helper function to stats-producing functions.
+  std::map<std::string, CertificateStatsPair>
+  PrepareTransportCertificateStats_s(const SessionStats& session_stats) const;
 
   PeerConnection* const pc_;
   rtc::Thread* const signaling_thread_;
@@ -91,6 +136,11 @@ class RTCStatsCollector : public virtual rtc::RefCountInterface {
   int64_t cache_lifetime_us_;
   rtc::scoped_refptr<const RTCStatsReport> cached_report_;
 };
+
+const char* CandidateTypeToRTCIceCandidateTypeForTesting(
+    const std::string& type);
+const char* DataStateToRTCDataChannelStateForTesting(
+    DataChannelInterface::DataState state);
 
 }  // namespace webrtc
 

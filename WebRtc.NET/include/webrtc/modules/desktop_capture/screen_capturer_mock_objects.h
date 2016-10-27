@@ -23,7 +23,7 @@ class MockScreenCapturer : public ScreenCapturer {
   virtual ~MockScreenCapturer() {}
 
   MOCK_METHOD1(Start, void(Callback* callback));
-  MOCK_METHOD1(Capture, void(const DesktopRegion& region));
+  MOCK_METHOD0(CaptureFrame, void(void));
   MOCK_METHOD1(GetScreenList, bool(ScreenList* screens));
   MOCK_METHOD1(SelectScreen, bool(ScreenId id));
 
@@ -34,7 +34,7 @@ class MockScreenCapturer : public ScreenCapturer {
 class MockScreenCapturerCallback : public ScreenCapturer::Callback {
  public:
   MockScreenCapturerCallback() {}
-  virtual ~MockScreenCapturerCallback() {}
+  ~MockScreenCapturerCallback() override {}
 
   MOCK_METHOD2(OnCaptureResultPtr,
                void(DesktopCapturer::Result result,

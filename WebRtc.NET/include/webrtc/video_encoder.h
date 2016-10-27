@@ -24,7 +24,7 @@ namespace webrtc {
 class RTPFragmentationHeader;
 // TODO(pbos): Expose these through a public (root) header or change these APIs.
 struct CodecSpecificInfo;
-struct VideoCodec;
+class VideoCodec;
 
 class EncodedImageCallback {
  public:
@@ -83,6 +83,10 @@ class VideoEncoder {
   };
 
   static VideoEncoder* Create(EncoderType codec_type);
+  // Returns true if this type of encoder can be created using
+  // VideoEncoder::Create.
+  static bool IsSupportedSoftware(EncoderType codec_type);
+  static EncoderType CodecToEncoderType(VideoCodecType codec_type);
 
   static VideoCodecVP8 GetDefaultVp8Settings();
   static VideoCodecVP9 GetDefaultVp9Settings();

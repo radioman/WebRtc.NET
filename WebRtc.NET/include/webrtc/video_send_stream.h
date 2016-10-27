@@ -56,6 +56,7 @@ class VideoSendStream {
     int encode_frame_rate = 0;
     int avg_encode_time_ms = 0;
     int encode_usage_percent = 0;
+    uint32_t frames_encoded = 0;
     // Bitrate the encoder is currently configured to use due to bandwidth
     // limitations.
     int target_media_bitrate_bps = 0;
@@ -129,8 +130,8 @@ class VideoSendStream {
       // See NackConfig for description.
       NackConfig nack;
 
-      // See FecConfig for description.
-      FecConfig fec;
+      // See UlpfecConfig for description.
+      UlpfecConfig ulpfec;
 
       // Settings for RTP retransmission payload format, see RFC 4588 for
       // details.

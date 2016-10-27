@@ -8,7 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef INCLUDE_LIBYUV_CONVERT_ARGB_H_  // NOLINT
+#ifndef INCLUDE_LIBYUV_CONVERT_ARGB_H_
 #define INCLUDE_LIBYUV_CONVERT_ARGB_H_
 
 #include "libyuv/basic_types.h"
@@ -80,14 +80,6 @@ int I444ToABGR(const uint8* src_y, int src_stride_y,
                const uint8* src_u, int src_stride_u,
                const uint8* src_v, int src_stride_v,
                uint8* dst_abgr, int dst_stride_abgr,
-               int width, int height);
-
-// Convert I411 to ARGB.
-LIBYUV_API
-int I411ToARGB(const uint8* src_y, int src_stride_y,
-               const uint8* src_u, int src_stride_u,
-               const uint8* src_v, int src_stride_v,
-               uint8* dst_argb, int dst_stride_argb,
                int width, int height);
 
 // Convert I420 with Alpha to preattenuated ARGB.
@@ -316,4 +308,4 @@ int ConvertToARGB(const uint8* src_frame, size_t src_size,
 }  // namespace libyuv
 #endif
 
-#endif  // INCLUDE_LIBYUV_CONVERT_ARGB_H_  NOLINT
+#endif  // INCLUDE_LIBYUV_CONVERT_ARGB_H_

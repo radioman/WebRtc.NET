@@ -14,6 +14,8 @@
 #include <vector>
 
 #include "webrtc/call.h"
+#include "webrtc/logging/rtc_event_log/rtc_event_log.h"
+#include "webrtc/test/encoder_settings.h"
 #include "webrtc/test/fake_audio_device.h"
 #include "webrtc/test/fake_decoder.h"
 #include "webrtc/test/fake_encoder.h"
@@ -24,7 +26,6 @@
 namespace webrtc {
 
 class VoEBase;
-class VoECodec;
 
 namespace test {
 
@@ -36,7 +37,9 @@ class CallTest : public ::testing::Test {
   virtual ~CallTest();
 
   static const size_t kNumSsrcs = 3;
-
+  static const int kDefaultWidth = 320;
+  static const int kDefaultHeight = 180;
+  static const int kDefaultFramerate = 30;
   static const int kDefaultTimeoutMs;
   static const int kLongTimeoutMs;
   static const uint8_t kVideoSendPayloadType;
@@ -70,8 +73,12 @@ class CallTest : public ::testing::Test {
                         Transport* send_transport);
   void CreateMatchingReceiveConfigs(Transport* rtcp_send_transport);
 
-  void CreateFrameGeneratorCapturerWithDrift(Clock* drift_clock, float speed);
-  void CreateFrameGeneratorCapturer();
+  void CreateFrameGeneratorCapturerWithDrift(Clock* drift_clock,
+                                             float speed,
+                                             int framerate,
+                                             int width,
+                                             int height);
+  void CreateFrameGeneratorCapturer(int framerate, int width, int height);
   void CreateFakeAudioDevices();
 
   void CreateVideoStreams();
@@ -83,6 +90,7 @@ class CallTest : public ::testing::Test {
 
   Clock* const clock_;
 
+  webrtc::RtcEventLogNullImpl event_log_;
   std::unique_ptr<Call> sender_call_;
   std::unique_ptr<PacketTransport> send_transport_;
   VideoSendStream::Config video_send_config_;
@@ -114,12 +122,10 @@ class CallTest : public ::testing::Test {
     VoiceEngineState()
         : voice_engine(nullptr),
           base(nullptr),
-          codec(nullptr),
           channel_id(-1) {}
 
     VoiceEngine* voice_engine;
     VoEBase* base;
-    VoECodec* codec;
     int channel_id;
   };
 
@@ -156,6 +162,9 @@ class BaseTest : public RtpRtcpObserver {
       VideoSendStream::Config* send_config,
       std::vector<VideoReceiveStream::Config>* receive_configs,
       VideoEncoderConfig* encoder_config);
+  virtual void ModifyVideoCaptureStartResolution(int* width,
+                                                 int* heigt,
+                                                 int* frame_rate);
   virtual void OnVideoStreamsCreated(
       VideoSendStream* send_stream,
       const std::vector<VideoReceiveStream*>& receive_streams);
@@ -169,6 +178,8 @@ class BaseTest : public RtpRtcpObserver {
 
   virtual void OnFrameGeneratorCapturerCreated(
       FrameGeneratorCapturer* frame_generator_capturer);
+
+  webrtc::RtcEventLogNullImpl event_log_;
 };
 
 class SendTest : public BaseTest {

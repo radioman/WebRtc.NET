@@ -12,10 +12,12 @@
 #define WEBRTC_MODULES_RTP_RTCP_SOURCE_RTP_SENDER_VIDEO_H_
 
 #include <list>
+#include <memory>
 
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/onetimeevent.h"
 #include "webrtc/base/rate_statistics.h"
+#include "webrtc/base/sequenced_task_checker.h"
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/common_types.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -28,6 +30,7 @@
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
+class RtpPacketToSend;
 
 class RTPSenderVideo {
  public:
@@ -75,20 +78,10 @@ class RTPSenderVideo {
   void SetSelectiveRetransmissions(uint8_t settings);
 
  private:
-  void SendVideoPacket(uint8_t* data_buffer,
-                       size_t payload_length,
-                       size_t rtp_header_length,
-                       uint16_t seq_num,
-                       uint32_t capture_timestamp,
-                       int64_t capture_time_ms,
+  void SendVideoPacket(std::unique_ptr<RtpPacketToSend> packet,
                        StorageType storage);
 
-  void SendVideoPacketAsRed(uint8_t* data_buffer,
-                            size_t payload_length,
-                            size_t rtp_header_length,
-                            uint16_t video_seq_num,
-                            uint32_t capture_timestamp,
-                            int64_t capture_time_ms,
+  void SendVideoPacketAsRed(std::unique_ptr<RtpPacketToSend> media_packet,
                             StorageType media_packet_storage,
                             bool protect);
 
@@ -97,9 +90,11 @@ class RTPSenderVideo {
 
   // Should never be held when calling out of this class.
   rtc::CriticalSection crit_;
+  rtc::SequencedTaskChecker encoder_checker_;
 
   RtpVideoCodecTypes video_type_ = kRtpVideoGeneric;
   int32_t retransmission_settings_ GUARDED_BY(crit_) = kRetransmitBaseLayer;
+  VideoRotation last_rotation_ GUARDED_BY(encoder_checker_) = kVideoRotation_0;
 
   // FEC
   bool fec_enabled_ GUARDED_BY(crit_) = false;

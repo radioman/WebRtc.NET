@@ -17,7 +17,6 @@
 #include "webrtc/base/buffer.h"
 #include "webrtc/modules/audio_coding/codecs/audio_decoder.h"
 #include "webrtc/modules/audio_coding/neteq/tick_timer.h"
-#include "webrtc/modules/include/module_common_types.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -66,7 +65,9 @@ struct Packet {
     }
   };
 
-  RTPHeader header;
+  uint32_t timestamp;
+  uint16_t sequence_number;
+  uint8_t payload_type;
   // Datagram excluding RTP header and header extension.
   rtc::Buffer payload;
   Priority priority;
@@ -74,7 +75,16 @@ struct Packet {
   std::unique_ptr<AudioDecoder::EncodedAudioFrame> frame;
 
   Packet();
+  Packet(Packet&& b);
   ~Packet();
+
+  // Packets should generally be moved around but sometimes it's useful to make
+  // a copy, for example for testing purposes. NOTE: Will only work for
+  // un-parsed packets, i.e. |frame| must be unset. The payload will, however,
+  // be copied. |waiting_time| will also not be copied.
+  Packet Clone() const;
+
+  Packet& operator=(Packet&& b);
 
   // Comparison operators. Establish a packet ordering based on (1) timestamp,
   // (2) sequence number and (3) redundancy.
@@ -82,23 +92,23 @@ struct Packet {
   // account. For two packets with the same sequence number and timestamp a
   // primary payload is considered "smaller" than a secondary.
   bool operator==(const Packet& rhs) const {
-    return (this->header.timestamp == rhs.header.timestamp &&
-            this->header.sequenceNumber == rhs.header.sequenceNumber &&
+    return (this->timestamp == rhs.timestamp &&
+            this->sequence_number == rhs.sequence_number &&
             this->priority == rhs.priority);
   }
   bool operator!=(const Packet& rhs) const { return !operator==(rhs); }
   bool operator<(const Packet& rhs) const {
-    if (this->header.timestamp == rhs.header.timestamp) {
-      if (this->header.sequenceNumber == rhs.header.sequenceNumber) {
+    if (this->timestamp == rhs.timestamp) {
+      if (this->sequence_number == rhs.sequence_number) {
         // Timestamp and sequence numbers are identical - deem the left hand
         // side to be "smaller" (i.e., "earlier") if it has higher priority.
         return this->priority < rhs.priority;
       }
-      return (static_cast<uint16_t>(rhs.header.sequenceNumber
-          - this->header.sequenceNumber) < 0xFFFF / 2);
+      return (static_cast<uint16_t>(rhs.sequence_number -
+                                    this->sequence_number) < 0xFFFF / 2);
     }
-    return (static_cast<uint32_t>(rhs.header.timestamp
-        - this->header.timestamp) < 0xFFFFFFFF / 2);
+    return (static_cast<uint32_t>(rhs.timestamp - this->timestamp) <
+            0xFFFFFFFF / 2);
   }
   bool operator>(const Packet& rhs) const { return rhs.operator<(*this); }
   bool operator<=(const Packet& rhs) const { return !operator>(rhs); }
@@ -108,7 +118,7 @@ struct Packet {
 };
 
 // A list of packets.
-typedef std::list<Packet*> PacketList;
+typedef std::list<Packet> PacketList;
 
 }  // namespace webrtc
 #endif  // WEBRTC_MODULES_AUDIO_CODING_NETEQ_PACKET_H_

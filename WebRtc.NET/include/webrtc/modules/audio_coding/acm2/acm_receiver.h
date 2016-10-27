@@ -21,13 +21,13 @@
 #include "webrtc/base/optional.h"
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/common_audio/vad/include/webrtc_vad.h"
-#include "webrtc/engine_configurations.h"
 #include "webrtc/modules/audio_coding/acm2/acm_resampler.h"
 #include "webrtc/modules/audio_coding/acm2/call_statistics.h"
 #include "webrtc/modules/audio_coding/include/audio_coding_module.h"
 #include "webrtc/modules/audio_coding/neteq/include/neteq.h"
 #include "webrtc/modules/include/module_common_types.h"
 #include "webrtc/typedefs.h"
+#include "webrtc/voice_engine_configurations.h"
 
 namespace webrtc {
 
@@ -112,6 +112,10 @@ class AcmReceiver {
                int sample_rate_hz,
                AudioDecoder* audio_decoder,
                const std::string& name);
+
+  // Adds a new decoder to the NetEq codec database. Returns true iff
+  // successful.
+  bool AddCodec(int rtp_payload_type, const SdpAudioFormat& audio_format);
 
   //
   // Sets a minimum delay for packet buffer. The given delay is maintained,
@@ -205,6 +209,8 @@ class AcmReceiver {
   //
   int LastAudioCodec(CodecInst* codec) const;
 
+  rtc::Optional<SdpAudioFormat> LastAudioFormat() const;
+
   //
   // Get a decoder given its registered payload-type.
   //
@@ -269,6 +275,7 @@ class AcmReceiver {
 
   rtc::CriticalSection crit_sect_;
   rtc::Optional<CodecInst> last_audio_decoder_ GUARDED_BY(crit_sect_);
+  rtc::Optional<SdpAudioFormat> last_audio_format_ GUARDED_BY(crit_sect_);
   ACMResampler resampler_ GUARDED_BY(crit_sect_);
   std::unique_ptr<int16_t[]> last_audio_buffer_ GUARDED_BY(crit_sect_);
   CallStatistics call_stats_ GUARDED_BY(crit_sect_);

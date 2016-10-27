@@ -42,8 +42,6 @@ enum CaptureState {
   CS_FAILED,     // The capturer failed to start.
 };
 
-class VideoFrame;
-
 // VideoCapturer is an abstract class that defines the interfaces for video
 // capturing. The subclasses implement the video capturer for various types of
 // capturers and various platforms.
@@ -141,18 +139,6 @@ class VideoCapturer : public sigslot::has_slots<>,
   // Returns true if the capturer is screencasting. This can be used to
   // implement screencast specific behavior.
   virtual bool IsScreencast() const = 0;
-
-  // Indicates that the encoder should denoise video before encoding
-  // it, wired up to VideoCapturerTrackSource::needs_denoising. If it
-  // is not set, the default configuration is used which is different
-  // depending on video codec.
-  // TODO(nisse): This is a workaround needed to fix
-  // https://bugs.chromium.org/p/chromium/issues/detail?id=645907.
-  // Chrome should migrate to implement VideoTrackSourceInterface
-  // directly, and then this method is no longer needed.
-  virtual rtc::Optional<bool> NeedsDenoising() const {
-    return rtc::Optional<bool>();
-  }
 
   // Caps the VideoCapturer's format according to max_format. It can e.g. be
   // used to prevent cameras from capturing at a resolution or framerate that

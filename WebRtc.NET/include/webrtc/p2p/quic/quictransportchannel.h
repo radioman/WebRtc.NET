@@ -199,6 +199,10 @@ class QuicTransportChannel : public TransportChannelImpl,
   void OnProofVerifyDetailsAvailable(
       const net::ProofVerifyDetails& verify_details) override;
 
+  void SetMetricsObserver(webrtc::MetricsObserverInterface* observer) override {
+    channel_->SetMetricsObserver(observer);
+  }
+
   // Returns true if |quic_| has queued data which wasn't written due
   // to |channel_| being write blocked.
   bool HasDataToWrite() const;
@@ -267,7 +271,7 @@ class QuicTransportChannel : public TransportChannelImpl,
   void set_quic_state(QuicTransportState state);
 
   // Everything should occur on this thread.
-  rtc::Thread* worker_thread_;
+  rtc::Thread* network_thread_;
   // Underlying channel which is responsible for connecting with the remote peer
   // and sending/receiving packets across the network.
   std::unique_ptr<TransportChannelImpl> channel_;

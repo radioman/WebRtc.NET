@@ -65,6 +65,7 @@ class VideoReceiveStream {
     int jitter_buffer_ms = 0;
     int min_playout_delay_ms = 0;
     int render_delay_ms = 10;
+    uint32_t frames_decoded = 0;
 
     int current_payload_type = -1;
 
@@ -134,8 +135,8 @@ class VideoReceiveStream {
       // See NackConfig for description.
       NackConfig nack;
 
-      // See FecConfig for description.
-      FecConfig fec;
+      // See UlpfecConfig for description.
+      UlpfecConfig ulpfec;
 
       // RTX settings for incoming video payloads that may be received. RTX is
       // disabled if there's no config present.

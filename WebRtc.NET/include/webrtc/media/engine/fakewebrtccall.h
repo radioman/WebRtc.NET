@@ -109,7 +109,7 @@ class FakeVideoSendStream final
   ~FakeVideoSendStream() override;
   const webrtc::VideoSendStream::Config& GetConfig() const;
   const webrtc::VideoEncoderConfig& GetEncoderConfig() const;
-  std::vector<webrtc::VideoStream> GetVideoStreams();
+  const std::vector<webrtc::VideoStream>& GetVideoStreams() const;
 
   bool IsSending() const;
   bool GetVp8Settings(webrtc::VideoCodecVP8* settings) const;
@@ -142,6 +142,7 @@ class FakeVideoSendStream final
   bool sending_;
   webrtc::VideoSendStream::Config config_;
   webrtc::VideoEncoderConfig encoder_config_;
+  std::vector<webrtc::VideoStream> video_streams_;
   bool codec_settings_set_;
   union VpxSettings {
     webrtc::VideoCodecVP8 vp8;
@@ -227,6 +228,12 @@ class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
       webrtc::VideoReceiveStream::Config config) override;
   void DestroyVideoReceiveStream(
       webrtc::VideoReceiveStream* receive_stream) override;
+
+  webrtc::FlexfecReceiveStream* CreateFlexfecReceiveStream(
+      webrtc::FlexfecReceiveStream::Config config) override;
+  void DestroyFlexfecReceiveStream(
+      webrtc::FlexfecReceiveStream* receive_stream) override;
+
   webrtc::PacketReceiver* Receiver() override;
 
   DeliveryStatus DeliverPacket(webrtc::MediaType media_type,
@@ -243,10 +250,6 @@ class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
   void SignalChannelNetworkState(webrtc::MediaType media,
                                  webrtc::NetworkState state) override;
   void OnSentPacket(const rtc::SentPacket& sent_packet) override;
-
-  bool StartEventLog(rtc::PlatformFile log_file,
-                     int64_t max_size_bytes) override;
-  void StopEventLog() override;
 
   webrtc::Call::Config config_;
   webrtc::NetworkState audio_network_state_;
