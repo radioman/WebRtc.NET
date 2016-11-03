@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -42,8 +43,9 @@ namespace WebRtc.NET.AppLib
         const int screenWidth = 640 * 1;
         const int screenHeight = 360 * 1;
 
-        // stride: 4512
-        readonly Bitmap img = new Bitmap(screenWidth, screenHeight, PixelFormat.Format24bppRgb);
+        readonly byte[] imgBuf = new byte[screenWidth * 3 * screenHeight];
+        IntPtr imgBufPtr = IntPtr.Zero;
+        Bitmap img;
         readonly Bitmap imgView = new Bitmap(screenWidth, screenHeight, PixelFormat.Format24bppRgb);
         readonly Rectangle bounds = new Rectangle(0, 0, screenWidth, screenHeight);
         readonly Rectangle boundsItem = new Rectangle(0, 0, 640, 360);
@@ -51,18 +53,13 @@ namespace WebRtc.NET.AppLib
         readonly TurboJpegEncoder encoder = TurboJpegEncoder.CreateEncoder();
         public unsafe void OnFillBuffer(byte* yuv, long yuvSize)
         {
-            lock (img)
+            if (SetEncode && imgBufPtr != IntPtr.Zero)
             {
-                if (SetEncode)
+                lock (img)
                 {
-                    var data = img.LockBits(bounds, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
-                    {
-                        encoder.EncodeBGR24toI420((byte*)data.Scan0.ToPointer(), data.Width, data.Height, yuv, yuvSize, false);
-                    }
-                    img.UnlockBits(data);
+                    encoder.EncodeBGR24toI420((byte*)imgBufPtr.ToPointer(), screenWidth, screenHeight, yuv, yuvSize, true);
                 }
             }
-            //Thread.Sleep(200);
         }
 
         static readonly Font f = new Font("Tahoma", 14);
@@ -135,6 +132,26 @@ namespace WebRtc.NET.AppLib
         {
             try
             {
+                if (img == null)
+                {
+                    imgBufPtr = Marshal.UnsafeAddrOfPinnedArrayElement(imgBuf, 0);
+                    img = new Bitmap(screenWidth, screenHeight, screenWidth * 3, PixelFormat.Format24bppRgb, imgBufPtr);
+                }
+
+                if (SetEncode)
+                {
+                    lock (img)
+                    {
+                        using (var g = Graphics.FromImage(img))
+                        {
+                            g.Clear(Color.DarkBlue);
+
+                            var rc = RectangleF.FromLTRB(0, 0, img.Width, img.Height);
+                            g.DrawString(string.Format("{0}", DateTime.Now.ToString("hh:mm:ss.fff")), fBig, Brushes.LimeGreen, rc, sfTopRight);
+                        }
+                    }
+                }
+
                 if (SetView)
                 {
                     lock (imgView)
@@ -153,20 +170,6 @@ namespace WebRtc.NET.AppLib
                         }
                         {
                             pictureBox1.Invalidate();
-                        }
-                    }
-                }
-
-                if (SetEncode)
-                {
-                    lock (img)
-                    {
-                        using (var g = Graphics.FromImage(img))
-                        {
-                            g.Clear(Color.DarkBlue);
-
-                            var rc = RectangleF.FromLTRB(0, 0, img.Width, img.Height);
-                            g.DrawString(string.Format("{0}", DateTime.Now.ToString("hh:mm:ss.fff")), fBig, Brushes.LimeGreen, rc, sfTopRight);
                         }
                     }
                 }
