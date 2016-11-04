@@ -6,134 +6,139 @@
 #include "webrtc/api/mediastreaminterface.h"
 #include "webrtc/api/peerconnectioninterface.h"
 
-typedef void (__stdcall *OnErrorCallbackNative)();
-typedef void(__stdcall *OnSuccessCallbackNative)(const char * type, const char * sdp);
-typedef void(__stdcall *OnFailureCallbackNative)(const char * error);
-typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdp_mid, int sdp_mline_index, const char * sdp);
-typedef void(__stdcall *OnFillBufferCallbackNative)(uint8_t * frame_buffer, uint32_t yuvSize);
-
 namespace cricket
 {
 	class TurnServer;
 	class StunServer;
 }
 
-class Conductor	: public webrtc::PeerConnectionObserver,
-	              public webrtc::CreateSessionDescriptionObserver,
-	              public webrtc::SetSessionDescriptionObserver
+namespace Native
 {
-public:
+	typedef void(__stdcall *OnErrorCallbackNative)();
+	typedef void(__stdcall *OnSuccessCallbackNative)(const char * type, const char * sdp);
+	typedef void(__stdcall *OnFailureCallbackNative)(const char * error);
+	typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdp_mid, int sdp_mline_index, const char * sdp);
+	typedef void(__stdcall *OnFillBufferCallbackNative)(uint8_t * frame_buffer, uint32_t yuvSize);
 
-	Conductor();
-	~Conductor();
-
-	bool InitializePeerConnection();
-	void CreateOffer();
-	void OnOfferReply(std::string type, std::string sdp);
-	void OnOfferRequest(std::string sdp);	
-	bool AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::string sdp);
-
-	bool ProcessMessages(int delay)
+	class Conductor : public webrtc::PeerConnectionObserver,
+		public webrtc::CreateSessionDescriptionObserver,
+		public webrtc::SetSessionDescriptionObserver
 	{
-		return rtc::Thread::Current()->ProcessMessages(delay);
-	}
+	public:
 
-	bool OpenVideoCaptureDevice();
-	void OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize);
+		Conductor();
+		~Conductor();
 
-	void AddServerConfig(std::string uri, std::string username, std::string password);
+		bool InitializePeerConnection();
+		void CreateOffer();
+		void OnOfferReply(std::string type, std::string sdp);
+		void OnOfferRequest(std::string sdp);
+		bool AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::string sdp);
 
-	OnErrorCallbackNative onError;
-	OnSuccessCallbackNative onSuccess;
-	OnFailureCallbackNative onFailure;
-	OnIceCandidateCallbackNative onIceCandidate;
-	OnFillBufferCallbackNative onFillBuffer;
+		bool ProcessMessages(int delay)
+		{
+			return rtc::Thread::Current()->ProcessMessages(delay);
+		}
 
-	bool RunRelayServer(const std::string & bindIp, const std::string & ip);
-	bool RunStunServer(const std::string & bindIp);
-	bool RunTurnServer(const std::string & bindIp, const std::string & ip,
-					   const std::string & realm, const std::string & authFile);
+		bool OpenVideoCaptureDevice();
+		void OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize);
 
-protected:
+		void AddServerConfig(std::string uri, std::string username, std::string password);
 
-	// SetSessionDescriptionObserver
-	virtual void webrtc::SetSessionDescriptionObserver::OnSuccess()
-	{
-		LOG(INFO) << __FUNCTION__;
-	}
+		OnErrorCallbackNative onError;
+		OnSuccessCallbackNative onSuccess;
+		OnFailureCallbackNative onFailure;
+		OnIceCandidateCallbackNative onIceCandidate;
+		OnFillBufferCallbackNative onFillBuffer;
 
-	// CreateSessionDescriptionObserver implementation.
-	virtual void webrtc::CreateSessionDescriptionObserver::OnSuccess(webrtc::SessionDescriptionInterface* desc);
-	virtual void OnFailure(const std::string& error);
+		bool RunRelayServer(const std::string & bindIp, const std::string & ip);
+		bool RunStunServer(const std::string & bindIp);
+		bool RunTurnServer(const std::string & bindIp, const std::string & ip,
+						   const std::string & realm, const std::string & authFile);
 
-	//
-	// PeerConnectionObserver implementation.
-	//
-	virtual void OnError();
+	protected:
 
-	virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState state)
-	{
-		LOG(INFO) << __FUNCTION__ << " " << state;
-	}
+		// SetSessionDescriptionObserver
+		virtual void webrtc::SetSessionDescriptionObserver::OnSuccess()
+		{
+			LOG(INFO) << __FUNCTION__;
+		}
 
-	virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state)
-	{
-		LOG(INFO) << __FUNCTION__ << " " << state;
-	}
+		// CreateSessionDescriptionObserver implementation.
+		virtual void webrtc::CreateSessionDescriptionObserver::OnSuccess(webrtc::SessionDescriptionInterface* desc);
+		virtual void OnFailure(const std::string& error);
 
-	virtual void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState state)
-	{
-		LOG(INFO) << __FUNCTION__ << " " << state;
-	}
+		//
+		// PeerConnectionObserver implementation.
+		//
+		virtual void OnError();
 
-	virtual void OnStateChange(webrtc::PeerConnectionObserver::StateType state_changed)
-	{
-		LOG(INFO) << __FUNCTION__ << " " << state_changed;
-	}
-	virtual void OnAddStream(webrtc::MediaStreamInterface* stream);
-	virtual void OnRemoveStream(webrtc::MediaStreamInterface* stream);
-	virtual void OnDataChannel(webrtc::DataChannelInterface* channel)
-	{
-	}
-	virtual void OnRenegotiationNeeded()
-	{
-		LOG(INFO) << __FUNCTION__ << " ";
-	}
-	virtual void OnIceChange()
-	{
-		LOG(INFO) << __FUNCTION__ << " ";
-	}
-	virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate);
+		virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState state)
+		{
+			LOG(INFO) << __FUNCTION__ << " " << state;
+		}
 
-	int AddRef() const
-	{
-		return 0;
+		virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state)
+		{
+			LOG(INFO) << __FUNCTION__ << " " << state;
+		}
+
+		virtual void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState state)
+		{
+			LOG(INFO) << __FUNCTION__ << " " << state;
+		}
+
+		virtual void OnStateChange(webrtc::PeerConnectionObserver::StateType state_changed)
+		{
+			LOG(INFO) << __FUNCTION__ << " " << state_changed;
+		}
+		virtual void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
+		virtual void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
+		virtual void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
+		{
+		}
+		virtual void OnRenegotiationNeeded()
+		{
+			LOG(INFO) << __FUNCTION__ << " ";
+		}
+		virtual void OnIceChange()
+		{
+			LOG(INFO) << __FUNCTION__ << " ";
+		}
+		virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate);
+
+		int AddRef() const
+		{
+			return 0;
+		};
+		int Release() const
+		{
+			return 0;
+		};
+
+	private:
+
+		bool CreatePeerConnection(bool dtls);
+		void DeletePeerConnection();
+		void AddStreams();
+
+		cricket::VideoCapturer * capturer;
+
+		rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
+		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
+		std::map<std::string, rtc::scoped_refptr<webrtc::MediaStreamInterface> > active_streams_;
+
+		std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
+
+		std::unique_ptr<VideoRenderer> local_renderer_;
+		std::unique_ptr<VideoRenderer> remote_renderer_;
+
+		cricket::TurnServer * turnServer;
+		cricket::StunServer * stunServer;
+
+	public:
+		int caputureFps;
+		bool barcodeEnabled;
 	};
-	int Release() const
-	{
-		return 0;
-	};
-
-private:
-
-	bool CreatePeerConnection(bool dtls);
-	void DeletePeerConnection();
-	void AddStreams();	
-
-	cricket::VideoCapturer * capturer;
-
-	rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
-	rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
-	std::map<std::string, rtc::scoped_refptr<webrtc::MediaStreamInterface> > active_streams_;
-
-	std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
-
-	cricket::TurnServer * turnServer;
-	cricket::StunServer * stunServer;
-
-public:
-	int caputureFps;
-	bool barcodeEnabled;
-};
-
+}
 #endif  // WEBRTC_NET_CONDUCTOR_H_

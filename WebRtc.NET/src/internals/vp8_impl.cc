@@ -659,7 +659,7 @@ namespace webrtc
 			codec_.VP8()->automaticResizeOn;
 		
 		// custom override
-		quality_scaler_enabled_ = CFG_quality_scaler_enabled_;
+		quality_scaler_enabled_ = Native::CFG_quality_scaler_enabled_;
 
 		return InitAndSetControlSettings();
 	}

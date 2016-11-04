@@ -3,53 +3,100 @@
 #define WEBRTC_NET_DEFAULTS_H_
 #pragma once
 
-
 #include "webrtc/media/base/videocapturer.h"
 #include "webrtc/media/base/yuvframegenerator.h"
+#include "webrtc/api/mediastreaminterface.h"
 
-class Conductor;
-
-class YuvFramesCapturer2 : public cricket::VideoCapturer
+namespace Native
 {
-public:
-	YuvFramesCapturer2(Conductor & c);
-	virtual ~YuvFramesCapturer2();
+	class Conductor;
 
-	// Override virtual methods of parent class VideoCapturer.
-	virtual cricket::CaptureState Start(const cricket::VideoFormat& capture_format);
-	virtual void Stop();
-	virtual bool IsRunning();
-	virtual bool IsScreencast() const
+	class YuvFramesCapturer2 : public cricket::VideoCapturer
 	{
-		return false;
-	}
+	public:
+		YuvFramesCapturer2(Conductor & c);
+		virtual ~YuvFramesCapturer2();
 
-protected:
-	// Override virtual methods of parent class VideoCapturer.
-	virtual bool GetPreferredFourccs(std::vector<uint32_t>* fourccs);
+		// Override virtual methods of parent class VideoCapturer.
+		virtual cricket::CaptureState Start(const cricket::VideoFormat& capture_format);
+		virtual void Stop();
+		virtual bool IsRunning();
+		virtual bool IsScreencast() const
+		{
+			return false;
+		}
 
-	// Read a frame and determine how long to wait for the next frame.
-	void ReadFrame(bool first_frame);
+	protected:
+		// Override virtual methods of parent class VideoCapturer.
+		virtual bool GetPreferredFourccs(std::vector<uint32_t>* fourccs);
 
-private:
-	class YuvFramesThread;  // Forward declaration, defined in .cc.
+		// Read a frame and determine how long to wait for the next frame.
+		void ReadFrame(bool first_frame);
 
-	Conductor * con;
-	YuvFramesThread* frames_generator_thread;
-	cricket::YuvFrameGenerator* frame_generator_;	
+	private:
+		class YuvFramesThread;  // Forward declaration, defined in .cc.
 
-	rtc::scoped_refptr<webrtc::I420Buffer> video_buffer;
-	cricket::VideoFrame * video_frame;
-	
-	int width_;
-	int height_;
-	uint32_t frame_data_size_;
-	uint32_t frame_index_;
+		Conductor * con;
+		YuvFramesThread* frames_generator_thread;
+		cricket::YuvFrameGenerator* frame_generator_;
 
-	int64_t barcode_reference_timestamp_millis_;
-	int32_t barcode_interval_;
+		rtc::scoped_refptr<webrtc::I420Buffer> video_buffer;
+		cricket::VideoFrame * video_frame;
 
-	RTC_DISALLOW_COPY_AND_ASSIGN(YuvFramesCapturer2);
-};
+		int width_;
+		int height_;
+		uint32_t frame_data_size_;
+		uint32_t frame_index_;
 
+		int64_t barcode_reference_timestamp_millis_;
+		int32_t barcode_interval_;
+
+		RTC_DISALLOW_COPY_AND_ASSIGN(YuvFramesCapturer2);
+	};
+
+	class VideoRenderer : public rtc::VideoSinkInterface<webrtc::VideoFrame>
+	{
+	public:
+		VideoRenderer(int width, int height, webrtc::VideoTrackInterface * track_to_render)
+		{
+		}
+		virtual ~VideoRenderer()
+		{
+		}
+
+		void Lock()
+		{
+			::EnterCriticalSection(&buffer_lock_);
+		}
+
+		void Unlock()
+		{
+			::LeaveCriticalSection(&buffer_lock_);
+		}
+
+		// VideoSinkInterface implementation
+		void OnFrame(const webrtc::VideoFrame& frame) override
+		{
+
+		}
+
+		const uint8_t* image() const
+		{
+			return image_.get();
+		}
+
+	protected:
+		//void SetSize(int width, int height);
+
+		enum
+		{
+			SET_SIZE,
+			RENDER_FRAME,
+		};
+
+		std::unique_ptr<uint8_t[]> image_;
+		CRITICAL_SECTION buffer_lock_;
+		rtc::scoped_refptr<webrtc::VideoTrackInterface> rendered_track_;
+	};
+}
 #endif  // WEBRTC_NET_DEFAULTS_H_

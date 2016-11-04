@@ -35,7 +35,7 @@ namespace WebRtc
 		private:
 
 			bool m_isDisposed;
-			Conductor * cd;
+			Native::Conductor * cd;
 
 			delegate void _OnFillBufferCallback(uint8_t * frame_buffer, uint32_t yuvSize);
 			_OnFillBufferCallback ^ onFillBuffer;
@@ -126,27 +126,27 @@ namespace WebRtc
 			ManagedConductor()
 			{
 				m_isDisposed = false;
-				cd = new Conductor();
+				cd = new Native::Conductor();
 
 				onFillBuffer = gcnew _OnFillBufferCallback(this, &ManagedConductor::_OnFillBuffer);
 				onFillBufferHandle = GCHandle::Alloc(onFillBuffer);
-				cd->onFillBuffer = static_cast<OnFillBufferCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFillBuffer).ToPointer());
+				cd->onFillBuffer = static_cast<Native::OnFillBufferCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFillBuffer).ToPointer());
 
 				onError = gcnew _OnErrorCallback(this, &ManagedConductor::_OnError);
 				onErrorHandle = GCHandle::Alloc(onError);
-				cd->onError = static_cast<OnErrorCallbackNative>(Marshal::GetFunctionPointerForDelegate(onError).ToPointer());
+				cd->onError = static_cast<Native::OnErrorCallbackNative>(Marshal::GetFunctionPointerForDelegate(onError).ToPointer());
 
 				onSuccess = gcnew _OnSuccessCallback(this, &ManagedConductor::_OnSuccess);
 				onSuccessHandle = GCHandle::Alloc(onSuccess);
-				cd->onSuccess = static_cast<OnSuccessCallbackNative>(Marshal::GetFunctionPointerForDelegate(onSuccess).ToPointer());
+				cd->onSuccess = static_cast<Native::OnSuccessCallbackNative>(Marshal::GetFunctionPointerForDelegate(onSuccess).ToPointer());
 
 				onFailure = gcnew _OnFailureCallback(this, &ManagedConductor::_OnFailure);
 				onFailureHandle = GCHandle::Alloc(onFailure);
-				cd->onFailure = static_cast<OnFailureCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFailure).ToPointer());
+				cd->onFailure = static_cast<Native::OnFailureCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFailure).ToPointer());
 
 				onIceCandidate = gcnew _OnIceCandidateCallback(this, &ManagedConductor::_OnIceCandidate);
 				onIceCandidateHandle = GCHandle::Alloc(onIceCandidate);
-				cd->onIceCandidate = static_cast<OnIceCandidateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceCandidate).ToPointer());
+				cd->onIceCandidate = static_cast<Native::OnIceCandidateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceCandidate).ToPointer());
 			}
 
 			~ManagedConductor()
@@ -168,12 +168,12 @@ namespace WebRtc
 
 			static void InitializeSSL()
 			{
-				_InitializeSSL();
+				Native::InitializeSSL();
 			}
 
 			static void CleanupSSL()
 			{
-				_CleanupSSL();
+				Native::CleanupSSL();
 			}
 
 			bool InitializePeerConnection()

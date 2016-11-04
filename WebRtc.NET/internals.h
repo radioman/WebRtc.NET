@@ -6,11 +6,6 @@
 
 //#include <stdint.h>
 
-extern bool CFG_quality_scaler_enabled_;
-
-void _InitializeSSL();
-void _CleanupSSL();
-
 namespace Internal
 {
 	void Encode(unsigned char * data, unsigned int size, int part_idx, bool keyFrame);
@@ -18,6 +13,11 @@ namespace Internal
 
 namespace Native
 {
+	extern bool CFG_quality_scaler_enabled_;
+
+	void InitializeSSL();
+	void CleanupSSL();
+
 	void FilterInitMemoryManager();
 	void FilterCloseMemoryManager();
 

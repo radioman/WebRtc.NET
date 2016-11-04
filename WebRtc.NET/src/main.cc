@@ -165,17 +165,20 @@
 #include "webrtc/base/win32socketinit.h"
 #include "webrtc/base/win32socketserver.h"
 
-bool CFG_quality_scaler_enabled_ = false;
-
-void _InitializeSSL()
+namespace Native
 {
-	rtc::EnsureWinsockInit();
-	rtc::InitializeSSL(NULL);
-}
+	bool CFG_quality_scaler_enabled_ = false;
 
-void _CleanupSSL()
-{
-	rtc::CleanupSSL();
+	void InitializeSSL()
+	{
+		rtc::EnsureWinsockInit();
+		rtc::InitializeSSL(NULL);
+	}
+
+	void CleanupSSL()
+	{
+		rtc::CleanupSSL();
+	}
 }
 
 FILE _iob[] = { *stdin, *stdout, *stderr };
