@@ -199,4 +199,19 @@ namespace Native
 			OnFrame(*video_frame, width_, height_);
 		}
 	}
+
+	// VideoSinkInterface implementation
+	void VideoRenderer::OnFrame(const webrtc::VideoFrame& frame)
+	{
+		if (remote && con->onRenderRemote)
+		{
+			auto b = frame.video_frame_buffer();
+			con->onRenderRemote((uint8_t*)b->DataY(), b->width(), b->height());
+		}
+		else if (con->onRenderLocal)
+		{
+			auto b = frame.video_frame_buffer();
+			con->onRenderLocal((uint8_t*)b->DataY(), b->width(), b->height());
+		}
+	}
 }

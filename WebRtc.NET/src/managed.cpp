@@ -41,6 +41,12 @@ namespace WebRtc
 			_OnFillBufferCallback ^ onFillBuffer;
 			GCHandle ^ onFillBufferHandle;
 
+			delegate void _OnRenderCallback(uint8_t * frame_buffer, uint32_t w, uint32_t h);
+			_OnRenderCallback ^ onRenderLocal;
+			_OnRenderCallback ^ onRenderRemote;
+			GCHandle ^ onRenderLocalHandle;			
+			GCHandle ^ onRenderRemoteHandle;
+
 			delegate void _OnErrorCallback();
 			_OnErrorCallback ^ onError;
 			GCHandle ^ onErrorHandle;
@@ -106,6 +112,16 @@ namespace WebRtc
 				OnFillBuffer(frame_buffer, yuvSize);
 			}
 
+			void _OnRenderLocal(uint8_t * frame_buffer, uint32_t w, uint32_t h)
+			{
+				OnRenderLocal(frame_buffer, w, h);
+			}
+
+			void _OnRenderRemote(uint8_t * frame_buffer, uint32_t w, uint32_t h)
+			{
+				OnRenderRemote(frame_buffer, w, h);
+			}
+
 		public:
 
 			delegate void OnCallbackSdp(String ^ sdp);
@@ -120,8 +136,12 @@ namespace WebRtc
 			delegate void OnCallbackError(String ^ error);
 			event OnCallbackError ^ OnFailure;
 
-			delegate void OnCallbackFillBuffer(System::Byte * frame_buffer, System::Int64 yuvSize);
+			delegate void OnCallbackFillBuffer(System::Byte * frame_buffer, System::UInt32 yuvSize);
 			event OnCallbackFillBuffer ^ OnFillBuffer;
+
+			delegate void OnCallbackRender(System::Byte * frame_buffer, System::UInt32 w, System::UInt32 h);
+			event OnCallbackRender ^ OnRenderLocal;
+			event OnCallbackRender ^ OnRenderRemote;
 
 			ManagedConductor()
 			{
@@ -131,6 +151,14 @@ namespace WebRtc
 				onFillBuffer = gcnew _OnFillBufferCallback(this, &ManagedConductor::_OnFillBuffer);
 				onFillBufferHandle = GCHandle::Alloc(onFillBuffer);
 				cd->onFillBuffer = static_cast<Native::OnFillBufferCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFillBuffer).ToPointer());
+
+				onRenderLocal = gcnew _OnRenderCallback(this, &ManagedConductor::_OnRenderLocal);
+				onRenderLocalHandle = GCHandle::Alloc(onRenderLocal);
+				cd->onRenderLocal = static_cast<Native::OnRenderCallbackNative>(Marshal::GetFunctionPointerForDelegate(onRenderLocal).ToPointer());
+
+				onRenderRemote = gcnew _OnRenderCallback(this, &ManagedConductor::_OnRenderRemote);
+				onRenderRemoteHandle = GCHandle::Alloc(onRenderRemote);
+				cd->onRenderRemote = static_cast<Native::OnRenderCallbackNative>(Marshal::GetFunctionPointerForDelegate(onRenderRemote).ToPointer());
 
 				onError = gcnew _OnErrorCallback(this, &ManagedConductor::_OnError);
 				onErrorHandle = GCHandle::Alloc(onError);
@@ -160,6 +188,8 @@ namespace WebRtc
 				FreeGCHandle(onFailureHandle);
 				FreeGCHandle(onIceCandidateHandle);
 				FreeGCHandle(onFillBufferHandle);
+				FreeGCHandle(onRenderLocalHandle);
+				FreeGCHandle(onRenderRemoteHandle);
 
 				this->!ManagedConductor(); // call finalizer
 

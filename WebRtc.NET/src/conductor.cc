@@ -96,6 +96,8 @@ namespace Native
 	{
 		if (peer_connection_)
 		{
+			local_renderer_.reset();
+
 			for (auto it = active_streams_.begin(); it != active_streams_.end(); ++it)
 			{
 				peer_connection_->RemoveStream(it->second);
@@ -308,7 +310,10 @@ namespace Native
 		auto v = pc_factory_->CreateVideoSource(capturer, NULL);
 
 		auto video_track = pc_factory_->CreateVideoTrack(kVideoLabel, v);
-		//main_wnd_->StartLocalRenderer(video_track);
+		if (onRenderLocal)
+		{
+			local_renderer_.reset(new VideoRenderer(*this, false, video_track));
+	    }
 
 		auto stream = pc_factory_->CreateLocalMediaStream(kStreamLabel);
 		{
@@ -333,23 +338,22 @@ namespace Native
 	{
 		LOG(INFO) << __FUNCTION__ << " " << stream->label();
 
-		//stream->AddRef();
-		//main_wnd_->QueueUIThreadCallback(NEW_STREAM_ADDED, stream);
-
-		//webrtc::MediaStreamInterface* stream = reinterpret_cast<webrtc::MediaStreamInterface*>(data);
-		//webrtc::VideoTrackVector tracks = stream->GetVideoTracks();
-		//// Only render the first track.
-		//if (!tracks.empty())
-		//{
-		//	webrtc::VideoTrackInterface* track = tracks[0];
-		//	//main_wnd_->StartRemoteRenderer(track);
-		//}
-		//stream->Release();
+		if (onRenderRemote)
+		{
+			webrtc::VideoTrackVector tracks = stream->GetVideoTracks();
+			// Only render the first track.
+			if (!tracks.empty())
+			{
+				webrtc::VideoTrackInterface* track = tracks[0];
+				remote_renderer_.reset(new VideoRenderer(*this, true, track));
+			}
+		}
 	}
 
 	void Conductor::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 	{
 		LOG(INFO) << __FUNCTION__ << " " << stream->label();
+		remote_renderer_.reset();
 	}
 
 	void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate)

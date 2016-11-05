@@ -186,7 +186,6 @@ namespace WebRtc.NET.AppLib
                                             session.WebRtc.AddServerConfig("stun:stun.anyfirewall.com:3478", string.Empty, string.Empty);
                                             session.WebRtc.AddServerConfig("stun:stun.stunprotocol.org:3478", string.Empty, string.Empty);
                                             //session.WebRtc.AddServerConfig("turn:127.0.0.1:444", "test", "test");
-                                            session.WebRtc.AddServerConfig("turn:cloud.softra.lt:3478", "softra", "softra");
 
                                             var ok = session.WebRtc.InitializePeerConnection();
                                             if (ok)
@@ -248,9 +247,14 @@ namespace WebRtc.NET.AppLib
 
                                         unsafe
                                         {
-                                            session.WebRtc.OnFillBuffer += delegate (byte * frame_buffer, long yuvSize)
+                                            session.WebRtc.OnFillBuffer += delegate (byte * frame_buffer, uint yuvSize)
                                             {
                                                 OnFillBuffer(frame_buffer, yuvSize);
+                                            };
+
+                                            session.WebRtc.OnRenderRemote += delegate (byte* frame_buffer, uint w, uint h)
+                                            {
+                                                OnRenderRemote(frame_buffer, w, h);
                                             };
                                         }
 
@@ -284,6 +288,7 @@ namespace WebRtc.NET.AppLib
         }
 
         public ManagedConductor.OnCallbackFillBuffer OnFillBuffer;
+        public ManagedConductor.OnCallbackRender OnRenderRemote;
 
         public void Dispose()
         {

@@ -57,11 +57,16 @@ namespace Native
 	class VideoRenderer : public rtc::VideoSinkInterface<webrtc::VideoFrame>
 	{
 	public:
-		VideoRenderer(int width, int height, webrtc::VideoTrackInterface * track_to_render)
+		VideoRenderer(Conductor & c, bool remote, webrtc::VideoTrackInterface * track_to_render) :
+			rendered_track_(track_to_render), con(&c), remote(remote)
 		{
+			InitializeCriticalSection(&buffer_lock_);
+			rendered_track_->AddOrUpdateSink(this, rtc::VideoSinkWants());
 		}
 		virtual ~VideoRenderer()
 		{
+			rendered_track_->RemoveSink(this);
+			DeleteCriticalSection(&buffer_lock_);
 		}
 
 		void Lock()
@@ -75,26 +80,12 @@ namespace Native
 		}
 
 		// VideoSinkInterface implementation
-		void OnFrame(const webrtc::VideoFrame& frame) override
-		{
-
-		}
-
-		const uint8_t* image() const
-		{
-			return image_.get();
-		}
+		void OnFrame(const webrtc::VideoFrame& frame) override;
 
 	protected:
-		//void SetSize(int width, int height);
 
-		enum
-		{
-			SET_SIZE,
-			RENDER_FRAME,
-		};
-
-		std::unique_ptr<uint8_t[]> image_;
+		bool remote;
+		Conductor * con;
 		CRITICAL_SECTION buffer_lock_;
 		rtc::scoped_refptr<webrtc::VideoTrackInterface> rendered_track_;
 	};

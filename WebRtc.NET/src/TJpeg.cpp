@@ -148,9 +148,9 @@ namespace WebRtc
 			unsigned long rgbBufSize = buffer->Length;
 			{
 				int pad = 4;
-				int pitch = 0;
 				int width = w;
 				int height = h;
+				int pitch = TJPAD(tjPixelSize[TJPF_RGB] * width);
 
 				int yuvSize = tjBufSizeYUV2(width, pad, height, TJSAMP_420);
 				if (yuv == nullptr)
@@ -172,9 +172,9 @@ namespace WebRtc
 		int TurboJpegEncoder::EncodeBGR24toI420(Byte * rgbBuf, Int32 w, Int32 h, Byte * yuv, Int64 yuvSize, Boolean fast)
 		{
 			int pad = 4;
-			int pitch = 0;
 			int width = w;
 			int height = h;
+			int pitch = TJPAD(tjPixelSize[TJPF_BGR] * width);
 
 			int yuvSizeCheck = tjBufSizeYUV2(width, pad, height, TJSAMP_420);
 			if (yuvSizeCheck != yuvSize)
@@ -187,6 +187,30 @@ namespace WebRtc
 			if (r != 0)
 			{
 				Debug::WriteLine(String::Format("tjEncodeYUV3, LastJpegError: {0}", LastJpegError));
+				return r;
+			}
+			return 0;
+		}
+
+		int TurboJpegEncoder::EncodeI420toBGR24(Byte * yuv, UInt32 w, UInt32 h, array<System::Byte> ^% bgrBuffer, Boolean fast)
+		{
+			int pad = 4;			
+			int width = w;
+			int height = h;
+			int pitch = TJPAD(tjPixelSize[TJPF_BGR] * width);
+
+			if (bgrBuffer == nullptr)
+			{
+				int yuvSizeCheck = tjBufSizeYUV2(width, pad, height, TJSAMP_420);
+				bgrBuffer = gcnew array<System::Byte>(yuvSizeCheck);
+			}	
+			pin_ptr<unsigned char> bufPinDest = &bgrBuffer[0];
+			unsigned char * bufDest = bufPinDest;
+
+			int r = tjDecodeYUV(jpeg, yuv, pad, TJSAMP_420, bufDest, width, pitch, height, TJPF_BGR, fast ? TJFLAG_FASTDCT : TJFLAG_ACCURATEDCT);
+			if (r != 0)
+			{
+				Debug::WriteLine(String::Format("tjDecodeYUV, LastJpegError: {0}", LastJpegError));
 				return r;
 			}
 			return 0;

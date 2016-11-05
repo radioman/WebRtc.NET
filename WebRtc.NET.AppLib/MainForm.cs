@@ -40,18 +40,16 @@ namespace WebRtc.NET.AppLib
             checkBoxWebsocket.Checked = true;
         }
 
-        const int screenWidth = 640 * 1;
-        const int screenHeight = 360 * 1;
+        const int screenWidth = 640;
+        const int screenHeight = 360;
 
         readonly byte[] imgBuf = new byte[screenWidth * 3 * screenHeight];
         IntPtr imgBufPtr = IntPtr.Zero;
         Bitmap img;
         readonly Bitmap imgView = new Bitmap(screenWidth, screenHeight, PixelFormat.Format24bppRgb);
-        readonly Rectangle bounds = new Rectangle(0, 0, screenWidth, screenHeight);
-        readonly Rectangle boundsItem = new Rectangle(0, 0, 640, 360);
 
         readonly TurboJpegEncoder encoder = TurboJpegEncoder.CreateEncoder();
-        public unsafe void OnFillBuffer(byte* yuv, long yuvSize)
+        public unsafe void OnFillBuffer(byte* yuv, uint yuvSize)
         {
             if (SetEncode && imgBufPtr != IntPtr.Zero)
             {
@@ -59,6 +57,20 @@ namespace WebRtc.NET.AppLib
                 {
                     encoder.EncodeBGR24toI420((byte*)imgBufPtr.ToPointer(), screenWidth, screenHeight, yuv, yuvSize, true);
                 }
+            }
+        }
+
+        byte[] bgrBuff;
+        Bitmap remoteImg;
+        public unsafe void OnRenderRemote(byte* yuv, uint w, uint h)
+        {
+            if (0 == encoder.EncodeI420toBGR24(yuv, w, h, ref bgrBuff, true) && bgrBuff != null)
+            {
+                if(remoteImg == null)
+                {
+                    remoteImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, Marshal.UnsafeAddrOfPinnedArrayElement(bgrBuff, 0));
+                }
+                // todo: render
             }
         }
 
@@ -116,6 +128,7 @@ namespace WebRtc.NET.AppLib
                 unsafe
                 {
                     webSocketServer.OnFillBuffer = OnFillBuffer;
+                    webSocketServer.OnRenderRemote = OnRenderRemote;
                 }
                 numericMaxClients_ValueChanged(null, null);
 
