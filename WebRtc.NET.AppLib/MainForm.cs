@@ -64,15 +64,38 @@ namespace WebRtc.NET.AppLib
         Bitmap remoteImg;
         public unsafe void OnRenderRemote(byte* yuv, uint w, uint h)
         {
-            if (0 == encoder.EncodeI420toBGR24(yuv, w, h, ref bgrBuff, true) && bgrBuff != null)
+            lock (pictureBoxRemote)
             {
-                if(remoteImg == null)
+                if (0 == encoder.EncodeI420toBGR24(yuv, w, h, ref bgrBuff, true))
                 {
-                    remoteImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, Marshal.UnsafeAddrOfPinnedArrayElement(bgrBuff, 0));
+                    if (remoteImg == null)
+                    {
+                        remoteImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, Marshal.UnsafeAddrOfPinnedArrayElement(bgrBuff, 0));
+                    }
                 }
-                // todo: render
+            }
+
+            try
+            {
+                Invoke(renderRemote, this);
+            }
+            catch // don't throw on form exit
+            {
             }
         }
+
+        readonly Action<MainForm> renderRemote = new Action<MainForm>(delegate (MainForm f)
+        {
+            lock (f.pictureBoxRemote)
+            {
+                if (f.pictureBoxRemote.Image == null)
+                {
+                    f.pictureBoxRemote.Image = f.remoteImg;
+                    f.tabControl1.SelectTab(f.tabPage2);
+                }
+                f.pictureBoxRemote.Invalidate();
+            }
+        });
 
         static readonly Font f = new Font("Tahoma", 14);
         static readonly Font fBig = new Font("Tahoma", 36);
@@ -177,12 +200,12 @@ namespace WebRtc.NET.AppLib
                             g.DrawString(string.Format("{0}", DateTime.Now.ToString("hh:mm:ss.fff")), fBig, Brushes.LimeGreen, rc, sfTopRight);
                         }
 
-                        if (pictureBox1.Image == null)
+                        if (pictureBoxPreview.Image == null)
                         {
-                            pictureBox1.Image = imgView;
+                            pictureBoxPreview.Image = imgView;
                         }
                         {
-                            pictureBox1.Invalidate();
+                            pictureBoxPreview.Invalidate();
                         }
                     }
                 }

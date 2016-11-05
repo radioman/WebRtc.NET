@@ -60,23 +60,11 @@ namespace Native
 		VideoRenderer(Conductor & c, bool remote, webrtc::VideoTrackInterface * track_to_render) :
 			rendered_track_(track_to_render), con(&c), remote(remote)
 		{
-			InitializeCriticalSection(&buffer_lock_);
 			rendered_track_->AddOrUpdateSink(this, rtc::VideoSinkWants());
 		}
 		virtual ~VideoRenderer()
 		{
 			rendered_track_->RemoveSink(this);
-			DeleteCriticalSection(&buffer_lock_);
-		}
-
-		void Lock()
-		{
-			::EnterCriticalSection(&buffer_lock_);
-		}
-
-		void Unlock()
-		{
-			::LeaveCriticalSection(&buffer_lock_);
 		}
 
 		// VideoSinkInterface implementation

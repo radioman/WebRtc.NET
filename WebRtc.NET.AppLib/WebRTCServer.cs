@@ -294,12 +294,22 @@ namespace WebRtc.NET.AppLib
         {
             try
             {
-                foreach (IWebSocketConnection i in UserList.Values)
+                foreach (var s in Streams)
                 {
+                    if (!s.Value.Cancel.IsCancellationRequested)
+                    {
+                        s.Value.Cancel.Cancel();
+                    }
+                }
+
+                foreach (IWebSocketConnection i in UserList.Values)
+                {                    
                     i.Close();
                 }
+
                 server.Dispose();
                 UserList.Clear();
+                Streams.Clear();
             }
             catch { }
         }

@@ -387,7 +387,7 @@ function getLocalStream() {
     navigator.mediaDevices.getUserMedia(vgaConstraints).then(function (stream) {
         console.log('Received local stream');
 
-        var vid1 = document.getElementById('vid1');
+        var vid1 = document.getElementById('vidLocal');
         if (vid1) {
             vid1.srcObject = stream;
             vid1.onloadedmetadata = function (e) {
@@ -396,6 +396,10 @@ function getLocalStream() {
         }
 
         localstream = stream;
+
+        if (remotestream) {
+            remotestream.addStream(localstream);
+        }
     })
     .catch(function (err) {
         console.log(err.name + ": " + err.message);

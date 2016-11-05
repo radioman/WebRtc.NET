@@ -201,8 +201,8 @@ namespace WebRtc
 
 			if (bgrBuffer == nullptr)
 			{
-				int yuvSizeCheck = tjBufSizeYUV2(width, pad, height, TJSAMP_420);
-				bgrBuffer = gcnew array<System::Byte>(yuvSizeCheck);
+				int rgbSize = pitch * height;
+				bgrBuffer = gcnew array<System::Byte>(rgbSize);
 			}	
 			pin_ptr<unsigned char> bufPinDest = &bgrBuffer[0];
 			unsigned char * bufDest = bufPinDest;

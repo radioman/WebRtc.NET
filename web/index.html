@@ -51,10 +51,37 @@ video {
         <div>
             <input type="text" id="server" size="30" value='localhost:9000' />
             <button id="btnconnect" onclick="connect()">connect...</button>
+            
+            <input type="checkbox" id="localStreamCheckbox" onclick='handleClick(this);'>
+            LocalStream<br>
+
+            <script>
+                function handleClick(cb) {
+                    if(cb.checked)
+                    {
+                        document.getElementById("vidLocal").style.display = "block";
+                        getLocalStream();
+                    }
+                    else
+                    {
+                        document.getElementById("vidLocal").style.display = "none";
+
+                        if (localstream) {
+                            if (remotestream){
+                                remotestream.removeStream(localstream);
+                            }
+                            localstream.close();
+                            localstream = null;
+                        }
+                    }
+                    
+                }
+            </script> 
+
             <div style="color: white" id="statsdiv"></div>
         </div>
         </br>
-        <!--<video id="vid1" autoplay controls></video>-->
+        <video id="vidLocal" autoplay controls style="display: none"></video>
     </div>
 </body >
 </html >
