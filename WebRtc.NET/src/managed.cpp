@@ -59,9 +59,22 @@ namespace WebRtc
 			_OnFailureCallback ^ onFailure;
 			GCHandle ^ onFailureHandle;
 
+			delegate void _OnDataMessageCallback(String ^ msg);
+			_OnDataMessageCallback ^ onDataMessage;
+			GCHandle ^ onDataMessageHandle;
+
 			delegate void _OnIceCandidateCallback(String ^ sdp_mid, Int32 sdp_mline_index, String ^ sdp);
 			_OnIceCandidateCallback ^ onIceCandidate;
 			GCHandle ^ onIceCandidateHandle;
+
+			void FreeGCHandle(GCHandle ^% g)
+			{
+				if (g != nullptr)
+				{
+					g->Free();
+					g = nullptr;
+				}
+			}
 
 			void _OnError()
 			{
@@ -98,13 +111,11 @@ namespace WebRtc
 				OnFailure(error);
 			}
 
-			void FreeGCHandle(GCHandle ^% g)
+			void _OnDataMessage(String ^ msg)
 			{
-				if (g != nullptr)
-				{
-					g->Free();
-					g = nullptr;
-				}
+				Debug::WriteLine(String::Format("OnDataMessage: {0}", msg));
+
+				OnDataMessage(msg);
 			}
 
 			void _OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize)
@@ -135,6 +146,9 @@ namespace WebRtc
 
 			delegate void OnCallbackError(String ^ error);
 			event OnCallbackError ^ OnFailure;
+
+			delegate void OnCallbackDataMessage(String ^ msg);
+			event OnCallbackDataMessage ^ OnDataMessage;
 
 			delegate void OnCallbackFillBuffer(System::Byte * frame_buffer, System::UInt32 yuvSize);
 			event OnCallbackFillBuffer ^ OnFillBuffer;
@@ -172,6 +186,10 @@ namespace WebRtc
 				onFailureHandle = GCHandle::Alloc(onFailure);
 				cd->onFailure = static_cast<Native::OnFailureCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFailure).ToPointer());
 
+				onDataMessage = gcnew _OnDataMessageCallback(this, &ManagedConductor::_OnDataMessage);
+				onDataMessageHandle = GCHandle::Alloc(onDataMessage);
+				cd->onDataMessage = static_cast<Native::OnDataMessageCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataMessage).ToPointer());
+
 				onIceCandidate = gcnew _OnIceCandidateCallback(this, &ManagedConductor::_OnIceCandidate);
 				onIceCandidateHandle = GCHandle::Alloc(onIceCandidate);
 				cd->onIceCandidate = static_cast<Native::OnIceCandidateCallbackNative>(Marshal::GetFunctionPointerForDelegate(onIceCandidate).ToPointer());
@@ -190,6 +208,7 @@ namespace WebRtc
 				FreeGCHandle(onFillBufferHandle);
 				FreeGCHandle(onRenderLocalHandle);
 				FreeGCHandle(onRenderRemoteHandle);
+				FreeGCHandle(onDataMessageHandle);
 
 				this->!ManagedConductor(); // call finalizer
 
@@ -244,6 +263,16 @@ namespace WebRtc
 			void AddServerConfig(String ^ uri, String ^ username, String ^ password)
 			{
 				cd->AddServerConfig(marshal_as<std::string>(uri), marshal_as<std::string>(username), marshal_as<std::string>(password));
+			}
+
+			void CreateDataChannel(String ^ label)
+			{
+				cd->CreateDataChannel(marshal_as<std::string>(label));
+			}
+
+			void DataChannelSendText(String ^ text)
+			{
+				cd->DataChannelSendText(marshal_as<std::string>(text));
 			}
 
 #pragma region -- Servers --

@@ -65,6 +65,8 @@ namespace Native
 		caputureFps = 5;
 		barcodeEnabled = false;
 		turnServer = nullptr;
+		data_channel = nullptr;
+		onDataMessage = nullptr;
 	}
 
 	Conductor::~Conductor()
@@ -111,6 +113,11 @@ namespace Native
 		pc_factory_ = nullptr;
 		capturer = nullptr;
 
+		if (data_channel)
+		{
+			data_channel->UnregisterObserver();
+			data_channel = nullptr;
+		}
 		serverConfigs.clear();
 	}
 
@@ -329,10 +336,6 @@ namespace Native
 		}
 	}
 
-	//
-	// PeerConnectionObserver implementation.
-	//
-
 	// Called when a remote stream is added
 	void Conductor::OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 	{
@@ -404,6 +407,41 @@ namespace Native
 		if (onError != nullptr)
 		{
 			onError();
+		}
+	}
+
+	void Conductor::CreateDataChannel(const std::string & label)
+	{
+		if (!peer_connection_)
+			return;
+
+		webrtc::DataChannelInit dc_options;
+		data_channel = peer_connection_->CreateDataChannel(label, &dc_options);
+		data_channel->RegisterObserver(this);
+	}
+
+	void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
+	{
+		LOG(INFO) << __FUNCTION__ << " " << channel->label();
+
+		data_channel = channel.get();
+		data_channel->RegisterObserver(this);
+	}
+
+	void Conductor::DataChannelSendText(const std::string & text)
+	{
+		data_channel->Send(webrtc::DataBuffer(text));
+	}
+
+	//  A data buffer was successfully received.
+	void Conductor::OnMessage(const webrtc::DataBuffer& buffer)
+	{
+		LOG(INFO) << __FUNCTION__;
+
+		if (onDataMessage != nullptr)
+		{
+			std::string msg(buffer.data.data<char>(), buffer.size());
+			onDataMessage(msg.c_str());
 		}
 	}
 

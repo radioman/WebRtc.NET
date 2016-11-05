@@ -20,10 +20,12 @@ namespace Native
 	typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdp_mid, int sdp_mline_index, const char * sdp);
 	typedef void(__stdcall *OnFillBufferCallbackNative)(uint8_t * frame_buffer, uint32_t yuvSize);
 	typedef void(__stdcall *OnRenderCallbackNative)(uint8_t * frame_buffer, uint32_t w, uint32_t h);
+	typedef void(__stdcall *OnDataMessageCallbackNative)(const char * msg);
 
 	class Conductor : public webrtc::PeerConnectionObserver,
 		public webrtc::CreateSessionDescriptionObserver,
-		public webrtc::SetSessionDescriptionObserver
+		public webrtc::SetSessionDescriptionObserver,
+		public webrtc::DataChannelObserver
 	{
 	public:
 
@@ -43,8 +45,10 @@ namespace Native
 
 		bool OpenVideoCaptureDevice();
 		void OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize);
-
 		void AddServerConfig(std::string uri, std::string username, std::string password);
+
+		void CreateDataChannel(const std::string & label);
+		void DataChannelSendText(const std::string & text);
 
 		OnErrorCallbackNative onError;
 		OnSuccessCallbackNative onSuccess;
@@ -53,6 +57,7 @@ namespace Native
 		OnFillBufferCallbackNative onFillBuffer;
 		OnRenderCallbackNative onRenderLocal;
 		OnRenderCallbackNative onRenderRemote;
+		OnDataMessageCallbackNative onDataMessage;
 
 		bool RunStunServer(const std::string & bindIp);
 		bool RunTurnServer(const std::string & bindIp, const std::string & ip,
@@ -60,21 +65,34 @@ namespace Native
 
 	protected:
 
-		// SetSessionDescriptionObserver
+#pragma region -- SetSessionDescriptionObserver --
+
 		virtual void webrtc::SetSessionDescriptionObserver::OnSuccess()
 		{
 			LOG(INFO) << __FUNCTION__;
 		}
 
-		// CreateSessionDescriptionObserver implementation.
+#pragma endregion
+		
+#pragma region -- CreateSessionDescriptionObserver --
+
 		virtual void webrtc::CreateSessionDescriptionObserver::OnSuccess(webrtc::SessionDescriptionInterface* desc);
 		virtual void OnFailure(const std::string& error);
 
-		//
-		// PeerConnectionObserver implementation.
-		//
-		virtual void OnError();
+#pragma endregion
 
+#pragma region -- PeerConnectionObserver --
+
+		virtual void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
+		virtual void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
+		virtual void OnError();
+		virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate);
+
+		virtual void OnIceChange()
+		{
+			LOG(INFO) << __FUNCTION__ << " ";
+		}
+		
 		virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState state)
 		{
 			LOG(INFO) << __FUNCTION__ << " " << state;
@@ -94,20 +112,34 @@ namespace Native
 		{
 			LOG(INFO) << __FUNCTION__ << " " << state_changed;
 		}
-		virtual void OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
-		virtual void OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream);
-		virtual void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
-		{
-		}
+
 		virtual void OnRenegotiationNeeded()
 		{
 			LOG(INFO) << __FUNCTION__ << " ";
 		}
-		virtual void OnIceChange()
+
+#pragma endregion
+		
+#pragma region -- DataChannelObserver --
+		
+		virtual void OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel);
+
+		// The data channel state have changed.
+		virtual void OnStateChange()
 		{
-			LOG(INFO) << __FUNCTION__ << " ";
+			LOG(INFO) << __FUNCTION__;
 		}
-		virtual void OnIceCandidate(const webrtc::IceCandidateInterface* candidate);
+
+		//  A data buffer was successfully received.
+		virtual void OnMessage(const webrtc::DataBuffer& buffer);
+
+		// The data channel's buffered_amount has changed.
+		virtual void OnBufferedAmountChange(uint64_t previous_amount)
+		{
+			LOG(INFO) << __FUNCTION__;
+		}
+
+#pragma endregion
 
 		int AddRef() const
 		{
@@ -128,7 +160,9 @@ namespace Native
 
 		rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
-		std::map<std::string, rtc::scoped_refptr<webrtc::MediaStreamInterface> > active_streams_;
+		std::map<std::string, rtc::scoped_refptr<webrtc::MediaStreamInterface>> active_streams_;
+
+		rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel;
 
 		std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
 
