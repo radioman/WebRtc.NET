@@ -113,7 +113,7 @@ namespace WebRtc
 
 			void _OnDataMessage(String ^ msg)
 			{
-				Debug::WriteLine(String::Format("OnDataMessage: {0}", msg));
+				Trace::WriteLine(String::Format("OnDataMessage: {0}", msg));
 
 				OnDataMessage(msg);
 			}

@@ -6,6 +6,10 @@ var remoteIce = [];
 var remoteAnswer = null;
 var localIce = [];
 
+var dataChannel = null;
+var testmsgcount = 0;
+var feedbackmsg = "";
+
 var pcOptions = {
     optional: [
         { DtlsSrtpKeyAgreement: true }
@@ -34,6 +38,19 @@ var vgaConstraints = {
     video: true
 };
 
+var dataChannelOptions = {
+    ordered: false,     // do not guarantee order
+
+    maxRetransmits: 1,  // The maximum number of times to try and retransmit
+                        // a failed message (forces unreliable mode)
+
+    negotiated: false   // If set to true, it removes the automatic
+                        // setting up of a data channel on the other peer,
+                        // meaning that you are provided your own way to
+                        // create a data channel with the same id on the other side
+                        // aka: session.WebRtc.CreateDataChannel("msgDataChannel");
+};
+
 window.onload = function () {
     //getLocalStream();
 }
@@ -55,6 +72,10 @@ function startStream() {
     if (localstream) {
         remotestream.addStream(localstream);
     }
+    
+    // optional data channel
+    dataChannel = remotestream.createDataChannel("msgDataChannel", dataChannelOptions);
+    setDataChannel(dataChannel);
 
     remotestream.onaddstream = function (e) {
         try {
@@ -65,6 +86,16 @@ function startStream() {
             vid2.onloadedmetadata = function (e) {
                 vid2.play();
             };
+
+            // send some test feedback
+            var tmsg = setInterval(function () {
+                if (!remotestream) {
+                    clearInterval(tmsg);
+                }
+                else if(dataChannel) {
+                    dataChannel.send("TEST_" + testmsgcount++ + ", feedback: " + feedbackmsg);
+                }
+            }, 1000);
 
             var t = setInterval(function () {
                 if (!remotestream) {
@@ -91,6 +122,7 @@ function startStream() {
             socket.close();
         }
     };
+
     remotestream.onicecandidate = function (event) {
         if (event.candidate) {
 
@@ -132,6 +164,12 @@ function startStream() {
         }
     };
 
+    // can't manage to get trigger from other side ;/ wtf?
+    remotestream.ondatachannel = function (event) {
+        dataChannel = event.channel;
+        setDataChannel(dataChannel);
+    }
+
     remotestream.createOffer(function (desc) {
         console.log('createOffer: ' + desc.sdp);
 
@@ -169,6 +207,12 @@ function connect() {
 
     socket.onclose = function () {
         console.log("Socket connection has been disconnected!");
+
+        if (dataChannel)
+        {
+            dataChannel.close();
+            dataChannel = null;
+        }
 
         if (remotestream) {
             remotestream.close();
@@ -226,7 +270,7 @@ function connect() {
 
 function dumpStat(o) {
     if (o != undefined) {
-        var s = "Timestamp: " + new Date(o.timestamp).toTimeString() + " Type: " + o.type + "<br>";
+        var s = o.type + ": " + new Date(o.timestamp).toISOString() + "<br>";
         if (o.ssrc) s += "SSRC: " + o.ssrc + " ";
         if (o.packetsReceived !== undefined) {
             s += "Recvd: " + o.packetsReceived + " packets (" +
@@ -234,6 +278,9 @@ function dumpStat(o) {
         } else if (o.packetsSent !== undefined) {
             s += "Sent: " + o.packetsSent + " packets (" + (o.bytesSent / 1000000).toFixed(2) + " MB)";
         }
+
+        feedbackmsg = s;
+
         if (o.bitrateMean !== undefined) {
             s += "<br>Avg. bitrate: " + (o.bitrateMean / 1000000).toFixed(2) + " Mbps (" +
                  (o.bitrateStdDev / 1000000).toFixed(2) + " StdDev)";
@@ -405,4 +452,22 @@ function getLocalStream() {
         console.log(err.name + ": " + err.message);
         alert(err.name + ": " + err.message);
     });
+}
+
+function setDataChannel(dc) {
+
+    console.log("setDataChannel[" + dc.id + "]: " + dc.label);
+
+    dc.onerror = function (error) {
+        console.log("DataChannel Error:", error);
+    };
+    dc.onmessage = function (event) {
+        console.log("DataChannel Message:", event.data);
+    };
+    dc.onopen = function () {
+        dataChannel.send("Hello World!");
+    };
+    dc.onclose = function () {
+        console.log("DataChannel is Closed");
+    };
 }

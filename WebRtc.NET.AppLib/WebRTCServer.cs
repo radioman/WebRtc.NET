@@ -192,6 +192,9 @@ namespace WebRtc.NET.AppLib
                                             {
                                                 go.Set();
 
+                                                // does not work yet, javascript side works though ;/
+                                                //session.WebRtc.CreateDataChannel("msgDataChannel");
+
                                                 while (!session.Cancel.Token.IsCancellationRequested &&
                                                        session.WebRtc.ProcessMessages(1000))
                                                 {
@@ -205,8 +208,7 @@ namespace WebRtc.NET.AppLib
                                                 context.Close();
                                             }
                                         }
-
-                                        ManagedConductor.CleanupSSL();
+                                        
                                     }, session.Cancel.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
                                     if (go.WaitOne(9999))
@@ -309,7 +311,7 @@ namespace WebRtc.NET.AppLib
 
                 server.Dispose();
                 UserList.Clear();
-                Streams.Clear();
+                Streams.Clear();               
             }
             catch { }
         }

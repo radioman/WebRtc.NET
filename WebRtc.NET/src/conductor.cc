@@ -138,7 +138,7 @@ namespace Native
 		{
 			//opt.disable_encryption = true;
 			//opt.disable_network_monitor = true;
-			opt.disable_sctp_data_channels = true;
+			//opt.disable_sctp_data_channels = true;
 			pc_factory_->SetOptions(opt);
 		}
 
@@ -160,6 +160,7 @@ namespace Native
 		config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
 		config.disable_ipv6 = true;
 		config.enable_dtls_srtp = rtc::Optional<bool>(dtls);
+		config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
 
 		for each (auto server in serverConfigs)
 		{
@@ -167,9 +168,11 @@ namespace Native
 		}
 
 		webrtc::FakeConstraints constraints;
+		constraints.SetAllowDtlsSctpDataChannels();
 		constraints.SetMandatoryReceiveVideo(false);
 		constraints.SetMandatoryReceiveAudio(false);
 		constraints.SetMandatoryIceRestart(true);
+		constraints.SetMandatoryUseRtpMux(true);
 		constraints.AddMandatory(webrtc::MediaConstraintsInterface::kVoiceActivityDetection, "false");
 		constraints.AddMandatory(webrtc::MediaConstraintsInterface::kEnableIPv6, "false");
 
@@ -416,8 +419,13 @@ namespace Native
 			return;
 
 		webrtc::DataChannelInit dc_options;
+		//dc_options.id = 1;
+		dc_options.maxRetransmits = 1;
+		dc_options.negotiated = false;
+		dc_options.ordered = false;
+		
 		data_channel = peer_connection_->CreateDataChannel(label, &dc_options);
-		data_channel->RegisterObserver(this);
+		data_channel->RegisterObserver(this);		
 	}
 
 	void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
