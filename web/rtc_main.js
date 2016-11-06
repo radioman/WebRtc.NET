@@ -37,7 +37,8 @@ var offerOptions = {
 };
 
 var vgaConstraints = {
-    video: true
+    video: true,
+    //audio: true
 };
 
 var dataChannelOptions = {
@@ -111,7 +112,7 @@ function startStream() {
                                 var s = o[key];
                                 return (
                                         (s.type == "inboundrtp" && !s.isRemote) ||
-                                        (s.type == "ssrc" && s.id.indexOf("recv") >= 0)
+                                        (s.type == "ssrc" && s.mediaType == "video" && s.id.indexOf("recv") >= 0)
                                        );
                             })];
 
@@ -119,7 +120,7 @@ function startStream() {
                                 var s = o[key];
                                 return (
                                         (s.type == "outboundrtp" && !s.isRemote) ||
-                                        (s.type == "ssrc" && s.id.indexOf("send") >= 0)
+                                        (s.type == "ssrc" && s.mediaType == "video" && s.id.indexOf("send") >= 0)
                                        );
                             })];
 

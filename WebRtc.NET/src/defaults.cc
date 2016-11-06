@@ -214,4 +214,20 @@ namespace Native
 			con->onRenderLocal((uint8_t*)b->DataY(), b->width(), b->height());
 		}
 	}
+
+	// AudioTrackSinkInterface implementation
+	void AudioRenderer::OnData(const void* audio_data,
+							   int bits_per_sample,
+							   int sample_rate,
+							   size_t number_of_channels,
+							   size_t number_of_frames)
+	{
+		std::stringstream s;
+		s << "AudioRenderer::OnData, bps: " << bits_per_sample 
+		<< ", rate: " << sample_rate 
+		<< ", channels: " << number_of_channels
+		<< ", frames: " << number_of_frames;
+		
+		::OutputDebugStringA(s.str().c_str());
+	}
 }

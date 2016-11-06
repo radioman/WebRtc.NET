@@ -21,6 +21,7 @@
 
 namespace Native
 {
+	const char kAudioLabel[] = "audio_label";
 	const char kVideoLabel[] = "video_label";
 	const char kStreamLabel[] = "stream_label";
 	const char kSoftware[] = "libjingle TurnServer";
@@ -62,8 +63,11 @@ namespace Native
 		onFailure = nullptr;
 		onIceCandidate = nullptr;
 		capturer = nullptr;
+
 		caputureFps = 5;
 		barcodeEnabled = false;
+		audioEnabled = false;
+
 		turnServer = nullptr;
 		data_channel = nullptr;
 		onDataMessage = nullptr;
@@ -98,7 +102,7 @@ namespace Native
 	{
 		if (peer_connection_)
 		{
-			local_renderer_.reset();
+			local_video.reset();
 
 			for (auto it = active_streams_.begin(); it != active_streams_.end(); ++it)
 			{
@@ -309,25 +313,26 @@ namespace Native
 		if (active_streams_.find(kStreamLabel) != active_streams_.end())
 			return;  // Already added.
 
-		//webrtc::AudioTrackInterface * audio_track = peer_connection_factory_->CreateAudioTrack(
-		//		kAudioLabel, peer_connection_factory_->CreateAudioSource(NULL));
-
 		if (!capturer)
 		{
 			capturer = new Native::YuvFramesCapturer2(*this);
 		}
 
 		auto v = pc_factory_->CreateVideoSource(capturer, NULL);
-
 		auto video_track = pc_factory_->CreateVideoTrack(kVideoLabel, v);
 		if (onRenderLocal)
 		{
-			local_renderer_.reset(new VideoRenderer(*this, false, video_track));
+			local_video.reset(new VideoRenderer(*this, false, video_track));
 	    }
 
 		auto stream = pc_factory_->CreateLocalMediaStream(kStreamLabel);
 		{
-			//stream->AddTrack(audio_track);
+			if (audioEnabled)
+			{
+				auto a = pc_factory_->CreateAudioSource(NULL);
+				auto audio_track = pc_factory_->CreateAudioTrack(kAudioLabel, a);
+				stream->AddTrack(audio_track);
+			}
 			stream->AddTrack(video_track);
 
 			if (!peer_connection_->AddStream(stream))
@@ -347,11 +352,20 @@ namespace Native
 		if (onRenderRemote)
 		{
 			webrtc::VideoTrackVector tracks = stream->GetVideoTracks();
-			// Only render the first track.
 			if (!tracks.empty())
 			{
 				webrtc::VideoTrackInterface* track = tracks[0];
-				remote_renderer_.reset(new VideoRenderer(*this, true, track));
+				remote_video.reset(new Native::VideoRenderer(*this, true, track));
+			}
+		}
+
+		if (audioEnabled)
+		{
+			webrtc::AudioTrackVector atracks = stream->GetAudioTracks();
+			if (!atracks.empty())
+			{
+				webrtc::AudioTrackInterface* track = atracks[0];
+				remote_audio.reset(new Native::AudioRenderer(*this, true, track));
 			}
 		}
 	}
@@ -359,7 +373,8 @@ namespace Native
 	void Conductor::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 	{
 		LOG(INFO) << __FUNCTION__ << " " << stream->label();
-		remote_renderer_.reset();
+		remote_video.reset();
+		remote_audio.reset();
 	}
 
 	void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate)

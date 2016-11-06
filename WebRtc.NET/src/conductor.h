@@ -166,8 +166,9 @@ namespace Native
 
 		std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
 
-		std::unique_ptr<VideoRenderer> local_renderer_;
-		std::unique_ptr<VideoRenderer> remote_renderer_;
+		std::unique_ptr<VideoRenderer> local_video;
+		std::unique_ptr<VideoRenderer> remote_video;
+		std::unique_ptr<AudioRenderer> remote_audio;
 
 		cricket::TurnServer * turnServer;
 		cricket::StunServer * stunServer;
@@ -175,6 +176,7 @@ namespace Native
 	public:
 		int caputureFps;
 		bool barcodeEnabled;
+		bool audioEnabled;
 	};
 }
 #endif  // WEBRTC_NET_CONDUCTOR_H_

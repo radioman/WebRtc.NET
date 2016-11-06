@@ -74,8 +74,33 @@ namespace Native
 
 		bool remote;
 		Conductor * con;
-		CRITICAL_SECTION buffer_lock_;
-		rtc::scoped_refptr<webrtc::VideoTrackInterface> rendered_track_;
+		rtc::scoped_refptr<webrtc::VideoTrackInterface> rendered_track_;		
 	};
+
+	class AudioRenderer : public webrtc::AudioTrackSinkInterface
+	{
+	public:
+		AudioRenderer(Conductor & c, bool remote, webrtc::AudioTrackInterface * track_to_render) :
+			audio_track_(track_to_render), con(&c), remote(remote)
+		{
+			audio_track_->AddSink(this);
+		}
+		virtual ~AudioRenderer()
+		{
+			audio_track_->RemoveSink(this);
+		}
+
+		virtual void OnData(const void* audio_data,
+							int bits_per_sample,
+							int sample_rate,
+							size_t number_of_channels,
+							size_t number_of_frames) override;
+
+	protected:
+
+		bool remote;
+		Conductor * con;
+		rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
+	};	
 }
 #endif  // WEBRTC_NET_DEFAULTS_H_
