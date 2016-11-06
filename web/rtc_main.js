@@ -9,6 +9,8 @@ var localIce = [];
 var dataChannel = null;
 var testmsgcount = 0;
 var feedbackmsg = "";
+var feedbackmsgrecv = "";
+var feedbackmsgsend = "";
 
 var pcOptions = {
     optional: [
@@ -104,13 +106,26 @@ function startStream() {
                 else {
                     Promise.all([
                         remotestream.getStats(null).then(function (o) {
-                            return dumpStat(
-                                o[Object.keys(o).find(function (key) {
-                                    var s = o[key];
-                                    return (s.type == "inboundrtp" && !s.isRemote);
-                                })
-                            ]);
+
+                            var rcv = o[Object.keys(o).find(function (key) {
+                                var s = o[key];
+                                return (
+                                        (s.type == "inboundrtp" && !s.isRemote) ||
+                                        (s.type == "ssrc" && s.id.indexOf("recv") >= 0)
+                                       );
+                            })];
+
+                            var snd = o[Object.keys(o).find(function (key) {
+                                var s = o[key];
+                                return (
+                                        (s.type == "outboundrtp" && !s.isRemote) ||
+                                        (s.type == "ssrc" && s.id.indexOf("send") >= 0)
+                                       );
+                            })];
+
+                            return dumpStat(rcv, snd);                           
                         })
+                       
                     ]).then(function (s) {
                         statsdiv.innerHTML = "<small>" + s + "</small>";
                     });
@@ -268,18 +283,21 @@ function connect() {
     };
 }
 
-function dumpStat(o) {
+function formatStat(o) {
+    var s = "";
     if (o != undefined) {
-        var s = o.type + ": " + new Date(o.timestamp).toISOString() + "<br>";
+        s += o.type + ": " + new Date(o.timestamp).toISOString() + "<br>";
         if (o.ssrc) s += "SSRC: " + o.ssrc + " ";
         if (o.packetsReceived !== undefined) {
             s += "Recvd: " + o.packetsReceived + " packets (" +
                  (o.bytesReceived / 1000000).toFixed(2) + " MB)" + " Lost: " + o.packetsLost;
+
+            feedbackmsgrecv = s;
+
         } else if (o.packetsSent !== undefined) {
             s += "Sent: " + o.packetsSent + " packets (" + (o.bytesSent / 1000000).toFixed(2) + " MB)";
+            feedbackmsgsend = s;
         }
-
-        feedbackmsg = s;
 
         if (o.bitrateMean !== undefined) {
             s += "<br>Avg. bitrate: " + (o.bitrateMean / 1000000).toFixed(2) + " Mbps (" +
@@ -297,10 +315,34 @@ function dumpStat(o) {
         if (o.googFrameRateReceived !== undefined) {
             s += "<br>googFrameRateReceived: " + o.googFrameRateReceived + " fps";
             s += " googJitterBufferMs: " + o.googJitterBufferMs;
+            s += "<br>googFrameReceived: " + o.googFrameWidthReceived + "x" + o.googFrameHeightReceived;
             s += "<br>googCurrentDelayMs: " + o.googCurrentDelayMs;
             s += " googDecodeMs: " + o.googDecodeMs;
         }
+
+        if (o.googFrameRateSent !== undefined) {
+            s += "<br>googFrameRateSent: " + o.googFrameRateSent + " fps";
+            s += " googEncodeUsagePercent: " + o.googEncodeUsagePercent + "%";
+            s += "<br>googFrameSent: " + o.googFrameWidthSent + "x" + o.googFrameHeightSent;
+            s += " googAvgEncodeMs: " + o.googAvgEncodeMs;
+        }
     }
+    return s;
+}
+
+function dumpStat(o, b) {
+
+    var s = "";
+
+    s += formatStat(o);
+
+    if (b != undefined) {
+        s += "<br> <br>";
+        s += formatStat(b);
+    }
+
+    feedbackmsg = feedbackmsgrecv + feedbackmsgsend;
+
     return s;
 }
 
