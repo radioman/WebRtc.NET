@@ -199,9 +199,8 @@ struct Intelligibility {
 //
 // AudioProcessing::Config config;
 // config.level_controller.enabled = true;
+// config.high_pass_filter.enabled = true;
 // apm->ApplyConfig(config)
-//
-// apm->high_pass_filter()->Enable(true);
 //
 // apm->echo_cancellation()->enable_drift_compensation(false);
 // apm->echo_cancellation()->Enable(true);
@@ -258,6 +257,17 @@ class AudioProcessing {
       // the allowed range is [-100, 0].
       float initial_peak_level_dbfs = -6.0206f;
     } level_controller;
+    struct ResidualEchoDetector {
+#if defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS)
+      bool enabled = false;
+#else
+      bool enabled = true;
+#endif
+    } residual_echo_detector;
+
+    struct HighPassFilter {
+      bool enabled = false;
+    } high_pass_filter;
   };
 
   // TODO(mgraczyk): Remove once all methods that use ChannelLayout are gone.
@@ -469,23 +479,89 @@ class AudioProcessing {
   // specific member variables are reset.
   virtual void UpdateHistogramsOnCallEnd() = 0;
 
+  // TODO(ivoc): Remove when the calling code no longer uses the old Statistics
+  //             API.
+  struct Statistic {
+    int instant = 0;  // Instantaneous value.
+    int average = 0;  // Long-term average.
+    int maximum = 0;  // Long-term maximum.
+    int minimum = 0;  // Long-term minimum.
+  };
+
+  struct Stat {
+    void Set(const Statistic& other) {
+      Set(other.instant, other.average, other.maximum, other.minimum);
+    }
+    void Set(float instant, float average, float maximum, float minimum) {
+      instant_ = instant;
+      average_ = average;
+      maximum_ = maximum;
+      minimum_ = minimum;
+    }
+    float instant() const { return instant_; }
+    float average() const { return average_; }
+    float maximum() const { return maximum_; }
+    float minimum() const { return minimum_; }
+
+   private:
+    float instant_ = 0.0f;  // Instantaneous value.
+    float average_ = 0.0f;  // Long-term average.
+    float maximum_ = 0.0f;  // Long-term maximum.
+    float minimum_ = 0.0f;  // Long-term minimum.
+  };
+
+  struct AudioProcessingStatistics {
+    AudioProcessingStatistics() {
+      residual_echo_return_loss.Set(-100.0f, -100.0f, -100.0f, -100.0f);
+      echo_return_loss.Set(-100.0f, -100.0f, -100.0f, -100.0f);
+      echo_return_loss_enhancement.Set(-100.0f, -100.0f, -100.0f, -100.0f);
+      a_nlp.Set(-100.0f, -100.0f, -100.0f, -100.0f);
+    }
+
+    // AEC Statistics.
+    // RERL = ERL + ERLE
+    Stat residual_echo_return_loss;
+    // ERL = 10log_10(P_far / P_echo)
+    Stat echo_return_loss;
+    // ERLE = 10log_10(P_echo / P_out)
+    Stat echo_return_loss_enhancement;
+    // (Pre non-linear processing suppression) A_NLP = 10log_10(P_echo / P_a)
+    Stat a_nlp;
+    // Fraction of time that the AEC linear filter is divergent, in a 1-second
+    // non-overlapped aggregation window.
+    float divergent_filter_fraction = -1.0f;
+
+    // The delay metrics consists of the delay median and standard deviation. It
+    // also consists of the fraction of delay estimates that can make the echo
+    // cancellation perform poorly. The values are aggregated until the first
+    // call to |GetStatistics()| and afterwards aggregated and updated every
+    // second. Note that if there are several clients pulling metrics from
+    // |GetStatistics()| during a session the first call from any of them will
+    // change to one second aggregation window for all.
+    int delay_median = -1;
+    int delay_standard_deviation = -1;
+    float fraction_poor_delays = -1.0f;
+
+    // Residual echo detector likelihood. This value is not yet calculated and
+    // is currently always set to zero.
+    // TODO(ivoc): Implement this stat.
+    float residual_echo_likelihood = -1.0f;
+  };
+
+  // TODO(ivoc): Make this pure virtual when all subclasses have been updated.
+  virtual AudioProcessingStatistics GetStatistics() const;
+
   // These provide access to the component interfaces and should never return
   // NULL. The pointers will be valid for the lifetime of the APM instance.
   // The memory for these objects is entirely managed internally.
   virtual EchoCancellation* echo_cancellation() const = 0;
   virtual EchoControlMobile* echo_control_mobile() const = 0;
   virtual GainControl* gain_control() const = 0;
+  // TODO(peah): Deprecate this API call.
   virtual HighPassFilter* high_pass_filter() const = 0;
   virtual LevelEstimator* level_estimator() const = 0;
   virtual NoiseSuppression* noise_suppression() const = 0;
   virtual VoiceDetection* voice_detection() const = 0;
-
-  struct Statistic {
-    int instant;  // Instantaneous value.
-    int average;  // Long-term average.
-    int maximum;  // Long-term maximum.
-    int minimum;  // Long-term minimum.
-  };
 
   enum Error {
     // Fatal errors.
@@ -708,6 +784,7 @@ class EchoCancellation {
     float divergent_filter_fraction;
   };
 
+  // Deprecated. Use GetStatistics on the AudioProcessing interface instead.
   // TODO(ajm): discuss the metrics update period.
   virtual int GetMetrics(Metrics* metrics) = 0;
 
@@ -724,8 +801,9 @@ class EchoCancellation {
   // Note that if there are several clients pulling metrics from
   // |GetDelayMetrics()| during a session the first call from any of them will
   // change to one second aggregation window for all.
-  // TODO(bjornv): Deprecated, remove.
+  // Deprecated. Use GetStatistics on the AudioProcessing interface instead.
   virtual int GetDelayMetrics(int* median, int* std) = 0;
+  // Deprecated. Use GetStatistics on the AudioProcessing interface instead.
   virtual int GetDelayMetrics(int* median, int* std,
                               float* fraction_poor_delays) = 0;
 
@@ -886,7 +964,7 @@ class GainControl {
  protected:
   virtual ~GainControl() {}
 };
-
+// TODO(peah): Remove this interface.
 // A filtering component which removes DC offset and low-frequency noise.
 // Recommended to be enabled on the client-side.
 class HighPassFilter {
@@ -894,7 +972,6 @@ class HighPassFilter {
   virtual int Enable(bool enable) = 0;
   virtual bool is_enabled() const = 0;
 
- protected:
   virtual ~HighPassFilter() {}
 };
 

@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "webrtc/base/optional.h"
 #include "webrtc/config.h"
 #include "webrtc/modules/audio_coding/codecs/audio_encoder.h"
 #include "webrtc/transport.h"
@@ -31,6 +32,7 @@ class AudioSendStream {
  public:
   struct Stats {
     Stats();
+    ~Stats();
 
     // TODO(solenberg): Harmonize naming and defaults with receive stream stats.
     uint32_t local_ssrc = 0;
@@ -39,6 +41,7 @@ class AudioSendStream {
     int32_t packets_lost = -1;
     float fraction_lost = -1.0f;
     std::string codec_name;
+    rtc::Optional<int> codec_payload_type;
     int32_t ext_seqnum = -1;
     int32_t jitter_ms = -1;
     int64_t rtt_ms = -1;
@@ -55,6 +58,7 @@ class AudioSendStream {
   struct Config {
     Config() = delete;
     explicit Config(Transport* send_transport);
+    ~Config();
     std::string ToString() const;
 
     // Send-stream specific RTP settings.
@@ -89,8 +93,12 @@ class AudioSendStream {
     // Bitrate limits used for variable audio bitrate streams. Set both to -1 to
     // disable audio bitrate adaptation.
     // Note: This is still an experimental feature and not ready for real usage.
-    int min_bitrate_kbps = -1;
-    int max_bitrate_kbps = -1;
+    int min_bitrate_bps = -1;
+    int max_bitrate_bps = -1;
+
+    // Defines whether to turn on audio network adaptor, and defines its config
+    // string.
+    rtc::Optional<std::string> audio_network_adaptor_config;
 
     struct SendCodecSpec {
       SendCodecSpec();
@@ -108,6 +116,8 @@ class AudioSendStream {
       int opus_max_playback_rate = 0;
       int cng_payload_type = -1;
       int cng_plfreq = -1;
+      int max_ptime_ms = -1;
+      int min_ptime_ms = -1;
       webrtc::CodecInst codec_inst;
     } send_codec_spec;
   };
@@ -120,8 +130,8 @@ class AudioSendStream {
   virtual void Stop() = 0;
 
   // TODO(solenberg): Make payload_type a config property instead.
-  virtual bool SendTelephoneEvent(int payload_type, int event,
-                                  int duration_ms) = 0;
+  virtual bool SendTelephoneEvent(int payload_type, int payload_frequency,
+                                  int event, int duration_ms) = 0;
 
   virtual void SetMuted(bool muted) = 0;
 

@@ -19,7 +19,6 @@
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/event.h"
 #include "webrtc/base/task_queue.h"
-#include "webrtc/call.h"
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
 #include "webrtc/modules/video_coding/protection_bitrate_calculator.h"
 #include "webrtc/video/encoder_rtcp_feedback.h"
@@ -72,8 +71,8 @@ class VideoSendStream : public webrtc::VideoSendStream {
   void Start() override;
   void Stop() override;
 
-  void SetSource(
-      rtc::VideoSourceInterface<webrtc::VideoFrame>* source) override;
+  void SetSource(rtc::VideoSourceInterface<webrtc::VideoFrame>* source,
+                 const DegradationPreference& degradation_preference) override;
 
   void ReconfigureVideoEncoder(VideoEncoderConfig) override;
   Stats GetStats() override;
@@ -90,6 +89,8 @@ class VideoSendStream : public webrtc::VideoSendStream {
                                    size_t byte_limit) override;
 
   RtpStateMap StopPermanentlyAndGetRtpStates();
+
+  void SetTransportOverhead(int transport_overhead_per_packet);
 
  private:
   class ConstructionTask;

@@ -29,6 +29,9 @@ extern const float kProcessCpuThreshold;
 extern const char kRtxCodecName[];
 extern const char kRedCodecName[];
 extern const char kUlpfecCodecName[];
+extern const char kFlexfecCodecName[];
+
+extern const char kFlexfecFmtpRepairWindow[];
 
 // Codec parameters
 extern const char kCodecParamAssociatedPayloadType[];
@@ -125,17 +128,8 @@ extern const char kH264CodecName[];
 extern const char kH264FmtpProfileLevelId[];
 extern const char kH264FmtpLevelAsymmetryAllowed[];
 extern const char kH264FmtpPacketizationMode[];
+extern const char kH264FmtpSpropParameterSets[];
 extern const char kH264ProfileLevelConstrainedBaseline[];
-
-extern const int kDefaultVp8PlType;
-extern const int kDefaultVp9PlType;
-extern const int kDefaultH264PlType;
-extern const int kDefaultRedPlType;
-extern const int kDefaultUlpfecType;
-extern const int kDefaultRtxVp8PlType;
-extern const int kDefaultRtxVp9PlType;
-extern const int kDefaultRtxRedPlType;
-extern const int kDefaultRtxH264PlType;
 
 extern const int kDefaultVideoMaxFramerate;
 }  // namespace cricket

@@ -95,6 +95,9 @@
 #pragma comment(lib,"rtp_rtcp.lib")
 #pragma comment(lib,"rtc_task_queue.lib")
 #pragma comment(lib,"rtc_stats.lib")
+#pragma comment(lib,"rtc_analytics.lib")
+#pragma comment(lib,"rtc_media_base.lib")
+
 
 #pragma comment(lib,"audio.lib")
 #pragma comment(lib,"audio_coding.lib")
@@ -108,6 +111,9 @@
 #pragma comment(lib,"audio_processing.lib")
 #pragma comment(lib,"audio_processing_sse2.lib")
 #pragma comment(lib,"audioproc_debug_proto.lib")
+
+#pragma comment(lib,"audio_mixer_impl.lib")
+#pragma comment(lib,"audio_frame_manipulator.lib")
 
 #pragma comment(lib,"video.lib")
 #pragma comment(lib,"video_capture_internal_impl.lib")
@@ -146,6 +152,7 @@
 #pragma comment(lib,"libyuv.lib")
 #pragma comment(lib,"libjpeg.lib")
 #pragma comment(lib,"libsrtp.lib")
+#pragma comment(lib,"libstunprober.lib")
 
 #pragma comment(lib,"libvpx.lib")
 #pragma comment(lib,"libvpx_intrinsics_avx.lib")

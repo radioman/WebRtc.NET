@@ -45,7 +45,10 @@ class VideoReceiveStream {
     // used to unpack incoming packets.
     std::string payload_name;
 
-    DecoderSpecificSettings decoder_specific;
+    // This map contains the codec specific parameters from SDP, i.e. the "fmtp"
+    // parameters. It is the same as cricket::CodecParameterMap used in
+    // cricket::VideoCodec.
+    std::map<std::string, std::string> codec_params;
   };
 
   struct Stats {
@@ -151,11 +154,6 @@ class VideoReceiveStream {
       // Map from video RTP payload type -> RTX config.
       typedef std::map<int, Rtx> RtxMap;
       RtxMap rtx;
-
-      // If set to true, the RTX payload type mapping supplied in |rtx| will be
-      // used when restoring RTX packets. Without it, RTX packets will always be
-      // restored to the last non-RTX packet payload type received.
-      bool use_rtx_payload_mapping_on_restore = false;
 
       // RTP header extensions used for the received stream.
       std::vector<RtpExtension> extensions;

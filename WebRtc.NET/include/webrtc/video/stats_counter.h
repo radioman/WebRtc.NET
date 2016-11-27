@@ -12,6 +12,7 @@
 #define WEBRTC_VIDEO_STATS_COUNTER_H_
 
 #include <memory>
+#include <string>
 
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/typedefs.h"
@@ -20,6 +21,7 @@ namespace webrtc {
 
 class AggregatedCounter;
 class Clock;
+class Samples;
 
 // |StatsCounterObserver| is called periodically when a metric is updated.
 class StatsCounterObserver {
@@ -30,6 +32,8 @@ class StatsCounterObserver {
 };
 
 struct AggregatedStats {
+  std::string ToString() const;
+
   int64_t num_samples = 0;
   int min = -1;
   int max = -1;
@@ -104,15 +108,12 @@ class StatsCounter {
                StatsCounterObserver* observer);
 
   void Add(int sample);
-  void Set(int sample);
+  void Set(int sample, uint32_t stream_id);
 
-  int max_;
-  int64_t sum_;
-  int64_t num_samples_;
-  int64_t last_sum_;
-
-  const std::unique_ptr<AggregatedCounter> aggregated_counter_;
+  const bool include_empty_intervals_;
   const int64_t process_intervals_ms_;
+  const std::unique_ptr<AggregatedCounter> aggregated_counter_;
+  const std::unique_ptr<Samples> samples_;
 
  private:
   bool TimeToProcess(int* num_elapsed_intervals);
@@ -121,7 +122,6 @@ class StatsCounter {
   bool IncludeEmptyIntervals() const;
 
   Clock* const clock_;
-  const bool include_empty_intervals_;
   const std::unique_ptr<StatsCounterObserver> observer_;
   int64_t last_process_time_ms_;
   bool paused_;
@@ -262,7 +262,7 @@ class RateAccCounter : public StatsCounter {
                  bool include_empty_intervals);
   ~RateAccCounter() override {}
 
-  void Set(int sample);
+  void Set(int sample, uint32_t stream_id);
 
  private:
   bool GetMetric(int* metric) const override;

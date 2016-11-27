@@ -17,13 +17,17 @@
 #include <vector>
 
 #include "webrtc/base/constructormagic.h"
+#include "webrtc/base/deprecation.h"
+#include "webrtc/base/optional.h"
 #include "webrtc/modules/include/module.h"
+#include "webrtc/modules/rtp_rtcp/include/flexfec_sender.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "webrtc/modules/video_coding/include/video_coding_defines.h"
 
 namespace webrtc {
 
 // Forward declarations.
+class OverheadObserver;
 class RateLimiter;
 class ReceiveStatistics;
 class RemoteBitrateEstimator;
@@ -74,6 +78,10 @@ class RtpRtcp : public Module {
     // Spread any bursts of packets into smaller bursts to minimize packet loss.
     RtpPacketSender* paced_sender = nullptr;
 
+    // Generate FlexFEC packets.
+    // TODO(brandtr): Remove when FlexfecSender is wired up to PacedSender.
+    FlexfecSender* flexfec_sender = nullptr;
+
     TransportSequenceNumberAllocator* transport_sequence_number_allocator =
         nullptr;
     BitrateStatisticsObserver* send_bitrate_observer = nullptr;
@@ -82,6 +90,7 @@ class RtpRtcp : public Module {
     RtcEventLog* event_log = nullptr;
     SendPacketObserver* send_packet_observer = nullptr;
     RateLimiter* retransmission_rate_limiter = nullptr;
+    OverheadObserver* overhead_observer = nullptr;
 
    private:
     RTC_DISALLOW_COPY_AND_ASSIGN(Configuration);
@@ -115,9 +124,13 @@ class RtpRtcp : public Module {
   // |authentication_overhead| - number of bytes to leave for an authentication
   // header.
   // Returns -1 on failure else 0
+  // TODO(michaelt): deprecate the function.
   virtual int32_t SetTransportOverhead(bool tcp,
                                        bool ipv6,
                                        uint8_t authentication_overhead = 0) = 0;
+
+  // Sets transtport overhead per packet.
+  virtual void SetTransportOverhead(int transport_overhead_per_packet) = 0;
 
   // Returns max payload length, which is a combination of the configuration
   // MaxTransferUnit and TransportOverhead.
@@ -197,6 +210,9 @@ class RtpRtcp : public Module {
   virtual void SetRtxSendPayloadType(int payload_type,
                                      int associated_payload_type) = 0;
 
+  // Returns the FlexFEC SSRC, if there is one.
+  virtual rtc::Optional<uint32_t> FlexfecSsrc() const = 0;
+
   // Sets sending status. Sends kRtcpByeCode when going from true to false.
   // Returns -1 on failure else 0.
   virtual int32_t SetSendingStatus(bool sending) = 0;
@@ -227,7 +243,6 @@ class RtpRtcp : public Module {
   //                   as layers or RED
   // |transport_frame_id_out| - set to RTP timestamp.
   // Returns true on success.
-
   virtual bool SendOutgoingData(FrameType frame_type,
                                 int8_t payload_type,
                                 uint32_t timestamp,
@@ -237,24 +252,6 @@ class RtpRtcp : public Module {
                                 const RTPFragmentationHeader* fragmentation,
                                 const RTPVideoHeader* rtp_video_header,
                                 uint32_t* transport_frame_id_out) = 0;
-
-  // Deprecated version of the method above.
-  int32_t SendOutgoingData(
-      FrameType frame_type,
-      int8_t payload_type,
-      uint32_t timestamp,
-      int64_t capture_time_ms,
-      const uint8_t* payload_data,
-      size_t payload_size,
-      const RTPFragmentationHeader* fragmentation = nullptr,
-      const RTPVideoHeader* rtp_video_header = nullptr) {
-    return SendOutgoingData(frame_type, payload_type, timestamp,
-                            capture_time_ms, payload_data, payload_size,
-                            fragmentation, rtp_video_header,
-                            /*frame_id_out=*/nullptr)
-               ? 0
-               : -1;
-  }
 
   virtual bool TimeToSendPacket(uint32_t ssrc,
                                 uint16_t sequence_number,
@@ -453,18 +450,27 @@ class RtpRtcp : public Module {
   // Video
   // **************************************************************************
 
-  // Turn on/off generic FEC.
-  virtual void SetGenericFECStatus(bool enable,
-                                   uint8_t payload_type_red,
-                                   uint8_t payload_type_fec) = 0;
+  // Set RED and ULPFEC payload types. A payload type of -1 means that the
+  // corresponding feature is turned off. Note that we DO NOT support enabling
+  // ULPFEC without enabling RED. However, we DO support enabling RED without
+  // enabling ULPFEC. This is due to an RED/RTX workaround, where the receiver
+  // assumes that RTX packets carry RED if RED has been configured in the SDP,
+  // regardless of what RTX payload type mapping was negotiated in the SDP.
+  // TODO(brandtr): Update this comment when we have removed the RED/RTX
+  // send-side workaround, i.e., when we do not support enabling RED without
+  // enabling ULPFEC.
+  virtual void SetUlpfecConfig(int red_payload_type,
+                               int ulpfec_payload_type) = 0;
 
-  // Get generic FEC setting.
-  virtual void GenericFECStatus(bool* enable,
-                                uint8_t* payload_type_red,
-                                uint8_t* payload_type_fec) = 0;
+  // Set FEC rates, max frames before FEC is sent, and type of FEC masks.
+  // Returns false on failure.
+  virtual bool SetFecParameters(const FecProtectionParams& delta_params,
+                                const FecProtectionParams& key_params) = 0;
 
-  virtual int32_t SetFecParameters(const FecProtectionParams* delta_params,
-                                   const FecProtectionParams* key_params) = 0;
+  // Deprecated version of member function above.
+  RTC_DEPRECATED
+  int32_t SetFecParameters(const FecProtectionParams* delta_params,
+                           const FecProtectionParams* key_params);
 
   // Set method for requestion a new key frame.
   // Returns -1 on failure else 0.

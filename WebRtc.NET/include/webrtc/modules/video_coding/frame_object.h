@@ -11,6 +11,7 @@
 #ifndef WEBRTC_MODULES_VIDEO_CODING_FRAME_OBJECT_H_
 #define WEBRTC_MODULES_VIDEO_CODING_FRAME_OBJECT_H_
 
+#include "webrtc/base/optional.h"
 #include "webrtc/common_types.h"
 #include "webrtc/modules/include/module_common_types.h"
 #include "webrtc/modules/video_coding/encoded_frame.h"
@@ -36,6 +37,7 @@ class FrameObject : public webrtc::VCMEncodedFrame {
   // When this frame should be rendered.
   virtual int64_t RenderTime() const = 0;
 
+  size_t size() { return _length; }
 
   // The tuple (|picture_id|, |spatial_layer|) uniquely identifies a frame
   // object. For codec types that don't necessarily have picture ids they
@@ -47,8 +49,6 @@ class FrameObject : public webrtc::VCMEncodedFrame {
   size_t num_references;
   uint16_t references[kMaxFrameReferences];
   bool inter_layer_predicted;
-
-  size_t size;
 };
 
 class PacketBuffer;
@@ -72,7 +72,7 @@ class RtpFrameObject : public FrameObject {
   uint32_t Timestamp() const override;
   int64_t ReceivedTime() const override;
   int64_t RenderTime() const override;
-  RTPVideoTypeHeader* GetCodecHeader() const;
+  rtc::Optional<RTPVideoTypeHeader> GetCodecHeader() const;
 
  private:
   rtc::scoped_refptr<PacketBuffer> packet_buffer_;

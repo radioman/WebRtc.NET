@@ -41,7 +41,7 @@ namespace Native
 		cricket::YuvFrameGenerator* frame_generator_;
 
 		rtc::scoped_refptr<webrtc::I420Buffer> video_buffer;
-		cricket::VideoFrame * video_frame;
+		webrtc::VideoFrame * video_frame;
 
 		int width_;
 		int height_;

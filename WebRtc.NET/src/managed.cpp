@@ -275,6 +275,11 @@ namespace WebRtc
 				cd->DataChannelSendText(marshal_as<std::string>(text));
 			}
 
+			void SetAudio(bool enable)
+			{
+				cd->SetAudio(enable);
+			}
+
 #pragma region -- Servers --
 			bool RunStunServer(String ^ bindIp)
 			{

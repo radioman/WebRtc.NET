@@ -337,7 +337,7 @@ void vpx_idct32x32_1_add_neon(const tran_low_t *input, uint8_t *dest, int dest_s
 RTCD_EXTERN void (*vpx_idct32x32_1_add)(const tran_low_t *input, uint8_t *dest, int dest_stride);
 
 void vpx_idct32x32_34_add_c(const tran_low_t *input, uint8_t *dest, int dest_stride);
-void vpx_idct32x32_1024_add_neon(const tran_low_t *input, uint8_t *dest, int dest_stride);
+void vpx_idct32x32_34_add_neon(const tran_low_t *input, uint8_t *dest, int dest_stride);
 RTCD_EXTERN void (*vpx_idct32x32_34_add)(const tran_low_t *input, uint8_t *dest, int dest_stride);
 
 void vpx_idct4x4_16_add_c(const tran_low_t *input, uint8_t *dest, int dest_stride);
@@ -936,7 +936,7 @@ static void setup_rtcd_internal(void)
     vpx_idct32x32_1_add = vpx_idct32x32_1_add_c;
     if (flags & HAS_NEON) vpx_idct32x32_1_add = vpx_idct32x32_1_add_neon;
     vpx_idct32x32_34_add = vpx_idct32x32_34_add_c;
-    if (flags & HAS_NEON) vpx_idct32x32_34_add = vpx_idct32x32_1024_add_neon;
+    if (flags & HAS_NEON) vpx_idct32x32_34_add = vpx_idct32x32_34_add_neon;
     vpx_idct4x4_16_add = vpx_idct4x4_16_add_c;
     if (flags & HAS_NEON) vpx_idct4x4_16_add = vpx_idct4x4_16_add_neon;
     vpx_idct4x4_1_add = vpx_idct4x4_1_add_c;

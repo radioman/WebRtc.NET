@@ -10,12 +10,12 @@
 #ifndef WEBRTC_API_CALL_AUDIO_STATE_H_
 #define WEBRTC_API_CALL_AUDIO_STATE_H_
 
+#include "webrtc/api/audio/audio_mixer.h"
 #include "webrtc/base/refcount.h"
 #include "webrtc/base/scoped_ref_ptr.h"
 
 namespace webrtc {
 
-class AudioDeviceModule;
 class VoiceEngine;
 
 // WORK IN PROGRESS
@@ -33,8 +33,9 @@ class AudioState : public rtc::RefCountInterface {
     // the AudioState itself.
     VoiceEngine* voice_engine = nullptr;
 
-    // The AudioDeviceModule associated with the Calls.
-    AudioDeviceModule* audio_device_module = nullptr;
+    // The audio mixer connected to active receive streams. One per
+    // AudioState.
+    rtc::scoped_refptr<AudioMixer> audio_mixer;
   };
 
   // TODO(solenberg): Replace scoped_refptr with shared_ptr once we can use it.

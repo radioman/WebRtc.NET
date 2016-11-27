@@ -1112,9 +1112,9 @@ RTCD_EXTERN void (*vpx_highbd_idct4x4_16_add)(const tran_low_t *input, uint8_t *
 void vpx_highbd_idct4x4_1_add_c(const tran_low_t *input, uint8_t *dest, int dest_stride, int bd);
 #define vpx_highbd_idct4x4_1_add vpx_highbd_idct4x4_1_add_c
 
-void vpx_highbd_idct8x8_10_add_c(const tran_low_t *input, uint8_t *dest, int dest_stride, int bd);
-void vpx_highbd_idct8x8_10_add_sse2(const tran_low_t *input, uint8_t *dest, int dest_stride, int bd);
-RTCD_EXTERN void (*vpx_highbd_idct8x8_10_add)(const tran_low_t *input, uint8_t *dest, int dest_stride, int bd);
+void vpx_highbd_idct8x8_12_add_c(const tran_low_t *input, uint8_t *dest, int dest_stride, int bd);
+void vpx_highbd_idct8x8_12_add_sse2(const tran_low_t *input, uint8_t *dest, int dest_stride, int bd);
+RTCD_EXTERN void (*vpx_highbd_idct8x8_12_add)(const tran_low_t *input, uint8_t *dest, int dest_stride, int bd);
 
 void vpx_highbd_idct8x8_1_add_c(const tran_low_t *input, uint8_t *dest, int dest_stride, int bd);
 #define vpx_highbd_idct8x8_1_add vpx_highbd_idct8x8_1_add_c
@@ -2443,8 +2443,8 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_SSE2) vpx_highbd_idct32x32_1_add = vpx_highbd_idct32x32_1_add_sse2;
     vpx_highbd_idct4x4_16_add = vpx_highbd_idct4x4_16_add_c;
     if (flags & HAS_SSE2) vpx_highbd_idct4x4_16_add = vpx_highbd_idct4x4_16_add_sse2;
-    vpx_highbd_idct8x8_10_add = vpx_highbd_idct8x8_10_add_c;
-    if (flags & HAS_SSE2) vpx_highbd_idct8x8_10_add = vpx_highbd_idct8x8_10_add_sse2;
+    vpx_highbd_idct8x8_12_add = vpx_highbd_idct8x8_12_add_c;
+    if (flags & HAS_SSE2) vpx_highbd_idct8x8_12_add = vpx_highbd_idct8x8_12_add_sse2;
     vpx_highbd_idct8x8_64_add = vpx_highbd_idct8x8_64_add_c;
     if (flags & HAS_SSE2) vpx_highbd_idct8x8_64_add = vpx_highbd_idct8x8_64_add_sse2;
     vpx_highbd_lpf_horizontal_16 = vpx_highbd_lpf_horizontal_16_c;

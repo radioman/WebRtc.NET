@@ -42,25 +42,32 @@ class AudioMixer : public rtc::RefCountInterface {
                                                  AudioFrame* audio_frame) = 0;
 
     // A way for a mixer implementation to distinguish participants.
-    virtual int Ssrc() = 0;
+    virtual int Ssrc() const = 0;
+
+    // A way for this source to say that GetAudioFrameWithInfo called
+    // with this sample rate or higher will not cause quality loss.
+    virtual int PreferredSampleRate() const = 0;
 
     virtual ~Source() {}
   };
 
-  // Returns true if adding/removing was successful. A source is never
-  // added twice and removal is never attempted if a source has not
-  // been successfully added to the mixer. Addition and removal can
-  // happen on different threads.
+  // Returns true if adding was successful. A source is never added
+  // twice. Addition and removal can happen on different threads.
   virtual bool AddSource(Source* audio_source) = 0;
-  virtual bool RemoveSource(Source* audio_source) = 0;
+
+  // Removal is never attempted if a source has not been successfully
+  // added to the mixer.
+  virtual void RemoveSource(Source* audio_source) = 0;
 
   // Performs mixing by asking registered audio sources for audio. The
   // mixed result is placed in the provided AudioFrame. This method
-  // will only be called from a single thread. The rate and channels
-  // arguments specify the rate and number of channels of the mix
-  // result. All fields in |audio_frame_for_mixing| must be updated.
-  virtual void Mix(int sample_rate_hz,
-                   size_t number_of_channels,
+  // will only be called from a single thread. The channels argument
+  // specifies the number of channels of the mix result. The mixer
+  // should mix at a rate that doesn't cause quality loss of the
+  // sources' audio. The mixing rate is one of the rates listed in
+  // AudioProcessing::NativeRate. All fields in
+  // |audio_frame_for_mixing| must be updated.
+  virtual void Mix(size_t number_of_channels,
                    AudioFrame* audio_frame_for_mixing) = 0;
 
  protected:

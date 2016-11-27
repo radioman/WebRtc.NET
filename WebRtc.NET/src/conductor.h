@@ -47,6 +47,11 @@ namespace Native
 		void OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize);
 		void AddServerConfig(std::string uri, std::string username, std::string password);
 
+		void SetAudio(bool enable)
+		{
+			audioEnabled = enable;
+		}
+
 		void CreateDataChannel(const std::string & label);
 		void DataChannelSendText(const std::string & text);
 
