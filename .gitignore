@@ -3,6 +3,7 @@ obj
 *.user
 .vs
 /WebRtc.NET/Release
+/WebRtc.NET/Release_x64
 /WebRtc.NET/Debug
 /WebRtc.NET.sdf
 /WebRtc.NET.VC.opendb
