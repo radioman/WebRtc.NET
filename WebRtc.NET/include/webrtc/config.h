@@ -44,6 +44,8 @@ struct UlpfecConfig {
         red_payload_type(-1),
         red_rtx_payload_type(-1) {}
   std::string ToString() const;
+  bool operator==(const UlpfecConfig& other) const;
+
   // Payload type used for ULPFEC packets.
   int ulpfec_payload_type;
 
@@ -60,6 +62,8 @@ struct FlexfecConfig {
   FlexfecConfig();
   ~FlexfecConfig();
   std::string ToString() const;
+  bool IsCompleteAndEnabled() const;
+  bool operator==(const FlexfecConfig& other) const;
 
   // Payload type of FlexFEC.
   int flexfec_payload_type;
@@ -244,17 +248,6 @@ class VideoEncoderConfig {
   // Access to the copy constructor is private to force use of the Copy()
   // method for those exceptional cases where we do use it.
   VideoEncoderConfig(const VideoEncoderConfig&);
-};
-
-struct VideoDecoderH264Settings {
-  std::string sprop_parameter_sets;
-};
-
-class DecoderSpecificSettings {
- public:
-  DecoderSpecificSettings();
-  virtual ~DecoderSpecificSettings();
-  rtc::Optional<VideoDecoderH264Settings> h264_extra_settings;
 };
 
 }  // namespace webrtc

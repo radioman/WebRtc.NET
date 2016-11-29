@@ -30,7 +30,7 @@ var servers = {
 };
 
 var offerOptions = {
-    offerToReceiveAudio: 0,
+    offerToReceiveAudio: 1,
     offerToReceiveVideo: 1,
     voiceActivityDetection: false,
     iceRestart: true

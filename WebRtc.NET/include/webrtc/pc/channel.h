@@ -366,6 +366,8 @@ class BaseChannel
   void SignalSentPacket_w(const rtc::SentPacket& sent_packet);
   bool IsReadyToSendMedia_n() const;
   void CacheRtpAbsSendTimeHeaderExtension_n(int rtp_abs_sendtime_extn_id);
+  int GetTransportOverheadPerPacket() const;
+  void UpdateTransportOverhead();
 
   rtc::Thread* const worker_thread_;
   rtc::Thread* const network_thread_;
@@ -410,6 +412,7 @@ class BaseChannel
   std::vector<StreamParams> remote_streams_;
   MediaContentDirection local_content_direction_ = MD_INACTIVE;
   MediaContentDirection remote_content_direction_ = MD_INACTIVE;
+  CandidatePairInterface* selected_candidate_pair_;
 };
 
 // VoiceChannel is a specialization that adds support for early media, DTMF,
@@ -548,7 +551,8 @@ class VideoChannel : public BaseChannel {
     return static_cast<VideoMediaChannel*>(BaseChannel::media_channel());
   }
 
-  bool SetSink(uint32_t ssrc, rtc::VideoSinkInterface<VideoFrame>* sink);
+  bool SetSink(uint32_t ssrc,
+               rtc::VideoSinkInterface<webrtc::VideoFrame>* sink);
   // Get statistics about the current media session.
   bool GetStats(VideoMediaInfo* stats);
 
@@ -564,7 +568,7 @@ class VideoChannel : public BaseChannel {
   bool SetVideoSend(uint32_t ssrc,
                     bool enable,
                     const VideoOptions* options,
-                    rtc::VideoSourceInterface<cricket::VideoFrame>* source);
+                    rtc::VideoSourceInterface<webrtc::VideoFrame>* source);
   webrtc::RtpParameters GetRtpSendParameters(uint32_t ssrc) const;
   bool SetRtpSendParameters(uint32_t ssrc,
                             const webrtc::RtpParameters& parameters);

@@ -18,8 +18,8 @@
 #include <wincodec.h>
 
 #include "webrtc/base/constructormagic.h"
+#include "webrtc/modules/desktop_capture/desktop_capturer.h"
 #include "webrtc/modules/desktop_capture/screen_capture_frame_queue.h"
-#include "webrtc/modules/desktop_capture/screen_capturer.h"
 #include "webrtc/modules/desktop_capture/screen_capturer_helper.h"
 #include "webrtc/modules/desktop_capture/shared_desktop_frame.h"
 #include "webrtc/modules/desktop_capture/win/scoped_thread_desktop.h"
@@ -38,13 +38,13 @@ class DesktopRect;
 // This class does not detect DesktopFrame::updated_region(), the field is
 // always set to the entire frame rectangle. ScreenCapturerDifferWrapper should
 // be used if that functionality is necessary.
-class ScreenCapturerWinMagnifier : public ScreenCapturer {
+class ScreenCapturerWinMagnifier : public DesktopCapturer {
  public:
   // |fallback_capturer| will be used to capture the screen if a non-primary
   // screen is being captured, or the OS does not support Magnification API, or
   // the magnifier capturer fails (e.g. in Windows8 Metro mode).
   explicit ScreenCapturerWinMagnifier(
-      std::unique_ptr<ScreenCapturer> fallback_capturer);
+      std::unique_ptr<DesktopCapturer> fallback_capturer);
   ~ScreenCapturerWinMagnifier() override;
 
   // Overridden from ScreenCapturer:
@@ -52,8 +52,8 @@ class ScreenCapturerWinMagnifier : public ScreenCapturer {
   void SetSharedMemoryFactory(
       std::unique_ptr<SharedMemoryFactory> shared_memory_factory) override;
   void CaptureFrame() override;
-  bool GetScreenList(ScreenList* screens) override;
-  bool SelectScreen(ScreenId id) override;
+  bool GetSourceList(SourceList* screens) override;
+  bool SelectSource(SourceId id) override;
   void SetExcludedWindow(WindowId window) override;
 
  private:
@@ -108,7 +108,7 @@ class ScreenCapturerWinMagnifier : public ScreenCapturer {
 
   static Atomic32 tls_index_;
 
-  std::unique_ptr<ScreenCapturer> fallback_capturer_;
+  std::unique_ptr<DesktopCapturer> fallback_capturer_;
   bool fallback_capturer_started_ = false;
   Callback* callback_ = nullptr;
   std::unique_ptr<SharedMemoryFactory> shared_memory_factory_;

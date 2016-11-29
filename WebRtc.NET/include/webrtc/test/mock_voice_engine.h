@@ -13,6 +13,9 @@
 
 #include <memory>
 
+#include "webrtc/modules/audio_device/include/mock_audio_device.h"
+#include "webrtc/modules/audio_device/include/mock_audio_transport.h"
+#include "webrtc/modules/audio_processing/include/mock_audio_processing.h"
 #include "webrtc/test/gmock.h"
 #include "webrtc/test/mock_voe_channel_proxy.h"
 #include "webrtc/voice_engine/voice_engine_impl.h"
@@ -36,7 +39,7 @@ class MockVoiceEngine : public VoiceEngineImpl {
     ++_ref_count;
     // We add this default behavior to make the mock easier to use in tests. It
     // will create a NiceMock of a voe::ChannelProxy.
-    // TODO(ossu): As long as AudioReceiveStream is implmented as a wrapper
+    // TODO(ossu): As long as AudioReceiveStream is implemented as a wrapper
     // around Channel, we need to make sure ChannelProxy returns the same
     // decoder factory as the one passed in when creating an AudioReceiveStream.
     ON_CALL(*this, ChannelProxyFactory(testing::_))
@@ -47,8 +50,15 @@ class MockVoiceEngine : public VoiceEngineImpl {
               .WillRepeatedly(testing::ReturnRef(decoder_factory_));
           return proxy;
         }));
+
+    ON_CALL(*this, audio_device_module())
+        .WillByDefault(testing::Return(&mock_audio_device_));
+    ON_CALL(*this, audio_processing())
+        .WillByDefault(testing::Return(&mock_audio_processing_));
+    ON_CALL(*this, audio_transport())
+        .WillByDefault(testing::Return(&mock_audio_transport_));
   }
-  ~MockVoiceEngine() /* override */ {
+  virtual ~MockVoiceEngine() /* override */ {
     // Decrease ref count before base class d-tor is called; otherwise it will
     // trigger an assertion.
     --_ref_count;
@@ -57,7 +67,7 @@ class MockVoiceEngine : public VoiceEngineImpl {
   MOCK_METHOD1(ChannelProxyFactory, voe::ChannelProxy*(int channel_id));
 
   // VoiceEngineImpl
-  std::unique_ptr<voe::ChannelProxy> GetChannelProxy(
+  virtual std::unique_ptr<voe::ChannelProxy> GetChannelProxy(
       int channel_id) /* override */ {
     return std::unique_ptr<voe::ChannelProxy>(ChannelProxyFactory(channel_id));
   }
@@ -111,6 +121,7 @@ class MockVoiceEngine : public VoiceEngineImpl {
           AudioProcessing* audioproc,
           const rtc::scoped_refptr<AudioDecoderFactory>& decoder_factory));
   MOCK_METHOD0(audio_processing, AudioProcessing*());
+  MOCK_METHOD0(audio_device_module, AudioDeviceModule*());
   MOCK_METHOD0(Terminate, int());
   MOCK_METHOD0(CreateChannel, int());
   MOCK_METHOD1(CreateChannel, int(const ChannelConfig& config));
@@ -330,6 +341,10 @@ class MockVoiceEngine : public VoiceEngineImpl {
   // return a dangling reference. Fortunately, this should go away once
   // voe::Channel does.
   rtc::scoped_refptr<AudioDecoderFactory> decoder_factory_;
+
+  MockAudioDeviceModule mock_audio_device_;
+  MockAudioProcessing mock_audio_processing_;
+  MockAudioTransport mock_audio_transport_;
 };
 }  // namespace test
 }  // namespace webrtc

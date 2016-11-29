@@ -13,6 +13,7 @@
 
 #include <vector>
 
+#include "webrtc/base/criticalsection.h"
 #include "webrtc/common_types.h"
 #include "webrtc/system_wrappers/include/clock.h"
 #include "webrtc/video_encoder.h"
@@ -38,7 +39,8 @@ class FakeEncoder : public VideoEncoder {
       EncodedImageCallback* callback) override;
   int32_t Release() override;
   int32_t SetChannelParameters(uint32_t packet_loss, int64_t rtt) override;
-  int32_t SetRates(uint32_t new_target_bitrate, uint32_t framerate) override;
+  int32_t SetRateAllocation(const BitrateAllocation& rate_allocation,
+                            uint32_t framerate) override;
   const char* ImplementationName() const override;
 
   static const char* kImplementationName;
@@ -47,7 +49,7 @@ class FakeEncoder : public VideoEncoder {
   Clock* const clock_;
   VideoCodec config_;
   EncodedImageCallback* callback_;
-  int target_bitrate_kbps_;
+  BitrateAllocation target_bitrate_;
   int max_target_bitrate_kbps_;
   int64_t last_encode_time_ms_;
   uint8_t encoded_buffer_[100000];
@@ -75,12 +77,14 @@ class DelayedEncoder : public test::FakeEncoder {
   DelayedEncoder(Clock* clock, int delay_ms);
   virtual ~DelayedEncoder() {}
 
+  void SetDelay(int delay_ms);
   int32_t Encode(const VideoFrame& input_image,
                  const CodecSpecificInfo* codec_specific_info,
                  const std::vector<FrameType>* frame_types) override;
 
  private:
-  const int delay_ms_;
+  rtc::CriticalSection lock_;
+  int delay_ms_ GUARDED_BY(&lock_);
 };
 }  // namespace test
 }  // namespace webrtc

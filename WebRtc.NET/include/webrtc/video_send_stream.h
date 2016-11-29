@@ -27,7 +27,6 @@
 
 namespace webrtc {
 
-class LoadObserver;
 class VideoEncoder;
 
 class VideoSendStream {
@@ -37,6 +36,7 @@ class VideoSendStream {
 
     FrameCounts frame_counts;
     bool is_rtx = false;
+    bool is_flexfec = false;
     int width = 0;
     int height = 0;
     // TODO(holmer): Move bitrate_bps out to the webrtc::Call layer.
@@ -57,6 +57,7 @@ class VideoSendStream {
     int avg_encode_time_ms = 0;
     int encode_usage_percent = 0;
     uint32_t frames_encoded = 0;
+    rtc::Optional<uint64_t> qp_sum;
     // Bitrate the encoder is currently configured to use due to bandwidth
     // limitations.
     int target_media_bitrate_bps = 0;
@@ -67,6 +68,10 @@ class VideoSendStream {
     int preferred_media_bitrate_bps = 0;
     bool suspended = false;
     bool bw_limited_resolution = false;
+    bool cpu_limited_resolution = false;
+    // Total number of times resolution as been requested to be changed due to
+    // CPU adaptation.
+    int number_of_cpu_adapt_changes = 0;
     std::map<uint32_t, StreamStats> substreams;
   };
 
@@ -133,6 +138,11 @@ class VideoSendStream {
       // See UlpfecConfig for description.
       UlpfecConfig ulpfec;
 
+      // See FlexfecConfig for description.
+      // TODO(brandtr): Move this config to a new class FlexfecSendStream
+      // when we support multistream protection.
+      FlexfecConfig flexfec;
+
       // Settings for RTP retransmission payload format, see RFC 4588 for
       // details.
       struct Rtx {
@@ -150,10 +160,6 @@ class VideoSendStream {
 
     // Transport for outgoing packets.
     Transport* send_transport = nullptr;
-
-    // Callback for overuse and normal usage based on the jitter of incoming
-    // captured frames. 'nullptr' disables the callback.
-    LoadObserver* overuse_callback = nullptr;
 
     // Called for each I420 frame before encoding the frame. Can be used for
     // effects, snapshots etc. 'nullptr' disables the callback.
@@ -192,8 +198,17 @@ class VideoSendStream {
   // When a stream is stopped, it can't receive, process or deliver packets.
   virtual void Stop() = 0;
 
+  // Based on the spec in
+  // https://w3c.github.io/webrtc-pc/#idl-def-rtcdegradationpreference.
+  enum class DegradationPreference {
+    kMaintainResolution,
+    // TODO(perkj): Implement kMaintainFrameRate. kBalanced will drop frames
+    // if the encoder overshoots or the encoder can not encode fast enough.
+    kBalanced,
+  };
   virtual void SetSource(
-      rtc::VideoSourceInterface<webrtc::VideoFrame>* source) = 0;
+      rtc::VideoSourceInterface<webrtc::VideoFrame>* source,
+      const DegradationPreference& degradation_preference) = 0;
 
   // Set which streams to send. Must have at least as many SSRCs as configured
   // in the config. Encoder settings are passed on to the encoder instance along

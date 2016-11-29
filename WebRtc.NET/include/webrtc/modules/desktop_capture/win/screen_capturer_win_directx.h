@@ -11,11 +11,12 @@
 #ifndef WEBRTC_MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_DIRECTX_H_
 #define WEBRTC_MODULES_DESKTOP_CAPTURE_WIN_SCREEN_CAPTURER_WIN_DIRECTX_H_
 
-#include "webrtc/modules/desktop_capture/screen_capturer.h"
+#include <D3DCommon.h>
 
 #include <memory>
 #include <vector>
 
+#include "webrtc/modules/desktop_capture/desktop_capturer.h"
 #include "webrtc/modules/desktop_capture/desktop_capture_options.h"
 #include "webrtc/modules/desktop_capture/desktop_region.h"
 #include "webrtc/modules/desktop_capture/screen_capture_frame_queue.h"
@@ -24,12 +25,23 @@
 
 namespace webrtc {
 
-// ScreenCapturerWinDirectx captures 32bit RGBA using DirectX. This
-// implementation won't work when ScreenCaptureFrameQueue.kQueueLength is not 2.
-class ScreenCapturerWinDirectx : public ScreenCapturer {
+// ScreenCapturerWinDirectx captures 32bit RGBA using DirectX.
+class ScreenCapturerWinDirectx : public DesktopCapturer {
  public:
+  using D3dInfo = DxgiDuplicatorController::D3dInfo;
+
   // Whether the system supports DirectX based capturing.
   static bool IsSupported();
+
+  // Returns a most recent D3dInfo composed by
+  // DxgiDuplicatorController::Initialize() function. This function implicitly
+  // calls DxgiDuplicatorController::Initialize() if it has not been
+  // initialized. This function returns false and output parameter is kept
+  // unchanged if DxgiDuplicatorController::Initialize() failed.
+  // The D3dInfo may change based on hardware configuration even without
+  // restarting the hardware and software. Refer to https://goo.gl/OOCppq. So
+  // consumers should not cache the result returned by this function.
+  static bool RetrieveD3dInfo(D3dInfo* info);
 
   explicit ScreenCapturerWinDirectx(const DesktopCaptureOptions& options);
 
@@ -39,8 +51,8 @@ class ScreenCapturerWinDirectx : public ScreenCapturer {
   void SetSharedMemoryFactory(
       std::unique_ptr<SharedMemoryFactory> shared_memory_factory) override;
   void CaptureFrame() override;
-  bool GetScreenList(ScreenList* screens) override;
-  bool SelectScreen(ScreenId id) override;
+  bool GetSourceList(SourceList* sources) override;
+  bool SelectSource(SourceId id) override;
 
  private:
   // Returns desktop size of selected screen.
@@ -52,7 +64,7 @@ class ScreenCapturerWinDirectx : public ScreenCapturer {
 
   DxgiDuplicatorController::Context context_;
 
-  ScreenId current_screen_id_ = kFullDesktopScreenId;
+  SourceId current_screen_id_ = kFullDesktopScreenId;
 
   RTC_DISALLOW_COPY_AND_ASSIGN(ScreenCapturerWinDirectx);
 };

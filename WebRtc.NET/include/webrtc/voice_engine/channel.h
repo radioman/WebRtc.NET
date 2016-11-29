@@ -88,7 +88,6 @@ class ChannelState {
     bool input_file_playing = false;
     bool playing = false;
     bool sending = false;
-    bool receiving = false;
   };
 
   ChannelState() {}
@@ -127,11 +126,6 @@ class ChannelState {
   void SetSending(bool enable) {
     rtc::CritScope lock(&lock_);
     state_.sending = enable;
-  }
-
-  void SetReceiving(bool enable) {
-    rtc::CritScope lock(&lock_);
-    state_.receiving = enable;
   }
 
  private:
@@ -189,9 +183,7 @@ class Channel
   int32_t StopPlayout();
   int32_t StartSend();
   int32_t StopSend();
-  int32_t StartReceiving();
-  int32_t StopReceiving();
-
+  void ResetDiscardedPacketCount();
   int32_t RegisterVoiceEngineObserver(VoiceEngineObserver& observer);
   int32_t DeRegisterVoiceEngineObserver();
 
@@ -294,7 +286,7 @@ class Channel
 
   // DTMF
   int SendTelephoneEventOutband(int event, int duration_ms);
-  int SetSendTelephoneEventPayloadType(int payload_type);
+  int SetSendTelephoneEventPayloadType(int payload_type, int payload_frequency);
 
   // VoEAudioProcessingImpl
   int VoiceActivityIndicator(int& activity);
@@ -393,7 +385,6 @@ class Channel
   int32_t ChannelId() const { return _channelId; }
   bool Playing() const { return channel_state_.Get().playing; }
   bool Sending() const { return channel_state_.Get().sending; }
-  bool Receiving() const { return channel_state_.Get().receiving; }
   bool ExternalTransport() const {
     rtc::CritScope cs(&_callbackCritSect);
     return _externalTransport;
@@ -414,17 +405,14 @@ class Channel
 
   // Associate to a send channel.
   // Used for obtaining RTT for a receive-only channel.
-  void set_associate_send_channel(const ChannelOwner& channel) {
-    assert(_channelId != channel.channel()->ChannelId());
-    rtc::CritScope lock(&assoc_send_channel_lock_);
-    associate_send_channel_ = channel;
-  }
-
+  void set_associate_send_channel(const ChannelOwner& channel);
   // Disassociate a send channel if it was associated.
   void DisassociateSendChannel(int channel_id);
 
   // Set a RtcEventLog logging object.
   void SetRtcEventLog(RtcEventLog* event_log);
+
+  void SetTransportOverhead(int transport_overhead_per_packet);
 
  protected:
   void OnIncomingFractionLoss(int fraction_lost);

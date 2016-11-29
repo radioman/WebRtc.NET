@@ -19,10 +19,12 @@
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/deprecation.h"
+#include "webrtc/base/optional.h"
 #include "webrtc/base/random.h"
 #include "webrtc/base/rate_statistics.h"
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/common_types.h"
+#include "webrtc/modules/rtp_rtcp/include/flexfec_sender.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "webrtc/modules/rtp_rtcp/source/playout_delay_oracle.h"
 #include "webrtc/modules/rtp_rtcp/source/rtp_header_extension.h"
@@ -34,6 +36,7 @@
 
 namespace webrtc {
 
+class OverheadObserver;
 class RateLimiter;
 class RtcEventLog;
 class RtpPacketToSend;
@@ -46,6 +49,9 @@ class RTPSender {
             Clock* clock,
             Transport* transport,
             RtpPacketSender* paced_sender,
+            // TODO(brandtr): Remove |flexfec_sender| when that is hooked up
+            // to PacedSender instead.
+            FlexfecSender* flexfec_sender,
             TransportSequenceNumberAllocator* sequence_number_allocator,
             TransportFeedbackObserver* transport_feedback_callback,
             BitrateStatisticsObserver* bitrate_callback,
@@ -53,7 +59,8 @@ class RTPSender {
             SendSideDelayObserver* send_side_delay_observer,
             RtcEventLog* event_log,
             SendPacketObserver* send_packet_observer,
-            RateLimiter* nack_rate_limiter);
+            RateLimiter* nack_rate_limiter,
+            OverheadObserver* overhead_observer);
 
   ~RTPSender();
 
@@ -118,7 +125,8 @@ class RTPSender {
 
   size_t RtpHeaderExtensionLength() const;
 
-  bool TimeToSendPacket(uint16_t sequence_number,
+  bool TimeToSendPacket(uint32_t ssrc,
+                        uint16_t sequence_number,
                         int64_t capture_time_ms,
                         bool retransmission,
                         int probe_cluster_id);
@@ -162,6 +170,8 @@ class RTPSender {
 
   uint32_t SSRC() const;
 
+  rtc::Optional<uint32_t> FlexfecSsrc() const;
+
   bool SendToNetwork(std::unique_ptr<RtpPacketToSend> packet,
                      StorageType storage,
                      RtpPacketSender::Priority priority);
@@ -183,17 +193,11 @@ class RTPSender {
 
   uint32_t MaxConfiguredBitrateVideo() const;
 
-  // FEC.
-  void SetGenericFECStatus(bool enable,
-                           uint8_t payload_type_red,
-                           uint8_t payload_type_fec);
+  // ULPFEC.
+  void SetUlpfecConfig(int red_payload_type, int ulpfec_payload_type);
 
-  void GenericFECStatus(bool* enable,
-                        uint8_t* payload_type_red,
-                        uint8_t* payload_type_fec) const;
-
-  int32_t SetFecParameters(const FecProtectionParams *delta_params,
-                           const FecProtectionParams *key_params);
+  bool SetFecParameters(const FecProtectionParams& delta_params,
+                        const FecProtectionParams& key_params);
 
   RTC_DEPRECATED
   size_t SendPadData(size_t bytes,
@@ -211,6 +215,8 @@ class RTPSender {
   RtpState GetRtpState() const;
   void SetRtxRtpState(const RtpState& rtp_state);
   RtpState GetRtxRtpState() const;
+
+  void SetTransportOverhead(int transport_overhead);
 
  protected:
   int32_t CheckPayloadType(int8_t payload_type, RtpVideoCodecTypes* video_type);
@@ -257,6 +263,12 @@ class RTPSender {
                       bool is_retransmit);
   bool IsFecPacket(const RtpPacketToSend& packet) const;
 
+  void AddPacketToTransportFeedback(uint16_t packet_id,
+                                    const RtpPacketToSend& packet,
+                                    int probe_cluster_id);
+
+  void UpdateRtpOverhead(const RtpPacketToSend& packet);
+
   Clock* const clock_;
   const int64_t clock_delta_ms_;
   Random random_ GUARDED_BY(send_critsect_);
@@ -271,7 +283,7 @@ class RTPSender {
   int64_t last_capture_time_ms_sent_;
   rtc::CriticalSection send_critsect_;
 
-  Transport *transport_;
+  Transport* transport_;
   bool sending_media_ GUARDED_BY(send_critsect_);
 
   size_t max_payload_length_;
@@ -287,6 +299,9 @@ class RTPSender {
   PlayoutDelayOracle playout_delay_oracle_;
 
   RtpPacketHistory packet_history_;
+  // TODO(brandtr): Remove |flexfec_packet_history_| when the FlexfecSender
+  // is hooked up to the PacedSender.
+  RtpPacketHistory flexfec_packet_history_;
 
   // Statistics
   rtc::CriticalSection statistics_crit_;
@@ -322,8 +337,11 @@ class RTPSender {
   uint32_t ssrc_rtx_ GUARDED_BY(send_critsect_);
   // Mapping rtx_payload_type_map_[associated] = rtx.
   std::map<int8_t, int8_t> rtx_payload_type_map_ GUARDED_BY(send_critsect_);
+  size_t transport_overhead_bytes_per_packet_ GUARDED_BY(send_critsect_);
+  size_t rtp_overhead_bytes_per_packet_ GUARDED_BY(send_critsect_);
 
   RateLimiter* const retransmission_rate_limiter_;
+  OverheadObserver* overhead_observer_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(RTPSender);
 };

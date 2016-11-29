@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "webrtc/base/optional.h"
 #include "webrtc/common_video/rotation.h"
 #include "webrtc/typedefs.h"
 
@@ -298,6 +299,14 @@ class SendPacketObserver {
                             uint32_t ssrc) = 0;
 };
 
+// Callback, used to notify an observer when the overhead per packet
+// has changed.
+class OverheadObserver {
+ public:
+  virtual ~OverheadObserver() = default;
+  virtual void OnOverheadChanged(size_t overhead_bytes_per_packet) = 0;
+};
+
 // ==================================================================
 // Voice specific types
 // ==================================================================
@@ -498,8 +507,6 @@ enum VideoCodecComplexity {
   kComplexityMax = 3
 };
 
-enum VideoCodecProfile { kProfileBase = 0x00, kProfileMain = 0x01 };
-
 enum VP8ResilienceMode {
   kResilienceOff,    // The stream produced by the encoder requires a
                      // recovery frame (typically a key frame) to be
@@ -524,7 +531,7 @@ struct VideoCodecVP8 {
   bool automaticResizeOn;
   bool frameDroppingOn;
   int keyFrameInterval;
-  const TemporalLayersFactory* tl_factory;
+  TemporalLayersFactory* tl_factory;
 };
 
 // VP9 specific.
@@ -541,9 +548,21 @@ struct VideoCodecVP9 {
   bool flexibleMode;
 };
 
+// TODO(magjed): Move this and other H264 related classes out to their own file.
+namespace H264 {
+
+enum Profile {
+  kProfileConstrainedBaseline,
+  kProfileBaseline,
+  kProfileMain,
+  kProfileConstrainedHigh,
+  kProfileHigh,
+};
+
+}  // namespace H264
+
 // H264 specific.
 struct VideoCodecH264 {
-  VideoCodecProfile profile;
   bool frameDroppingOn;
   int keyFrameInterval;
   // These are NULL/0 if not externally negotiated.
@@ -551,6 +570,7 @@ struct VideoCodecH264 {
   size_t spsLen;
   const uint8_t* ppsData;
   size_t ppsLen;
+  H264::Profile profile;
 };
 
 // Video codec types
@@ -561,9 +581,14 @@ enum VideoCodecType {
   kVideoCodecI420,
   kVideoCodecRED,
   kVideoCodecULPFEC,
+  kVideoCodecFlexfec,
   kVideoCodecGeneric,
   kVideoCodecUnknown
 };
+
+// Translates from name of codec to codec type and vice versa.
+rtc::Optional<const char*> CodecTypeToPayloadName(VideoCodecType type);
+rtc::Optional<VideoCodecType> PayloadNameToCodecType(const std::string& name);
 
 union VideoCodecUnion {
   VideoCodecVP8 VP8;
@@ -634,11 +659,39 @@ class VideoCodec {
   VideoCodecH264* H264();
   const VideoCodecH264& H264() const;
 
-  // This variable will be declared private and renamed to codec_specific_
-  // once Chromium is not accessing it.
+ private:
   // TODO(hta): Consider replacing the union with a pointer type.
   // This will allow removing the VideoCodec* types from this file.
-  VideoCodecUnion codecSpecific;
+  VideoCodecUnion codec_specific_;
+};
+
+class BitrateAllocation {
+ public:
+  static const uint32_t kMaxBitrateBps;
+  BitrateAllocation();
+
+  bool SetBitrate(size_t spatial_index,
+                  size_t temporal_index,
+                  uint32_t bitrate_bps);
+
+  uint32_t GetBitrate(size_t spatial_index, size_t temporal_index) const;
+
+  // Get the sum of all the temporal layer for a specific spatial layer.
+  uint32_t GetSpatialLayerSum(size_t spatial_index) const;
+
+  uint32_t get_sum_bps() const { return sum_; }  // Sum of all bitrates.
+  uint32_t get_sum_kbps() const { return (sum_ + 500) / 1000; }
+
+  inline bool operator==(const BitrateAllocation& other) const {
+    return memcmp(bitrates_, other.bitrates_, sizeof(bitrates_)) == 0;
+  }
+  inline bool operator!=(const BitrateAllocation& other) const {
+    return !(*this == other);
+  }
+
+ private:
+  uint32_t sum_;
+  uint32_t bitrates_[kMaxSpatialLayers][kMaxTemporalStreams];
 };
 
 // Bandwidth over-use detector options.  These are used to drive

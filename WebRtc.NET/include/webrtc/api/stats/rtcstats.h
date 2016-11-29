@@ -71,8 +71,8 @@ class RTCStats {
   bool operator==(const RTCStats& other) const;
   bool operator!=(const RTCStats& other) const;
 
-  // Creates a human readable string representation of the report, listing all
-  // of its members (names and values).
+  // Creates a human readable string representation of the stats object, listing
+  // all of its members (names and values).
   std::string ToString() const;
 
   // Downcasts the stats object to an |RTCStats| subclass |T|. DCHECKs that the
@@ -271,6 +271,8 @@ class RTCStatsMember : public RTCStatsMemberInterface {
         static_cast<const RTCStatsMember<T>&>(other);
     if (!is_defined_)
       return !other_t.is_defined();
+    if (!other.is_defined())
+      return false;
     return value_ == other_t.value_;
   }
   std::string ValueToString() const override;

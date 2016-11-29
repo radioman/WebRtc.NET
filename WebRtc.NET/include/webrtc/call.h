@@ -55,19 +55,6 @@ class PacketReceiver {
   virtual ~PacketReceiver() {}
 };
 
-// Callback interface for reporting when a system overuse is detected.
-class LoadObserver {
- public:
-  enum Load { kOveruse, kUnderuse };
-
-  // Triggered when overuse is detected or when we believe the system can take
-  // more load.
-  virtual void OnLoadUpdate(Load load) = 0;
-
- protected:
-  virtual ~LoadObserver() {}
-};
-
 // A Call instance can contain several send and/or receive streams. All streams
 // are assumed to have the same remote endpoint and will share bitrate estimates
 // etc.
@@ -159,6 +146,10 @@ class Call {
   // for each stream separately. Right now it's global per media type.
   virtual void SignalChannelNetworkState(MediaType media,
                                          NetworkState state) = 0;
+
+  virtual void OnTransportOverheadChanged(
+      MediaType media,
+      int transport_overhead_per_packet) = 0;
 
   virtual void OnNetworkRouteChanged(
       const std::string& transport_name,

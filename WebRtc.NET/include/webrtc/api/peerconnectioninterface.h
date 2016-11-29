@@ -295,7 +295,7 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     // at the same time.
     IceServers servers;
     BundlePolicy bundle_policy = kBundlePolicyBalanced;
-    RtcpMuxPolicy rtcp_mux_policy = kRtcpMuxPolicyNegotiate;
+    RtcpMuxPolicy rtcp_mux_policy = kRtcpMuxPolicyRequire;
     TcpCandidatePolicy tcp_candidate_policy = kTcpCandidatePolicyEnabled;
     CandidateNetworkPolicy candidate_network_policy =
         kCandidateNetworkPolicyAll;
@@ -480,6 +480,11 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     return false;
   }
   virtual bool UpdateIce(const IceServers& configuration) { return false; }
+  // TODO(deadbeef): Make this pure virtual once all Chrome subclasses of
+  // PeerConnectionInterface implement it.
+  virtual PeerConnectionInterface::RTCConfiguration GetConfiguration() {
+    return PeerConnectionInterface::RTCConfiguration();
+  }
   // Sets the PeerConnection's global configuration to |config|.
   // Any changes to STUN/TURN servers or ICE candidate policy will affect the
   // next gathering phase, and cause the next call to createOffer to generate
@@ -592,6 +597,13 @@ class PeerConnectionObserver {
 
   // Called when the ICE connection receiving status changes.
   virtual void OnIceConnectionReceivingChange(bool receiving) {}
+
+  // Called when a track is added to streams.
+  // TODO(zhihuang) Make this a pure virtual method when all its subclasses
+  // implement it.
+  virtual void OnAddTrack(
+      rtc::scoped_refptr<RtpReceiverInterface> receiver,
+      std::vector<rtc::scoped_refptr<MediaStreamInterface>> streams) {}
 
  protected:
   // Dtor protected as objects shouldn't be deleted via this interface.

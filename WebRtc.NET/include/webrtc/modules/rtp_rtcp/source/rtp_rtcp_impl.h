@@ -17,6 +17,7 @@
 
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/gtest_prod_util.h"
+#include "webrtc/base/optional.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "webrtc/modules/rtp_rtcp/source/packet_loss_stats.h"
@@ -96,6 +97,8 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
 
   void SetRtxSendPayloadType(int payload_type,
                              int associated_payload_type) override;
+
+  rtc::Optional<uint32_t> FlexfecSsrc() const override;
 
   // Sends kRtcpByeCode when going from true to false.
   int32_t SetSendingStatus(bool sending) override;
@@ -210,9 +213,12 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
 
   int32_t SetMaxTransferUnit(uint16_t size) override;
 
+  // TODO(michaelt): deprecate the function.
   int32_t SetTransportOverhead(bool tcp,
                                bool ipv6,
                                uint8_t authentication_overhead = 0) override;
+
+  void SetTransportOverhead(int transport_overhead_per_packet) override;
 
   // (NACK) Negative acknowledgment part.
 
@@ -277,16 +283,10 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
   // Send a request for a keyframe.
   int32_t RequestKeyFrame() override;
 
-  void SetGenericFECStatus(bool enable,
-                           uint8_t payload_type_red,
-                           uint8_t payload_type_fec) override;
+  void SetUlpfecConfig(int red_payload_type, int ulpfec_payload_type) override;
 
-  void GenericFECStatus(bool* enable,
-                        uint8_t* payload_type_red,
-                        uint8_t* payload_type_fec) override;
-
-  int32_t SetFecParameters(const FecProtectionParams* delta_params,
-                           const FecProtectionParams* key_params) override;
+  bool SetFecParameters(const FecProtectionParams& delta_params,
+                        const FecProtectionParams& key_params) override;
 
   bool LastReceivedNTP(uint32_t* NTPsecs,
                        uint32_t* NTPfrac,

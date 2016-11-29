@@ -59,6 +59,30 @@ class RTCCertificateStats final : public RTCStats {
   RTCStatsMember<std::string> issuer_certificate_id;
 };
 
+// https://w3c.github.io/webrtc-stats/#codec-dict*
+// Tracking bug crbug.com/659117
+// TODO(hbos): The present codec ID assignment is not sufficient to support
+// Unified Plan or unbundled connections in all cases. crbug.com/659117
+class RTCCodecStats final : public RTCStats {
+ public:
+  WEBRTC_RTCSTATS_DECL();
+
+  RTCCodecStats(const std::string& id, int64_t timestamp_us);
+  RTCCodecStats(std::string&& id, int64_t timestamp_us);
+  RTCCodecStats(const RTCCodecStats& other);
+  ~RTCCodecStats() override;
+
+  RTCStatsMember<uint32_t> payload_type;
+  RTCStatsMember<std::string> codec;
+  RTCStatsMember<uint32_t> clock_rate;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659117
+  RTCStatsMember<uint32_t> channels;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659117
+  RTCStatsMember<std::string> parameters;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659117
+  RTCStatsMember<std::string> implementation;
+};
+
 // https://w3c.github.io/webrtc-stats/#dcstats-dict*
 class RTCDataChannelStats final : public RTCStats {
  public:
@@ -81,8 +105,8 @@ class RTCDataChannelStats final : public RTCStats {
 };
 
 // https://w3c.github.io/webrtc-stats/#candidatepair-dict*
-// TODO(hbos): Finish implementation. Tracking bug crbug.com/633550
-class RTCIceCandidatePairStats : public RTCStats {
+// TODO(hbos): Tracking bug crbug.com/633550
+class RTCIceCandidatePairStats final : public RTCStats {
  public:
   WEBRTC_RTCSTATS_DECL();
 
@@ -183,8 +207,66 @@ class RTCRemoteIceCandidateStats final : public RTCIceCandidateStats {
   const char* type() const override;
 };
 
+// https://w3c.github.io/webrtc-stats/#msstats-dict*
+// TODO(hbos): Tracking bug crbug.com/660827
+class RTCMediaStreamStats final : public RTCStats {
+ public:
+  WEBRTC_RTCSTATS_DECL();
+
+  RTCMediaStreamStats(const std::string& id, int64_t timestamp_us);
+  RTCMediaStreamStats(std::string&& id, int64_t timestamp_us);
+  RTCMediaStreamStats(const RTCMediaStreamStats& other);
+  ~RTCMediaStreamStats() override;
+
+  RTCStatsMember<std::string> stream_identifier;
+  RTCStatsMember<std::vector<std::string>> track_ids;
+};
+
+// https://w3c.github.io/webrtc-stats/#mststats-dict*
+// TODO(hbos): Tracking bug crbug.com/659137
+class RTCMediaStreamTrackStats final : public RTCStats {
+ public:
+  WEBRTC_RTCSTATS_DECL();
+
+  RTCMediaStreamTrackStats(const std::string& id, int64_t timestamp_us);
+  RTCMediaStreamTrackStats(std::string&& id, int64_t timestamp_us);
+  RTCMediaStreamTrackStats(const RTCMediaStreamTrackStats& other);
+  ~RTCMediaStreamTrackStats() override;
+
+  RTCStatsMember<std::string> track_identifier;
+  RTCStatsMember<bool> remote_source;
+  RTCStatsMember<bool> ended;
+  // TODO(hbos): |RTCStatsCollector| does not return stats for detached tracks.
+  // crbug.com/659137
+  RTCStatsMember<bool> detached;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
+  RTCStatsMember<std::vector<std::string>> ssrc_ids;
+  // Video-only members
+  RTCStatsMember<uint32_t> frame_width;
+  RTCStatsMember<uint32_t> frame_height;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
+  RTCStatsMember<double> frames_per_second;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
+  RTCStatsMember<uint32_t> frames_sent;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
+  RTCStatsMember<uint32_t> frames_received;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
+  RTCStatsMember<uint32_t> frames_decoded;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
+  RTCStatsMember<uint32_t> frames_dropped;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
+  RTCStatsMember<uint32_t> frames_corrupted;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
+  RTCStatsMember<uint32_t> partial_frames_lost;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
+  RTCStatsMember<uint32_t> full_frames_lost;
+  // Audio-only members
+  RTCStatsMember<double> audio_level;
+  RTCStatsMember<double> echo_return_loss;
+  RTCStatsMember<double> echo_return_loss_enhancement;
+};
+
 // https://w3c.github.io/webrtc-stats/#pcstats-dict*
-// TODO(hbos): Finish implementation. Tracking bug crbug.com/636818
 class RTCPeerConnectionStats final : public RTCStats {
  public:
   WEBRTC_RTCSTATS_DECL();
@@ -194,12 +276,105 @@ class RTCPeerConnectionStats final : public RTCStats {
   RTCPeerConnectionStats(const RTCPeerConnectionStats& other);
   ~RTCPeerConnectionStats() override;
 
-  // TODO(hbos): Collected by |RTCStatsCollector| but different than the spec.
-  // crbug.com/636818
   RTCStatsMember<uint32_t> data_channels_opened;
-  // TODO(hbos): Collected by |RTCStatsCollector| but different than the spec.
-  // crbug.com/636818
   RTCStatsMember<uint32_t> data_channels_closed;
+};
+
+// https://w3c.github.io/webrtc-stats/#streamstats-dict*
+// TODO(hbos): Tracking bug crbug.com/657854
+class RTCRTPStreamStats : public RTCStats {
+ public:
+  WEBRTC_RTCSTATS_DECL();
+
+  RTCRTPStreamStats(const RTCRTPStreamStats& other);
+  ~RTCRTPStreamStats() override;
+
+  RTCStatsMember<std::string> ssrc;
+  // TODO(hbos): When the remote case is supported |RTCStatsCollector| needs to
+  // set this. crbug.com/657855, 657856
+  RTCStatsMember<std::string> associate_stats_id;
+  // TODO(hbos): Remote case not supported by |RTCStatsCollector|.
+  // crbug.com/657855, 657856
+  RTCStatsMember<bool> is_remote;  // = false
+  RTCStatsMember<std::string> media_type;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657854, 659137
+  RTCStatsMember<std::string> media_track_id;
+  RTCStatsMember<std::string> transport_id;
+  RTCStatsMember<std::string> codec_id;
+  // FIR and PLI counts are only defined for |media_type == "video"|.
+  RTCStatsMember<uint32_t> fir_count;
+  RTCStatsMember<uint32_t> pli_count;
+  // TODO(hbos): NACK count should be collected by |RTCStatsCollector| for both
+  // audio and video but is only defined in the "video" case. crbug.com/657856
+  RTCStatsMember<uint32_t> nack_count;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657854
+  // SLI count is only defined for |media_type == "video"|.
+  RTCStatsMember<uint32_t> sli_count;
+
+ protected:
+  RTCRTPStreamStats(const std::string& id, int64_t timestamp_us);
+  RTCRTPStreamStats(std::string&& id, int64_t timestamp_us);
+};
+
+// https://w3c.github.io/webrtc-stats/#inboundrtpstats-dict*
+// Tracking bug crbug.com/657855
+// TODO(hbos): Support the remote case |is_remote = true|. crbug.com/657855
+class RTCInboundRTPStreamStats final : public RTCRTPStreamStats {
+ public:
+  WEBRTC_RTCSTATS_DECL();
+
+  RTCInboundRTPStreamStats(const std::string& id, int64_t timestamp_us);
+  RTCInboundRTPStreamStats(std::string&& id, int64_t timestamp_us);
+  RTCInboundRTPStreamStats(const RTCInboundRTPStreamStats& other);
+  ~RTCInboundRTPStreamStats() override;
+
+  RTCStatsMember<uint32_t> packets_received;
+  RTCStatsMember<uint64_t> bytes_received;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  RTCStatsMember<uint32_t> packets_lost;
+  // TODO(hbos): Not collected in the "video" case by |RTCStatsCollector|.
+  // crbug.com/657855
+  RTCStatsMember<double> jitter;
+  RTCStatsMember<double> fraction_lost;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  RTCStatsMember<uint32_t> packets_discarded;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  RTCStatsMember<uint32_t> packets_repaired;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  RTCStatsMember<uint32_t> burst_packets_lost;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  RTCStatsMember<uint32_t> burst_packets_discarded;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  RTCStatsMember<uint32_t> burst_loss_count;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  RTCStatsMember<uint32_t> burst_discard_count;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  RTCStatsMember<double> burst_loss_rate;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  RTCStatsMember<double> burst_discard_rate;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  RTCStatsMember<double> gap_loss_rate;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  RTCStatsMember<double> gap_discard_rate;
+};
+
+// https://w3c.github.io/webrtc-stats/#outboundrtpstats-dict*
+// Tracking bug crbug.com/657856
+// TODO(hbos): Support the remote case |is_remote = true|. crbug.com/657856
+class RTCOutboundRTPStreamStats final : public RTCRTPStreamStats {
+ public:
+  WEBRTC_RTCSTATS_DECL();
+
+  RTCOutboundRTPStreamStats(const std::string& id, int64_t timestamp_us);
+  RTCOutboundRTPStreamStats(std::string&& id, int64_t timestamp_us);
+  RTCOutboundRTPStreamStats(const RTCOutboundRTPStreamStats& other);
+  ~RTCOutboundRTPStreamStats() override;
+
+  RTCStatsMember<uint32_t> packets_sent;
+  RTCStatsMember<uint64_t> bytes_sent;
+  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657856
+  RTCStatsMember<double> target_bitrate;
+  RTCStatsMember<double> round_trip_time;
 };
 
 // https://w3c.github.io/webrtc-stats/#transportstats-dict*
