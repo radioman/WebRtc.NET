@@ -48,25 +48,7 @@ namespace WebRtc.NET.Demo
             checkBoxWebsocket.Checked = true;
         }
 
-        const int screenWidth = 640;
-        const int screenHeight = 360;
-
-        readonly byte[] imgBuf = new byte[screenWidth * 3 * screenHeight];
-        IntPtr imgBufPtr = IntPtr.Zero;
-        Bitmap img;
-        readonly Bitmap imgView = new Bitmap(screenWidth, screenHeight, PixelFormat.Format24bppRgb);
-
         readonly TurboJpegEncoder encoder = TurboJpegEncoder.CreateEncoder();
-        public unsafe void OnFillBuffer(byte* yuv, uint yuvSize)
-        {
-            if (SetEncode && imgBufPtr != IntPtr.Zero)
-            {
-                lock (img)
-                {
-                    encoder.EncodeBGR24toI420((byte*)imgBufPtr.ToPointer(), screenWidth, screenHeight, yuv, yuvSize, true);
-                }
-            }
-        }
 
         byte[] bgrBuff;
         Bitmap remoteImg;
@@ -159,9 +141,9 @@ namespace WebRtc.NET.Demo
                 if (checkBoxWebsocket.Checked)
                 {
                     webSocketServer = new WebRTCServer((int)numericWebSocket.Value);
+                    webSocketServer.Form = this;
                     unsafe
                     {
-                        webSocketServer.OnFillBuffer = OnFillBuffer;
                         webSocketServer.OnRenderRemote = OnRenderRemote;
                     }
                     numericMaxClients_ValueChanged(null, null);
@@ -180,6 +162,17 @@ namespace WebRtc.NET.Demo
 
         private System.Windows.Forms.Timer timerDemo;
 
+        public const bool audio = true;
+        public const int screenWidth = 640;
+        public const int screenHeight = 360;
+        public const int captureFps = 5;
+        public const bool barCodeScreen = false;
+
+        readonly byte[] imgBuf = new byte[screenWidth * 3 * screenHeight];
+        IntPtr imgBufPtr = IntPtr.Zero;
+        Bitmap img;
+        readonly Bitmap imgView = new Bitmap(screenWidth, screenHeight, PixelFormat.Format24bppRgb);
+
         private void timerDemo_Tick(object sender, EventArgs e)
         {
             try
@@ -193,15 +186,28 @@ namespace WebRtc.NET.Demo
 
                 if (SetEncode)
                 {
-                    lock (img)
+                    using (var g = Graphics.FromImage(img))
                     {
-                        using (var g = Graphics.FromImage(img))
-                        {
-                            g.Clear(Color.DarkBlue);
+                        g.Clear(Color.DarkBlue);
 
-                            var rc = RectangleF.FromLTRB(0, 0, img.Width, img.Height);
-                            g.DrawString(string.Format("{0}", DateTime.Now.ToString("hh:mm:ss.fff")), fBig, Brushes.LimeGreen, rc, sfTopRight);
+                        var rc = RectangleF.FromLTRB(0, 0, img.Width, img.Height);
+                        g.DrawString(string.Format("{0}", DateTime.Now.ToString("hh:mm:ss.fff")), fBig, Brushes.LimeGreen, rc, sfTopRight);
+                    }
+
+                    foreach (var s in webSocketServer.Streams)
+                    {
+                        if (!barCodeScreen)
+                        {
+                            unsafe
+                            {
+                                var yuv = s.Value.WebRtc.VideoCapturerI420Buffer();
+                                if (yuv != null)
+                                {
+                                    encoder.EncodeBGR24toI420((byte*)imgBufPtr.ToPointer(), screenWidth, screenHeight, yuv, 0, true);
+                                }
+                            }
                         }
+                        s.Value.WebRtc.PushFrame();
                     }
                 }
 
@@ -238,7 +244,7 @@ namespace WebRtc.NET.Demo
             if (timerDemo == null)
             {
                 timerDemo = new System.Windows.Forms.Timer();
-                timerDemo.Interval = 200;
+                timerDemo.Interval = 1000 / captureFps;
                 timerDemo.Tick += timerDemo_Tick;
             }
             timerDemo.Enabled = checkBoxDemo.Checked;

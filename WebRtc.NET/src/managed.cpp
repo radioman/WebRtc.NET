@@ -37,10 +37,6 @@ namespace WebRtc
 			bool m_isDisposed;
 			Native::Conductor * cd;
 
-			delegate void _OnFillBufferCallback(uint8_t * frame_buffer, uint32_t yuvSize);
-			_OnFillBufferCallback ^ onFillBuffer;
-			GCHandle ^ onFillBufferHandle;
-
 			delegate void _OnRenderCallback(uint8_t * frame_buffer, uint32_t w, uint32_t h);
 			_OnRenderCallback ^ onRenderLocal;
 			_OnRenderCallback ^ onRenderRemote;
@@ -118,11 +114,6 @@ namespace WebRtc
 				OnDataMessage(msg);
 			}
 
-			void _OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize)
-			{
-				OnFillBuffer(frame_buffer, yuvSize);
-			}
-
 			void _OnRenderLocal(uint8_t * frame_buffer, uint32_t w, uint32_t h)
 			{
 				OnRenderLocal(frame_buffer, w, h);
@@ -150,9 +141,6 @@ namespace WebRtc
 			delegate void OnCallbackDataMessage(String ^ msg);
 			event OnCallbackDataMessage ^ OnDataMessage;
 
-			delegate void OnCallbackFillBuffer(System::Byte * frame_buffer, System::UInt32 yuvSize);
-			event OnCallbackFillBuffer ^ OnFillBuffer;
-
 			delegate void OnCallbackRender(System::Byte * frame_buffer, System::UInt32 w, System::UInt32 h);
 			event OnCallbackRender ^ OnRenderLocal;
 			event OnCallbackRender ^ OnRenderRemote;
@@ -161,10 +149,6 @@ namespace WebRtc
 			{
 				m_isDisposed = false;
 				cd = new Native::Conductor();
-
-				onFillBuffer = gcnew _OnFillBufferCallback(this, &ManagedConductor::_OnFillBuffer);
-				onFillBufferHandle = GCHandle::Alloc(onFillBuffer);
-				cd->onFillBuffer = static_cast<Native::OnFillBufferCallbackNative>(Marshal::GetFunctionPointerForDelegate(onFillBuffer).ToPointer());
 
 				onRenderLocal = gcnew _OnRenderCallback(this, &ManagedConductor::_OnRenderLocal);
 				onRenderLocalHandle = GCHandle::Alloc(onRenderLocal);
@@ -205,12 +189,11 @@ namespace WebRtc
 				FreeGCHandle(onSuccessHandle);
 				FreeGCHandle(onFailureHandle);
 				FreeGCHandle(onIceCandidateHandle);
-				FreeGCHandle(onFillBufferHandle);
 				FreeGCHandle(onRenderLocalHandle);
 				FreeGCHandle(onRenderRemoteHandle);
 				FreeGCHandle(onDataMessageHandle);
 
-				this->!ManagedConductor(); // call finalizer
+    			this->!ManagedConductor(); // call finalizer
 
 				m_isDisposed = true;
 			}
@@ -277,7 +260,25 @@ namespace WebRtc
 
 			void SetAudio(bool enable)
 			{
-				cd->SetAudio(enable);
+				cd->audioEnabled = enable;
+			}
+
+			void SetVideoCapturer(int width, int height, int caputureFps, bool barcodeEnabled)
+			{
+				cd->width_ = width;
+				cd->height_ = height;
+				cd->caputureFps = caputureFps;
+				cd->barcodeEnabled = barcodeEnabled;
+			}
+
+			System::Byte * VideoCapturerI420Buffer()
+			{
+				return cd->VideoCapturerI420Buffer();
+			}
+
+			void PushFrame()
+			{
+				cd->PushFrame();
 			}
 
 #pragma region -- Servers --
@@ -301,9 +302,9 @@ namespace WebRtc
 				// free unmanaged data
 				if (cd != NULL)
 				{
-					delete cd;
-					cd = NULL;
+					delete cd;					
 				}
+				cd = NULL;
 			}
 		};
 	}

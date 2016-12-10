@@ -26,30 +26,24 @@ namespace Native
 			return false;
 		}
 
-	protected:
-		// Override virtual methods of parent class VideoCapturer.
-		virtual bool GetPreferredFourccs(std::vector<uint32_t>* fourccs);
-
-		// Read a frame and determine how long to wait for the next frame.
-		void ReadFrame(bool first_frame);
-
-	private:
-		class YuvFramesThread;  // Forward declaration, defined in .cc.
-
-		Conductor * con;
-		YuvFramesThread* frames_generator_thread;
-		cricket::YuvFrameGenerator* frame_generator_;
+		void PushFrame();
 
 		rtc::scoped_refptr<webrtc::I420Buffer> video_buffer;
-		webrtc::VideoFrame * video_frame;
-
-		int width_;
-		int height_;
 		uint32_t frame_data_size_;
-		uint32_t frame_index_;
+
+	protected:
+
+		virtual bool GetPreferredFourccs(std::vector<uint32_t>* fourccs);
+
+	private:
+
+		Conductor * con;
+		cricket::YuvFrameGenerator* frame_generator_;		
+		webrtc::VideoFrame * video_frame;
 
 		int64_t barcode_reference_timestamp_millis_;
 		int32_t barcode_interval_;
+		bool run;
 
 		RTC_DISALLOW_COPY_AND_ASSIGN(YuvFramesCapturer2);
 	};

@@ -1,19 +1,16 @@
 ﻿
 namespace WebRtc.NET.Demo
 {
-    using Fleck;
-    using LitJson;
     using System;
     using System.Collections.Concurrent;
-    using System.Collections.Generic;
     using System.Diagnostics;
-    using System.Threading.Tasks;
     using System.Threading;
-    using System.Net.Sockets;
-    using System.Net;
+    using System.Threading.Tasks;
+    using Fleck;
+    using LitJson;
     class WebRTCServer : IDisposable
     {
-        class WebRtcSession
+        public class WebRtcSession
         {
             public readonly ManagedConductor WebRtc;
             public readonly CancellationTokenSource Cancel;
@@ -25,10 +22,12 @@ namespace WebRtc.NET.Demo
             }            
         }
 
-        ConcurrentDictionary<Guid, IWebSocketConnection> UserList = new ConcurrentDictionary<Guid, IWebSocketConnection>();
-        ConcurrentDictionary<Guid, WebRtcSession> Streams = new ConcurrentDictionary<Guid, WebRtcSession>();
+        public readonly ConcurrentDictionary<Guid, IWebSocketConnection> UserList = new ConcurrentDictionary<Guid, IWebSocketConnection>();
+        public readonly ConcurrentDictionary<Guid, WebRtcSession> Streams = new ConcurrentDictionary<Guid, WebRtcSession>();
 
         WebSocketServer server;
+        public MainForm Form;
+
         public WebRTCServer(int port) : this("ws://0.0.0.0:" + port)
         {
             
@@ -187,7 +186,11 @@ namespace WebRtc.NET.Demo
                                             session.WebRtc.AddServerConfig("stun:stun.stunprotocol.org:3478", string.Empty, string.Empty);
                                             //session.WebRtc.AddServerConfig("turn:127.0.0.1:444", "test", "test");
 
-                                            session.WebRtc.SetAudio(true);
+                                            session.WebRtc.SetAudio(MainForm.audio);
+                                            session.WebRtc.SetVideoCapturer(MainForm.screenWidth,
+                                                                            MainForm.screenHeight,
+                                                                            MainForm.captureFps,
+                                                                            MainForm.barCodeScreen);
 
                                             var ok = session.WebRtc.InitializePeerConnection();
                                             if (ok)
@@ -251,11 +254,6 @@ namespace WebRtc.NET.Demo
 
                                         unsafe
                                         {
-                                            session.WebRtc.OnFillBuffer += delegate (byte * frame_buffer, uint yuvSize)
-                                            {
-                                                OnFillBuffer(frame_buffer, yuvSize);
-                                            };
-
                                             session.WebRtc.OnRenderRemote += delegate (byte* frame_buffer, uint w, uint h)
                                             {
                                                 OnRenderRemote(frame_buffer, w, h);
@@ -291,7 +289,6 @@ namespace WebRtc.NET.Demo
             }
         }
 
-        public ManagedConductor.OnCallbackFillBuffer OnFillBuffer;
         public ManagedConductor.OnCallbackRender OnRenderRemote;
 
         public void Dispose()

@@ -62,8 +62,9 @@ namespace Native
 		onSuccess = nullptr;
 		onFailure = nullptr;
 		onIceCandidate = nullptr;
-		capturer = nullptr;
 
+		width_ = 640;
+	    height_ = 360;			
 		caputureFps = 5;
 		barcodeEnabled = false;
 		audioEnabled = false;
@@ -81,15 +82,11 @@ namespace Native
 		if (turnServer)
 		{
 			turnServer->disconnect_all();
-			delete turnServer;
-			turnServer = nullptr;
 		}
 
 		if (stunServer)
 		{
 			stunServer->disconnect_all();
-			delete stunServer;
-			stunServer = nullptr;
 		}
 
 		if (turnServer || stunServer)
@@ -115,7 +112,6 @@ namespace Native
 		}
 
 		pc_factory_ = nullptr;
-		capturer = nullptr;
 
 		if (data_channel)
 		{
@@ -264,14 +260,6 @@ namespace Native
 
 	// ...
 
-	void Conductor::OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize)
-	{
-		if (onFillBuffer)
-		{
-			onFillBuffer(frame_buffer, yuvSize);
-		}
-	}
-
 	bool Conductor::OpenVideoCaptureDevice()
 	{
 		std::vector<std::string> device_names;
@@ -294,11 +282,10 @@ namespace Native
 		}
 
 		cricket::WebRtcVideoDeviceCapturerFactory factory;
-		cricket::VideoCapturer * capturer = nullptr;
 		for (const auto& name : device_names)
 		{
-			capturer = factory.Create(cricket::Device(name, 0));
-			if (capturer)
+			capturer_internal.reset(factory.Create(cricket::Device(name, 0)));
+			if (capturer_internal)
 			{
 				LOG(LS_ERROR) << "Capturer != NULL!";
 				return true;
@@ -313,12 +300,18 @@ namespace Native
 		if (active_streams_.find(kStreamLabel) != active_streams_.end())
 			return;  // Already added.
 
-		if (!capturer)
+		cricket::VideoCapturer * vc = nullptr;
+		if (capturer_internal)
 		{
-			capturer = new Native::YuvFramesCapturer2(*this);
+			vc = capturer_internal.get();
+		}
+		else
+		{
+			capturer.reset(new Native::YuvFramesCapturer2(*this));
+			vc = capturer.get();
 		}
 
-		auto v = pc_factory_->CreateVideoSource(capturer, NULL);
+		auto v = pc_factory_->CreateVideoSource(vc, NULL);
 		auto video_track = pc_factory_->CreateVideoTrack(kVideoLabel, v);
 		if (onRenderLocal)
 		{
@@ -375,6 +368,8 @@ namespace Native
 		LOG(INFO) << __FUNCTION__ << " " << stream->label();
 		remote_video.reset();
 		remote_audio.reset();
+		capturer.reset();
+		capturer_internal.reset();
 	}
 
 	void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
@@ -486,7 +481,7 @@ namespace Native
 			return false;
 		}
 
-		stunServer = new cricket::StunServer(server_socket);
+		stunServer.reset(new cricket::StunServer(server_socket));
 
 		LOG(INFO) << "Listening at " << server_addr.ToString() << std::endl;
 
@@ -525,12 +520,15 @@ namespace Native
 			return false;
 		}
 
-		turnServer = new cricket::TurnServer(main);
-		turnServer->set_realm(realm);
-		turnServer->set_software(kSoftware);
-		turnServer->set_auth_hook(auth);
-		turnServer->AddInternalSocket(int_socket, cricket::PROTO_UDP);
-		turnServer->SetExternalSocketFactory(new rtc::BasicPacketSocketFactory(),
+
+		auto t = new cricket::TurnServer(main);
+		turnServer.reset(t);
+
+		t->set_realm(realm);
+		t->set_software(kSoftware);
+		t->set_auth_hook(auth);
+		t->AddInternalSocket(int_socket, cricket::PROTO_UDP);
+		t->SetExternalSocketFactory(new rtc::BasicPacketSocketFactory(),
 											 rtc::SocketAddress(ext_addr, 0));
 
 		LOG(INFO) << "Listening internally at " << int_addr.ToString() << std::endl;

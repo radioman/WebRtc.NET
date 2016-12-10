@@ -176,11 +176,14 @@ namespace WebRtc
 			int height = h;
 			int pitch = TJPAD(tjPixelSize[TJPF_BGR] * width);
 
-			int yuvSizeCheck = tjBufSizeYUV2(width, pad, height, TJSAMP_420);
-			if (yuvSizeCheck != yuvSize)
+			if (yuvSize > 0)
 			{
-				Debug::WriteLine(String::Format("tjBufSizeYUV2, yuvSizeCheck[{0}] != {1}", yuvSizeCheck, yuvSize));
-				return -1;
+				int yuvSizeCheck = tjBufSizeYUV2(width, pad, height, TJSAMP_420);
+				if (yuvSizeCheck != yuvSize)
+				{
+					Debug::WriteLine(String::Format("tjBufSizeYUV2, yuvSizeCheck[{0}] != {1}", yuvSizeCheck, yuvSize));
+					return -1;
+				}
 			}
 
 			int r = tjEncodeYUV3(jpegc, rgbBuf, width, pitch, height, TJPF_BGR, yuv, pad, TJSAMP_420, fast ? TJFLAG_FASTDCT : TJFLAG_ACCURATEDCT);

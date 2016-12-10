@@ -18,7 +18,6 @@ namespace Native
 	typedef void(__stdcall *OnSuccessCallbackNative)(const char * type, const char * sdp);
 	typedef void(__stdcall *OnFailureCallbackNative)(const char * error);
 	typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdp_mid, int sdp_mline_index, const char * sdp);
-	typedef void(__stdcall *OnFillBufferCallbackNative)(uint8_t * frame_buffer, uint32_t yuvSize);
 	typedef void(__stdcall *OnRenderCallbackNative)(uint8_t * frame_buffer, uint32_t w, uint32_t h);
 	typedef void(__stdcall *OnDataMessageCallbackNative)(const char * msg);
 
@@ -44,12 +43,23 @@ namespace Native
 		}
 
 		bool OpenVideoCaptureDevice();
-		void OnFillBuffer(uint8_t * frame_buffer, uint32_t yuvSize);
 		void AddServerConfig(std::string uri, std::string username, std::string password);
 
-		void SetAudio(bool enable)
+		uint8_t * VideoCapturerI420Buffer()
 		{
-			audioEnabled = enable;
+			if (capturer)
+			{
+				return (uint8_t*)capturer->video_buffer->DataY();
+			}
+			return nullptr;
+		}
+
+		void PushFrame()
+		{
+			if (capturer)
+			{
+				capturer->PushFrame();
+			}
 		}
 
 		void CreateDataChannel(const std::string & label);
@@ -59,7 +69,6 @@ namespace Native
 		OnSuccessCallbackNative onSuccess;
 		OnFailureCallbackNative onFailure;
 		OnIceCandidateCallbackNative onIceCandidate;
-		OnFillBufferCallbackNative onFillBuffer;
 		OnRenderCallbackNative onRenderLocal;
 		OnRenderCallbackNative onRenderRemote;
 		OnDataMessageCallbackNative onDataMessage;
@@ -159,29 +168,30 @@ namespace Native
 
 		bool CreatePeerConnection(bool dtls);
 		void DeletePeerConnection();
-		void AddStreams();
-
-		cricket::VideoCapturer * capturer;
+		void AddStreams();		
 
 		rtc::scoped_refptr<webrtc::PeerConnectionInterface> peer_connection_;
 		rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> pc_factory_;
 		std::map<std::string, rtc::scoped_refptr<webrtc::MediaStreamInterface>> active_streams_;
-
 		rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel;
-
 		std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
 
+		std::unique_ptr<YuvFramesCapturer2> capturer;
+		std::unique_ptr<cricket::VideoCapturer> capturer_internal;
 		std::unique_ptr<VideoRenderer> local_video;
 		std::unique_ptr<VideoRenderer> remote_video;
 		std::unique_ptr<AudioRenderer> remote_audio;
 
-		cricket::TurnServer * turnServer;
-		cricket::StunServer * stunServer;
+		std::unique_ptr<cricket::TurnServer> turnServer;
+		std::unique_ptr<cricket::StunServer> stunServer;
 
 	public:
 		int caputureFps;
 		bool barcodeEnabled;
 		bool audioEnabled;
+
+		int width_;
+		int height_;
 	};
 }
 #endif  // WEBRTC_NET_CONDUCTOR_H_
