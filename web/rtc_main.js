@@ -25,7 +25,7 @@ var servers = {
                  { url: 'stun:stun.l.google.com:19302' },
                  { url: 'stun:stun.stunprotocol.org:3478' },
                  { url: 'stun:stun.anyfirewall.com:3478' },
-                 { url: 'turn:127.0.0.1:3478', username: 'test', credential: 'test' }
+                 { url: 'turn:192.168.0.100:3478', username: 'test', credential: 'test' }
              ]
 };
 
@@ -55,7 +55,7 @@ var dataChannelOptions = {
 };
 
 window.onload = function () {
-    //getLocalStream();
+    document.getElementById('btnconnect').disabled = false;
 }
 
 function send(data) {

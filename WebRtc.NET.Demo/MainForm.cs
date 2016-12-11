@@ -27,6 +27,8 @@ namespace WebRtc.NET.Demo
 
             FormClosing += MainForm_FormClosing;
             Shown += MainForm_Shown;
+
+            textBoxExtIP.Text = "192.168.0.100";
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)

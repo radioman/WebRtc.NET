@@ -184,7 +184,7 @@ namespace WebRtc.NET.Demo
                                             session.WebRtc.AddServerConfig("stun:stun.l.google.com:19302", string.Empty, string.Empty);
                                             session.WebRtc.AddServerConfig("stun:stun.anyfirewall.com:3478", string.Empty, string.Empty);
                                             session.WebRtc.AddServerConfig("stun:stun.stunprotocol.org:3478", string.Empty, string.Empty);
-                                            //session.WebRtc.AddServerConfig("turn:127.0.0.1:444", "test", "test");
+                                            //session.WebRtc.AddServerConfig("turn:192.168.0.100:3478", "test", "test");
 
                                             session.WebRtc.SetAudio(MainForm.audio);
                                             session.WebRtc.SetVideoCapturer(MainForm.screenWidth,
