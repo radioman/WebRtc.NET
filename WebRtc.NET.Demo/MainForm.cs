@@ -29,13 +29,15 @@ namespace WebRtc.NET.Demo
             Shown += MainForm_Shown;
 
             textBoxExtIP.Text = "192.168.0.100";
+
+            comboBoxVideo.DataSource = ManagedConductor.GetVideoDevices();
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (encoder != null)
+            if (encoderRemote != null)
             {
-                encoder.Dispose();
+                encoderRemote.Dispose();
             }
 
             if (webSocketServer != null)
@@ -50,19 +52,19 @@ namespace WebRtc.NET.Demo
             checkBoxWebsocket.Checked = true;
         }
 
-        readonly TurboJpegEncoder encoder = TurboJpegEncoder.CreateEncoder();
+        readonly TurboJpegEncoder encoderRemote = TurboJpegEncoder.CreateEncoder();
 
-        byte[] bgrBuff;
+        byte[] bgrBuffremote;
         Bitmap remoteImg;
         public unsafe void OnRenderRemote(byte* yuv, uint w, uint h)
         {
             lock (pictureBoxRemote)
             {
-                if (0 == encoder.EncodeI420toBGR24(yuv, w, h, ref bgrBuff, true))
+                if (0 == encoderRemote.EncodeI420toBGR24(yuv, w, h, ref bgrBuffremote, true))
                 {
                     if (remoteImg == null)
                     {
-                        var bufHandle = GCHandle.Alloc(bgrBuff, GCHandleType.Pinned);
+                        var bufHandle = GCHandle.Alloc(bgrBuffremote, GCHandleType.Pinned);
                         remoteImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, bufHandle.AddrOfPinnedObject());
                     }
                 }
@@ -86,7 +88,58 @@ namespace WebRtc.NET.Demo
                     f.pictureBoxRemote.Image = f.remoteImg;
                     f.tabControl1.SelectTab(f.tabPage2);
                 }
-                f.pictureBoxRemote.Invalidate();
+
+                if (f.tabControl1.SelectedTab == f.tabPage2)
+                {
+                    f.pictureBoxRemote.Invalidate();
+                }
+            }
+        });
+
+        readonly TurboJpegEncoder encoderLocal = TurboJpegEncoder.CreateEncoder();
+        byte[] bgrBufflocal;
+        Bitmap localImg;
+        public unsafe void OnRenderLocal(byte* yuv, uint w, uint h)
+        {
+            lock (pictureBoxLocal)
+            {
+                if (0 == encoderLocal.EncodeI420toBGR24(yuv, w, h, ref bgrBufflocal, true))
+                {
+                    if (remoteImg == null)
+                    {
+                        var bufHandle = GCHandle.Alloc(bgrBufflocal, GCHandleType.Pinned);
+                        localImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, bufHandle.AddrOfPinnedObject());
+                    }
+                }
+            }
+
+            try
+            {
+                Invoke(renderLocal, this);
+            }
+            catch // don't throw on form exit
+            {
+            }
+        }
+
+        readonly Action<MainForm> renderLocal = new Action<MainForm>(delegate (MainForm f)
+        {
+            lock (f.pictureBoxLocal)
+            {
+                if (f.pictureBoxLocal.Image == null)
+                {
+                    f.pictureBoxLocal.Image = f.localImg;
+
+                    if (f.pictureBoxRemote.Image == null)
+                    {
+                        f.tabControl1.SelectTab(f.tabPage3);
+                    }
+                }
+
+                if (f.tabControl1.SelectedTab == f.tabPage3)
+                {
+                    f.pictureBoxLocal.Invalidate();
+                }
             }
         });
 
@@ -112,18 +165,6 @@ namespace WebRtc.NET.Demo
 
         // ...
 
-        internal bool SetEncode = true;
-        internal bool SetView = true;
-
-        private void checkBoxEncode_CheckedChanged(object sender, EventArgs e)
-        {
-            lock (this)
-            {
-                SetEncode = checkBoxEncode.Checked;
-                SetView = checkBoxView.Checked;
-            }
-        }
-
         private void numericMaxClients_ValueChanged(object sender, EventArgs e)
         {
             if (webSocketServer != null)
@@ -147,12 +188,13 @@ namespace WebRtc.NET.Demo
                     unsafe
                     {
                         webSocketServer.OnRenderRemote = OnRenderRemote;
+                        webSocketServer.OnRenderLocal = OnRenderLocal;
                     }
                     numericMaxClients_ValueChanged(null, null);
 
-                    if (checkBoxDemo.Checked)
+                    if (checkBoxVirtualCam.Checked)
                     {
-                        checkBoxDemo_CheckedChanged(null, null);
+                        checkBoxVirtualCam_CheckedChanged(null, null);
                     }
                 }
             }
@@ -162,7 +204,7 @@ namespace WebRtc.NET.Demo
             }
         }
 
-        private System.Windows.Forms.Timer timerDemo;
+        private System.Windows.Forms.Timer timerVirtualCam;
 
         public const bool audio = true;
         public const int screenWidth = 640;
@@ -173,9 +215,7 @@ namespace WebRtc.NET.Demo
         readonly byte[] imgBuf = new byte[screenWidth * 3 * screenHeight];
         IntPtr imgBufPtr = IntPtr.Zero;
         Bitmap img;
-        readonly Bitmap imgView = new Bitmap(screenWidth, screenHeight, PixelFormat.Format24bppRgb);
-
-        private void timerDemo_Tick(object sender, EventArgs e)
+        private void timerVirtualCam_Tick(object sender, EventArgs e)
         {
             try
             {
@@ -186,7 +226,6 @@ namespace WebRtc.NET.Demo
                     img = new Bitmap(screenWidth, screenHeight, screenWidth * 3, PixelFormat.Format24bppRgb, imgBufPtr);
                 }
 
-                if (SetEncode)
                 {
                     using (var g = Graphics.FromImage(img))
                     {
@@ -205,33 +244,11 @@ namespace WebRtc.NET.Demo
                                 var yuv = s.Value.WebRtc.VideoCapturerI420Buffer();
                                 if (yuv != null)
                                 {
-                                    encoder.EncodeBGR24toI420((byte*)imgBufPtr.ToPointer(), screenWidth, screenHeight, yuv, 0, true);
+                                    encoderRemote.EncodeBGR24toI420((byte*)imgBufPtr.ToPointer(), screenWidth, screenHeight, yuv, 0, true);
                                 }
                             }
                         }
                         s.Value.WebRtc.PushFrame();
-                    }
-                }
-
-                if (SetView)
-                {
-                    lock (imgView)
-                    {
-                        using (var g = Graphics.FromImage(imgView))
-                        {
-                            g.Clear(Color.DarkBlue);
-
-                            var rc = RectangleF.FromLTRB(0, 0, img.Width, img.Height);
-                            g.DrawString(string.Format("{0}", DateTime.Now.ToString("hh:mm:ss.fff")), fBig, Brushes.LimeGreen, rc, sfTopRight);
-                        }
-
-                        if (pictureBoxPreview.Image == null)
-                        {
-                            pictureBoxPreview.Image = imgView;
-                        }
-                        {
-                            pictureBoxPreview.Invalidate();
-                        }
                     }
                 }
             }
@@ -241,15 +258,15 @@ namespace WebRtc.NET.Demo
             }
         }
 
-        private void checkBoxDemo_CheckedChanged(object sender, EventArgs e)
+        private void checkBoxVirtualCam_CheckedChanged(object sender, EventArgs e)
         {
-            if (timerDemo == null)
+            if (timerVirtualCam == null)
             {
-                timerDemo = new System.Windows.Forms.Timer();
-                timerDemo.Interval = 1000 / captureFps;
-                timerDemo.Tick += timerDemo_Tick;
+                timerVirtualCam = new System.Windows.Forms.Timer();
+                timerVirtualCam.Interval = 1000 / captureFps;
+                timerVirtualCam.Tick += timerVirtualCam_Tick;
             }
-            timerDemo.Enabled = checkBoxDemo.Checked;
+            timerVirtualCam.Enabled = checkBoxVirtualCam.Checked;
         }
 
         CancellationTokenSource turnCancel;
@@ -299,6 +316,12 @@ namespace WebRtc.NET.Demo
                     checkBoxTurn.Enabled = false; // after dispose it fails to start again wtf?.. ;/
                 }
             }
+        }
+
+        internal string videoDevice = string.Empty;
+        private void comboBoxVideo_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            videoDevice = comboBoxVideo.SelectedItem as string;
         }
     }
 }

@@ -223,9 +223,24 @@ namespace WebRtc
 				return cd->ProcessMessages(delay);
 			}
 
-			bool OpenVideoCaptureDevice()
+			bool OpenVideoCaptureDevice(String ^ name)
 			{
-				return cd->OpenVideoCaptureDevice();
+				return cd->OpenVideoCaptureDevice(marshal_as<std::string>(name));
+			}
+
+			static System::Collections::Generic::List<String^> ^ GetVideoDevices()
+			{
+				System::Collections::Generic::List<String^> ^ ret = nullptr;
+				std::vector<std::string> devices = Native::Conductor::GetVideoDevices();
+				for (const auto & d : devices)
+				{
+					if (ret == nullptr)
+					{
+						ret = gcnew System::Collections::Generic::List<String^>();
+					}
+					ret->Add(marshal_as<String^>(d));
+				}
+				return ret;
 			}
 
 			void OnOfferReply(String ^ type, String ^ sdp)

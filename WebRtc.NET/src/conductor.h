@@ -42,7 +42,8 @@ namespace Native
 			return rtc::Thread::Current()->ProcessMessages(delay);
 		}
 
-		bool OpenVideoCaptureDevice();
+		static std::vector<std::string> GetVideoDevices();
+		bool OpenVideoCaptureDevice(std::string & name);
 		void AddServerConfig(std::string uri, std::string username, std::string password);
 
 		uint8_t * VideoCapturerI420Buffer()

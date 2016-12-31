@@ -95,7 +95,7 @@ function startStream() {
                 if (!remotestream) {
                     clearInterval(tmsg);
                 }
-                else if(dataChannel) {
+                else if(dataChannel && dataChannel.readyState == "open") {
                     dataChannel.send("TEST_" + testmsgcount++ + ", feedback: " + feedbackmsg);
                 }
             }, 1000);

@@ -187,10 +187,22 @@ namespace WebRtc.NET.Demo
                                             //session.WebRtc.AddServerConfig("turn:192.168.0.100:3478", "test", "test");
 
                                             session.WebRtc.SetAudio(MainForm.audio);
-                                            session.WebRtc.SetVideoCapturer(MainForm.screenWidth,
-                                                                            MainForm.screenHeight,
-                                                                            MainForm.captureFps,
-                                                                            MainForm.barCodeScreen);
+
+                                            if (!Form.checkBoxVirtualCam.Checked)
+                                            {
+                                                if (!string.IsNullOrEmpty(Form.videoDevice))
+                                                {
+                                                    var vok = session.WebRtc.OpenVideoCaptureDevice(Form.videoDevice);
+                                                    Trace.WriteLine($"OpenVideoCaptureDevice: {vok}, {Form.videoDevice}");
+                                                }
+                                            }
+                                            else
+                                            {
+                                                session.WebRtc.SetVideoCapturer(MainForm.screenWidth,
+                                                                                MainForm.screenHeight,
+                                                                                MainForm.captureFps,
+                                                                                MainForm.barCodeScreen);
+                                            }
 
                                             var ok = session.WebRtc.InitializePeerConnection();
                                             if (ok)
@@ -258,6 +270,11 @@ namespace WebRtc.NET.Demo
                                             {
                                                 OnRenderRemote(frame_buffer, w, h);
                                             };
+
+                                            session.WebRtc.OnRenderLocal += delegate (byte* frame_buffer, uint w, uint h)
+                                            {
+                                                OnRenderLocal(frame_buffer, w, h);
+                                            };
                                         }
 
                                         var d = msgJson["desc"];
@@ -290,6 +307,7 @@ namespace WebRtc.NET.Demo
         }
 
         public ManagedConductor.OnCallbackRender OnRenderRemote;
+        public ManagedConductor.OnCallbackRender OnRenderLocal;
 
         public void Dispose()
         {

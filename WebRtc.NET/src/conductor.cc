@@ -260,7 +260,7 @@ namespace Native
 
 	// ...
 
-	bool Conductor::OpenVideoCaptureDevice()
+	std::vector<std::string> Conductor::GetVideoDevices()
 	{
 		std::vector<std::string> device_names;
 		{
@@ -280,18 +280,18 @@ namespace Native
 				}
 			}
 		}
-
+		return device_names;
+	}
+	
+	bool Conductor::OpenVideoCaptureDevice(std::string & name)
+	{
 		cricket::WebRtcVideoDeviceCapturerFactory factory;
-		for (const auto& name : device_names)
+		capturer_internal.reset(factory.Create(cricket::Device(name, 0)));
+		if (capturer_internal)
 		{
-			capturer_internal.reset(factory.Create(cricket::Device(name, 0)));
-			if (capturer_internal)
-			{
-				LOG(LS_ERROR) << "Capturer != NULL!";
-				return true;
-			}
+			LOG(LS_ERROR) << "Capturer != NULL!";
+			return true;
 		}
-
 		return false;
 	}
 
