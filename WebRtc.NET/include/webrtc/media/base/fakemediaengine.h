@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "webrtc/api/call/audio_sink.h"
+#include "webrtc/base/checks.h"
 #include "webrtc/base/copyonwritebuffer.h"
 #include "webrtc/base/networkroute.h"
 #include "webrtc/base/stringutils.h"
@@ -468,7 +469,7 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
     auto it = local_sinks_.find(ssrc);
     if (source) {
       if (it != local_sinks_.end()) {
-        ASSERT(it->second->source() == source);
+        RTC_DCHECK(it->second->source() == source);
       } else {
         local_sinks_.insert(
             std::make_pair(ssrc, new VoiceChannelAudioSink(source)));
@@ -753,10 +754,10 @@ class FakeBaseEngine {
 
 class FakeVoiceEngine : public FakeBaseEngine {
  public:
-  FakeVoiceEngine(
-      webrtc::AudioDeviceModule* adm,
-      const rtc::scoped_refptr<webrtc::AudioDecoderFactory>&
-          audio_decoder_factory) {
+  FakeVoiceEngine(webrtc::AudioDeviceModule* adm,
+                  const rtc::scoped_refptr<webrtc::AudioDecoderFactory>&
+                      audio_decoder_factory,
+                  rtc::scoped_refptr<webrtc::AudioMixer> audio_mixer) {
     // Add a fake audio codec. Note that the name must not be "" as there are
     // sanity checks against that.
     codecs_.push_back(AudioCodec(101, "fake_audio_codec", 0, 0, 1));
@@ -864,6 +865,7 @@ class FakeMediaEngine :
  public:
   FakeMediaEngine()
       : CompositeMediaEngine<FakeVoiceEngine, FakeVideoEngine>(nullptr,
+                                                               nullptr,
                                                                nullptr) {}
   virtual ~FakeMediaEngine() {}
 
@@ -941,10 +943,9 @@ inline FakeVideoMediaChannel::~FakeVideoMediaChannel() {
 
 class FakeDataEngine : public DataEngineInterface {
  public:
-  FakeDataEngine() : last_channel_type_(DCT_NONE) {}
+  FakeDataEngine(){};
 
-  virtual DataMediaChannel* CreateChannel(DataChannelType data_channel_type) {
-    last_channel_type_ = data_channel_type;
+  virtual DataMediaChannel* CreateChannel(const MediaConfig& config) {
     FakeDataMediaChannel* ch = new FakeDataMediaChannel(this, DataOptions());
     channels_.push_back(ch);
     return ch;
@@ -964,12 +965,9 @@ class FakeDataEngine : public DataEngineInterface {
 
   virtual const std::vector<DataCodec>& data_codecs() { return data_codecs_; }
 
-  DataChannelType last_channel_type() const { return last_channel_type_; }
-
  private:
   std::vector<FakeDataMediaChannel*> channels_;
   std::vector<DataCodec> data_codecs_;
-  DataChannelType last_channel_type_;
 };
 
 }  // namespace cricket

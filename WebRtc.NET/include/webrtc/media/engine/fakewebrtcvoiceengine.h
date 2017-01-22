@@ -11,13 +11,15 @@
 #ifndef WEBRTC_MEDIA_ENGINE_FAKEWEBRTCVOICEENGINE_H_
 #define WEBRTC_MEDIA_ENGINE_FAKEWEBRTCVOICEENGINE_H_
 
+#include <stddef.h>
+
 #include <list>
 #include <map>
 #include <vector>
 
-#include "webrtc/base/basictypes.h"
 #include "webrtc/base/checks.h"
 #include "webrtc/base/stringutils.h"
+#include "webrtc/base/checks.h"
 #include "webrtc/config.h"
 #include "webrtc/media/base/codec.h"
 #include "webrtc/media/base/rtputils.h"
@@ -325,12 +327,12 @@ class FakeWebRtcVoiceEngine
   }
   size_t GetNetEqCapacity() const {
     auto ch = channels_.find(last_channel_);
-    ASSERT(ch != channels_.end());
+    RTC_DCHECK(ch != channels_.end());
     return ch->second->neteq_capacity;
   }
   bool GetNetEqFastAccelerate() const {
     auto ch = channels_.find(last_channel_);
-    ASSERT(ch != channels_.end());
+    RTC_DCHECK(ch != channels_.end());
     return ch->second->neteq_fast_accelerate;
   }
 

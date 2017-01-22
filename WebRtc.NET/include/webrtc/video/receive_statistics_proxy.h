@@ -21,6 +21,7 @@
 #include "webrtc/common_types.h"
 #include "webrtc/common_video/include/frame_callback.h"
 #include "webrtc/modules/video_coding/include/video_coding_defines.h"
+#include "webrtc/video/quality_threshold.h"
 #include "webrtc/video/report_block_stats.h"
 #include "webrtc/video/stats_counter.h"
 #include "webrtc/video/video_stream_decoder.h"
@@ -84,17 +85,20 @@ class ReceiveStatisticsProxy : public VCMReceiveStatisticsCallback,
   struct SampleCounter {
     SampleCounter() : sum(0), num_samples(0) {}
     void Add(int sample);
-    int Avg(int min_required_samples) const;
+    int Avg(int64_t min_required_samples) const;
+    void Reset();
 
    private:
-    int sum;
-    int num_samples;
+    int64_t sum;
+    int64_t num_samples;
   };
   struct QpCounters {
     SampleCounter vp8;
   };
 
   void UpdateHistograms() EXCLUSIVE_LOCKS_REQUIRED(crit_);
+
+  void QualitySample() EXCLUSIVE_LOCKS_REQUIRED(crit_);
 
   Clock* const clock_;
   // Ownership of this object lies with the owner of the ReceiveStatisticsProxy
@@ -108,6 +112,13 @@ class ReceiveStatisticsProxy : public VCMReceiveStatisticsCallback,
   const int64_t start_ms_;
 
   rtc::CriticalSection crit_;
+  int64_t last_sample_time_ GUARDED_BY(crit_);
+  QualityThreshold fps_threshold_ GUARDED_BY(crit_);
+  QualityThreshold qp_threshold_ GUARDED_BY(crit_);
+  QualityThreshold variance_threshold_ GUARDED_BY(crit_);
+  SampleCounter qp_sample_ GUARDED_BY(crit_);
+  int num_bad_states_ GUARDED_BY(crit_);
+  int num_certain_states_ GUARDED_BY(crit_);
   VideoReceiveStream::Stats stats_ GUARDED_BY(crit_);
   RateStatistics decode_fps_estimator_ GUARDED_BY(crit_);
   RateStatistics renders_fps_estimator_ GUARDED_BY(crit_);
@@ -123,6 +134,7 @@ class ReceiveStatisticsProxy : public VCMReceiveStatisticsCallback,
   SampleCounter delay_counter_ GUARDED_BY(crit_);
   SampleCounter e2e_delay_counter_ GUARDED_BY(crit_);
   MaxCounter freq_offset_counter_ GUARDED_BY(crit_);
+  int64_t first_report_block_time_ms_ GUARDED_BY(crit_);
   ReportBlockStats report_block_stats_ GUARDED_BY(crit_);
   QpCounters qp_counters_;  // Only accessed on the decoding thread.
   std::map<uint32_t, StreamDataCounters> rtx_stats_ GUARDED_BY(crit_);

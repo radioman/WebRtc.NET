@@ -15,6 +15,7 @@
 #include <string>
 
 #include "webrtc/api/webrtcsession.h"
+#include "webrtc/media/sctp/sctptransportinternal.h"
 #include "webrtc/test/gmock.h"
 
 namespace webrtc {
@@ -35,14 +36,16 @@ class MockWebRtcSession : public webrtc::WebRtcSession {
             std::unique_ptr<cricket::TransportController>(
                 new cricket::TransportController(rtc::Thread::Current(),
                                                  rtc::Thread::Current(),
-                                                 nullptr))) {}
+                                                 nullptr)),
+            std::unique_ptr<cricket::SctpTransportInternalFactory>()) {}
   MOCK_METHOD0(voice_channel, cricket::VoiceChannel*());
   MOCK_METHOD0(video_channel, cricket::VideoChannel*());
   // Libjingle uses "local" for a outgoing track, and "remote" for a incoming
   // track.
   MOCK_METHOD2(GetLocalTrackIdBySsrc, bool(uint32_t, std::string*));
   MOCK_METHOD2(GetRemoteTrackIdBySsrc, bool(uint32_t, std::string*));
-  MOCK_METHOD1(GetTransportStats, bool(SessionStats*));
+  MOCK_METHOD1(GetStats,
+               std::unique_ptr<SessionStats>(const ChannelNamePairs&));
   MOCK_METHOD2(GetLocalCertificate,
                bool(const std::string& transport_name,
                     rtc::scoped_refptr<rtc::RTCCertificate>* certificate));

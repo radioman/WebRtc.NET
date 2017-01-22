@@ -44,6 +44,7 @@ struct SimulationSettings {
   rtc::Optional<std::string> reverse_output_filename;
   rtc::Optional<std::string> input_filename;
   rtc::Optional<std::string> reverse_input_filename;
+  rtc::Optional<std::string> artificial_nearend_filename;
   rtc::Optional<bool> use_aec;
   rtc::Optional<bool> use_aecm;
   rtc::Optional<bool> use_ed;  // Residual Echo Detector.
@@ -80,6 +81,7 @@ struct SimulationSettings {
   rtc::Optional<std::string> aec_dump_output_filename;
   bool fixed_interface = false;
   bool store_intermediate_output = false;
+  rtc::Optional<std::string> custom_call_order_filename;
 };
 
 // Holds a few statistics about a series of TickIntervals.

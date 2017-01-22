@@ -27,8 +27,8 @@
 #include "webrtc/modules/rtp_rtcp/include/remote_ntp_time_estimator.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_header_parser.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp.h"
-#include "webrtc/modules/utility/include/file_player.h"
-#include "webrtc/modules/utility/include/file_recorder.h"
+#include "webrtc/voice_engine/file_player.h"
+#include "webrtc/voice_engine/file_recorder.h"
 #include "webrtc/voice_engine/include/voe_audio_processing.h"
 #include "webrtc/voice_engine/include/voe_base.h"
 #include "webrtc/voice_engine/include/voe_network.h"
@@ -67,6 +67,7 @@ namespace voe {
 
 class OutputMixer;
 class RtcEventLogProxy;
+class RtcpRttStatsProxy;
 class RtpPacketSenderProxy;
 class Statistics;
 class StatisticsProxy;
@@ -142,8 +143,8 @@ class Channel
       public AudioPacketizationCallback,  // receive encoded packets from the
                                           // ACM
       public ACMVADCallback,              // receive voice activity from the ACM
-      public MixerParticipant  // supplies output mixer with audio frames
-{
+      public MixerParticipant,  // supplies output mixer with audio frames
+      public OverheadObserver {
  public:
   friend class VoERtcpObserver;
 
@@ -191,10 +192,11 @@ class Channel
   int32_t GetSendCodec(CodecInst& codec);
   int32_t GetRecCodec(CodecInst& codec);
   int32_t SetSendCodec(const CodecInst& codec);
-  void SetBitRate(int bitrate_bps);
+  void SetBitRate(int bitrate_bps, int64_t probing_interval_ms);
   int32_t SetVADStatus(bool enableVAD, ACMVADMode mode, bool disableDTX);
   int32_t GetVADStatus(bool& enabledVAD, ACMVADMode& mode, bool& disabledDTX);
   int32_t SetRecPayloadType(const CodecInst& codec);
+  int32_t SetRecPayloadType(int payload_type, const SdpAudioFormat& format);
   int32_t GetRecPayloadType(CodecInst& codec);
   int32_t SetSendCNPayloadType(int type, PayloadFrequencies frequency);
   int SetOpusMaxPlaybackRate(int frequency_hz);
@@ -412,7 +414,11 @@ class Channel
   // Set a RtcEventLog logging object.
   void SetRtcEventLog(RtcEventLog* event_log);
 
-  void SetTransportOverhead(int transport_overhead_per_packet);
+  void SetRtcpRttStats(RtcpRttStats* rtcp_rtt_stats);
+  void SetTransportOverhead(size_t transport_overhead_per_packet);
+
+  // From OverheadObserver in the RTP/RTCP module
+  void OnOverheadChanged(size_t overhead_bytes_per_packet) override;
 
  protected:
   void OnIncomingFractionLoss(int fraction_lost);
@@ -437,6 +443,8 @@ class Channel
                                 RTPExtensionType type,
                                 unsigned char id);
 
+  void UpdateOverheadForEncoder();
+
   int GetRtpTimestampRateHz() const;
   int64_t GetRTT(bool allow_associate_channel) const;
 
@@ -449,6 +457,7 @@ class Channel
   ChannelState channel_state_;
 
   std::unique_ptr<voe::RtcEventLogProxy> event_log_proxy_;
+  std::unique_ptr<voe::RtcpRttStatsProxy> rtcp_rtt_stats_proxy_;
 
   std::unique_ptr<RtpHeaderParser> rtp_header_parser_;
   std::unique_ptr<RTPPayloadRegistry> rtp_payload_registry_;
@@ -507,7 +516,7 @@ class Channel
   VoiceEngineObserver* _voiceEngineObserverPtr;  // owned by base
   rtc::CriticalSection* _callbackCritSectPtr;    // owned by base
   Transport* _transportPtr;  // WebRtc socket or external transport
-  RMSLevel rms_level_;
+  RmsLevel rms_level_;
   int32_t _sendFrameType;  // Send data is voice, 1-voice, 0-otherwise
   // VoEBase
   bool _externalMixing;
@@ -522,6 +531,8 @@ class Channel
   uint32_t _lastLocalTimeStamp;
   int8_t _lastPayloadType;
   bool _includeAudioLevelIndication;
+  size_t transport_overhead_per_packet_;
+  size_t rtp_overhead_per_packet_;
   // VoENetwork
   AudioFrame::SpeechType _outputSpeechType;
   // VoEVideoSync

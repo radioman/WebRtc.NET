@@ -41,6 +41,8 @@ class FrameBuffer {
               VCMJitterEstimator* jitter_estimator,
               VCMTiming* timing);
 
+  virtual ~FrameBuffer();
+
   // Insert a frame into the frame buffer. Returns the picture id
   // of the last continuous frame or -1 if there is no continuous frame.
   int InsertFrame(std::unique_ptr<FrameObject> frame);
@@ -137,6 +139,12 @@ class FrameBuffer {
                                         FrameMap::iterator info)
       EXCLUSIVE_LOCKS_REQUIRED(crit_);
 
+  void UpdateJitterDelay() EXCLUSIVE_LOCKS_REQUIRED(crit_);
+
+  void UpdateHistograms() const;
+
+  void ClearFramesAndHistory() EXCLUSIVE_LOCKS_REQUIRED(crit_);
+
   FrameMap frames_ GUARDED_BY(crit_);
 
   rtc::CriticalSection crit_;
@@ -145,6 +153,7 @@ class FrameBuffer {
   VCMJitterEstimator* const jitter_estimator_ GUARDED_BY(crit_);
   VCMTiming* const timing_ GUARDED_BY(crit_);
   VCMInterFrameDelay inter_frame_delay_ GUARDED_BY(crit_);
+  uint32_t last_decoded_frame_timestamp_ GUARDED_BY(crit_);
   FrameMap::iterator last_decoded_frame_it_ GUARDED_BY(crit_);
   FrameMap::iterator last_continuous_frame_it_ GUARDED_BY(crit_);
   int num_frames_history_ GUARDED_BY(crit_);
@@ -153,6 +162,14 @@ class FrameBuffer {
   VCMVideoProtection protection_mode_ GUARDED_BY(crit_);
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(FrameBuffer);
+
+  // For WebRTC.Video.JitterBufferDelayInMs metric.
+  int64_t accumulated_delay_ = 0;
+  int64_t accumulated_delay_samples_ = 0;
+
+  // For WebRTC.Video.KeyFramesReceivedInPermille metric.
+  int64_t num_total_frames_ = 0;
+  int64_t num_key_frames_ = 0;
 };
 
 }  // namespace video_coding

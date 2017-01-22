@@ -32,7 +32,6 @@ struct RTCStatsIceCandidatePairState {
   static const char* kInProgress;
   static const char* kFailed;
   static const char* kSucceeded;
-  static const char* kCancelled;
 };
 
 // https://w3c.github.io/webrtc-pc/#rtcicecandidatetype-enum
@@ -41,6 +40,23 @@ struct RTCIceCandidateType {
   static const char* kSrflx;
   static const char* kPrflx;
   static const char* kRelay;
+};
+
+// https://w3c.github.io/webrtc-pc/#idl-def-rtcdtlstransportstate
+struct RTCDtlsTransportState {
+  static const char* kNew;
+  static const char* kConnecting;
+  static const char* kConnected;
+  static const char* kClosed;
+  static const char* kFailed;
+};
+
+// |RTCMediaStreamTrackStats::kind| is not an enum in the spec but the only
+// valid values are "audio" and "video".
+// https://w3c.github.io/webrtc-stats/#dom-rtcmediastreamtrackstats-kind
+struct RTCMediaStreamTrackKind {
+  static const char* kAudio;
+  static const char* kVideo;
 };
 
 // https://w3c.github.io/webrtc-stats/#certificatestats-dict*
@@ -115,15 +131,12 @@ class RTCIceCandidatePairStats final : public RTCStats {
   RTCIceCandidatePairStats(const RTCIceCandidatePairStats& other);
   ~RTCIceCandidatePairStats() override;
 
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550, 653873
   RTCStatsMember<std::string> transport_id;
   RTCStatsMember<std::string> local_candidate_id;
   RTCStatsMember<std::string> remote_candidate_id;
   // TODO(hbos): Support enum types?
   // "RTCStatsMember<RTCStatsIceCandidatePairState>"?
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
   RTCStatsMember<std::string> state;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
   RTCStatsMember<uint64_t> priority;
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
   RTCStatsMember<bool> nominated;
@@ -135,15 +148,14 @@ class RTCIceCandidatePairStats final : public RTCStats {
   RTCStatsMember<uint64_t> bytes_sent;
   RTCStatsMember<uint64_t> bytes_received;
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
-  RTCStatsMember<double> total_rtt;
+  RTCStatsMember<double> total_round_trip_time;
   // TODO(hbos): Collected by |RTCStatsCollector| but different than the spec.
   // crbug.com/633550
-  RTCStatsMember<double> current_rtt;
+  RTCStatsMember<double> current_round_trip_time;
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
   RTCStatsMember<double> available_outgoing_bitrate;
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
   RTCStatsMember<double> available_incoming_bitrate;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
   RTCStatsMember<uint64_t> requests_received;
   RTCStatsMember<uint64_t> requests_sent;
   RTCStatsMember<uint64_t> responses_received;
@@ -154,7 +166,6 @@ class RTCIceCandidatePairStats final : public RTCStats {
   RTCStatsMember<uint64_t> retransmissions_sent;
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
   RTCStatsMember<uint64_t> consent_requests_received;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
   RTCStatsMember<uint64_t> consent_requests_sent;
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
   RTCStatsMember<uint64_t> consent_responses_received;
@@ -173,6 +184,8 @@ class RTCIceCandidateStats : public RTCStats {
   RTCIceCandidateStats(const RTCIceCandidateStats& other);
   ~RTCIceCandidateStats() override;
 
+  RTCStatsMember<std::string> transport_id;
+  RTCStatsMember<bool> is_remote;
   RTCStatsMember<std::string> ip;
   RTCStatsMember<int32_t> port;
   RTCStatsMember<std::string> protocol;
@@ -181,10 +194,14 @@ class RTCIceCandidateStats : public RTCStats {
   RTCStatsMember<int32_t> priority;
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/632723
   RTCStatsMember<std::string> url;
+  // TODO(hbos): |deleted = true| case is not supported by |RTCStatsCollector|.
+  // crbug.com/632723
+  RTCStatsMember<bool> deleted;  // = false
 
  protected:
-  RTCIceCandidateStats(const std::string& id, int64_t timestamp_us);
-  RTCIceCandidateStats(std::string&& id, int64_t timestamp_us);
+  RTCIceCandidateStats(
+      const std::string& id, int64_t timestamp_us, bool is_remote);
+  RTCIceCandidateStats(std::string&& id, int64_t timestamp_us, bool is_remote);
 };
 
 // In the spec both local and remote varieties are of type RTCIceCandidateStats.
@@ -228,8 +245,10 @@ class RTCMediaStreamTrackStats final : public RTCStats {
  public:
   WEBRTC_RTCSTATS_DECL();
 
-  RTCMediaStreamTrackStats(const std::string& id, int64_t timestamp_us);
-  RTCMediaStreamTrackStats(std::string&& id, int64_t timestamp_us);
+  RTCMediaStreamTrackStats(const std::string& id, int64_t timestamp_us,
+                           const char* kind);
+  RTCMediaStreamTrackStats(std::string&& id, int64_t timestamp_us,
+                           const char* kind);
   RTCMediaStreamTrackStats(const RTCMediaStreamTrackStats& other);
   ~RTCMediaStreamTrackStats() override;
 
@@ -239,18 +258,15 @@ class RTCMediaStreamTrackStats final : public RTCStats {
   // TODO(hbos): |RTCStatsCollector| does not return stats for detached tracks.
   // crbug.com/659137
   RTCStatsMember<bool> detached;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
-  RTCStatsMember<std::vector<std::string>> ssrc_ids;
+  // See |RTCMediaStreamTrackKind| for valid values.
+  RTCStatsMember<std::string> kind;
   // Video-only members
   RTCStatsMember<uint32_t> frame_width;
   RTCStatsMember<uint32_t> frame_height;
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
   RTCStatsMember<double> frames_per_second;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
   RTCStatsMember<uint32_t> frames_sent;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
   RTCStatsMember<uint32_t> frames_received;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
   RTCStatsMember<uint32_t> frames_decoded;
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
   RTCStatsMember<uint32_t> frames_dropped;
@@ -297,7 +313,6 @@ class RTCRTPStreamStats : public RTCStats {
   // crbug.com/657855, 657856
   RTCStatsMember<bool> is_remote;  // = false
   RTCStatsMember<std::string> media_type;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657854, 659137
   RTCStatsMember<std::string> media_track_id;
   RTCStatsMember<std::string> transport_id;
   RTCStatsMember<std::string> codec_id;
@@ -310,6 +325,9 @@ class RTCRTPStreamStats : public RTCStats {
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657854
   // SLI count is only defined for |media_type == "video"|.
   RTCStatsMember<uint32_t> sli_count;
+  // TODO(hbos): Only collected for the outbound case, should also be collected
+  // for inbound case by |RTCStatsCollector|. crbug.com/657854, crbug.com/657855
+  RTCStatsMember<uint64_t> qp_sum;
 
  protected:
   RTCRTPStreamStats(const std::string& id, int64_t timestamp_us);
@@ -330,7 +348,6 @@ class RTCInboundRTPStreamStats final : public RTCRTPStreamStats {
 
   RTCStatsMember<uint32_t> packets_received;
   RTCStatsMember<uint64_t> bytes_received;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
   RTCStatsMember<uint32_t> packets_lost;
   // TODO(hbos): Not collected in the "video" case by |RTCStatsCollector|.
   // crbug.com/657855
@@ -356,6 +373,7 @@ class RTCInboundRTPStreamStats final : public RTCRTPStreamStats {
   RTCStatsMember<double> gap_loss_rate;
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
   RTCStatsMember<double> gap_discard_rate;
+  RTCStatsMember<uint32_t> frames_decoded;
 };
 
 // https://w3c.github.io/webrtc-stats/#outboundrtpstats-dict*
@@ -375,6 +393,7 @@ class RTCOutboundRTPStreamStats final : public RTCRTPStreamStats {
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657856
   RTCStatsMember<double> target_bitrate;
   RTCStatsMember<double> round_trip_time;
+  RTCStatsMember<uint32_t> frames_encoded;
 };
 
 // https://w3c.github.io/webrtc-stats/#transportstats-dict*
@@ -390,7 +409,8 @@ class RTCTransportStats final : public RTCStats {
   RTCStatsMember<uint64_t> bytes_sent;
   RTCStatsMember<uint64_t> bytes_received;
   RTCStatsMember<std::string> rtcp_transport_stats_id;
-  RTCStatsMember<bool> active_connection;
+  // TODO(hbos): Support enum types? "RTCStatsMember<RTCDtlsTransportState>"?
+  RTCStatsMember<std::string> dtls_state;
   RTCStatsMember<std::string> selected_candidate_pair_id;
   RTCStatsMember<std::string> local_certificate_id;
   RTCStatsMember<std::string> remote_certificate_id;

@@ -17,17 +17,22 @@
 #ifndef WEBRTC_API_MEDIASTREAMINTERFACE_H_
 #define WEBRTC_API_MEDIASTREAMINTERFACE_H_
 
+#include <stddef.h>
+
 #include <string>
 #include <vector>
 
-#include "webrtc/base/basictypes.h"
+#include "webrtc/api/video/video_frame.h"
+// TODO(nisse): Transition hack, Chrome expects that including this
+// file declares I420Buffer. Delete after users of I420Buffer are
+// fixed to include the new header.
+#include "webrtc/api/video/i420_buffer.h"
 #include "webrtc/base/refcount.h"
 #include "webrtc/base/scoped_ref_ptr.h"
 #include "webrtc/base/optional.h"
 #include "webrtc/media/base/mediachannel.h"
 #include "webrtc/media/base/videosinkinterface.h"
 #include "webrtc/media/base/videosourceinterface.h"
-#include "webrtc/video_frame.h"
 
 namespace webrtc {
 
@@ -133,12 +138,20 @@ class VideoTrackInterface
     : public MediaStreamTrackInterface,
       public rtc::VideoSourceInterface<VideoFrame> {
  public:
+  // Video track content hint, used to override the source is_screencast
+  // property.
+  // See https://crbug.com/653531 and https://github.com/WICG/mst-content-hint.
+  enum class ContentHint { kNone, kFluid, kDetailed };
+
   // Register a video sink for this track.
   void AddOrUpdateSink(rtc::VideoSinkInterface<VideoFrame>* sink,
-                       const rtc::VideoSinkWants& wants) override{};
-  void RemoveSink(rtc::VideoSinkInterface<VideoFrame>* sink) override{};
+                       const rtc::VideoSinkWants& wants) override {}
+  void RemoveSink(rtc::VideoSinkInterface<VideoFrame>* sink) override {}
 
   virtual VideoTrackSourceInterface* GetSource() const = 0;
+
+  virtual ContentHint content_hint() const { return ContentHint::kNone; }
+  virtual void set_content_hint(ContentHint hint) {}
 
  protected:
   virtual ~VideoTrackInterface() {}
@@ -190,14 +203,16 @@ class AudioSourceInterface : public MediaSourceInterface {
 class AudioProcessorInterface : public rtc::RefCountInterface {
  public:
   struct AudioProcessorStats {
-    AudioProcessorStats() : typing_noise_detected(false),
-                            echo_return_loss(0),
-                            echo_return_loss_enhancement(0),
-                            echo_delay_median_ms(0),
-                            echo_delay_std_ms(0),
-                            aec_quality_min(0.0),
-                            residual_echo_likelihood(0.0f),
-                            aec_divergent_filter_fraction(0.0) {}
+    AudioProcessorStats()
+        : typing_noise_detected(false),
+          echo_return_loss(0),
+          echo_return_loss_enhancement(0),
+          echo_delay_median_ms(0),
+          echo_delay_std_ms(0),
+          aec_quality_min(0.0),
+          residual_echo_likelihood(0.0f),
+          residual_echo_likelihood_recent_max(0.0f),
+          aec_divergent_filter_fraction(0.0) {}
     ~AudioProcessorStats() {}
 
     bool typing_noise_detected;
@@ -207,6 +222,7 @@ class AudioProcessorInterface : public rtc::RefCountInterface {
     int echo_delay_std_ms;
     float aec_quality_min;
     float residual_echo_likelihood;
+    float residual_echo_likelihood_recent_max;
     float aec_divergent_filter_fraction;
   };
 

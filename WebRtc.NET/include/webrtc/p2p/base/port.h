@@ -19,12 +19,13 @@
 
 #include "webrtc/p2p/base/candidate.h"
 #include "webrtc/p2p/base/candidatepairinterface.h"
+#include "webrtc/p2p/base/jseptransport.h"
 #include "webrtc/p2p/base/packetsocketfactory.h"
 #include "webrtc/p2p/base/portinterface.h"
 #include "webrtc/p2p/base/stun.h"
 #include "webrtc/p2p/base/stunrequest.h"
-#include "webrtc/p2p/base/transport.h"
 #include "webrtc/base/asyncpacketsocket.h"
+#include "webrtc/base/checks.h"
 #include "webrtc/base/network.h"
 #include "webrtc/base/proxyinfo.h"
 #include "webrtc/base/ratetracker.h"
@@ -45,6 +46,7 @@ extern const char RELAY_PORT_TYPE[];
 extern const char UDP_PROTOCOL_NAME[];
 extern const char TCP_PROTOCOL_NAME[];
 extern const char SSLTCP_PROTOCOL_NAME[];
+extern const char TLS_PROTOCOL_NAME[];
 
 // RFC 6544, TCP candidate encoding rules.
 extern const int DISCARD_PORT;
@@ -81,19 +83,24 @@ enum RelayType {
 };
 
 enum IcePriorityValue {
-  // The reason we are choosing Relay preference 2 is because, we can run
-  // Relay from client to server on UDP/TCP/TLS. To distinguish the transport
-  // protocol, we prefer UDP over TCP over TLS.
-  // For UDP ICE_TYPE_PREFERENCE_RELAY will be 2.
-  // For TCP ICE_TYPE_PREFERENCE_RELAY will be 1.
-  // For TLS ICE_TYPE_PREFERENCE_RELAY will be 0.
-  // Check turnport.cc for setting these values.
-  ICE_TYPE_PREFERENCE_RELAY = 2,
+  ICE_TYPE_PREFERENCE_RELAY_TLS = 0,
+  ICE_TYPE_PREFERENCE_RELAY_TCP = 1,
+  ICE_TYPE_PREFERENCE_RELAY_UDP = 2,
   ICE_TYPE_PREFERENCE_PRFLX_TCP = 80,
   ICE_TYPE_PREFERENCE_HOST_TCP = 90,
   ICE_TYPE_PREFERENCE_SRFLX = 100,
   ICE_TYPE_PREFERENCE_PRFLX = 110,
   ICE_TYPE_PREFERENCE_HOST = 126
+};
+
+// States are from RFC 5245. http://tools.ietf.org/html/rfc5245#section-5.7.4
+enum class IceCandidatePairState {
+  WAITING = 0,  // Check has not been performed, Waiting pair on CL.
+  IN_PROGRESS,  // Check has been sent, transaction is in progress.
+  SUCCEEDED,    // Check already done, produced a successful result.
+  FAILED,       // Check for this connection failed.
+  // According to spec there should also be a frozen state, but nothing is ever
+  // frozen because we have not implemented ICE freezing logic.
 };
 
 const char* ProtoToString(ProtocolType proto);
@@ -102,15 +109,12 @@ bool StringToProto(const char* value, ProtocolType* proto);
 struct ProtocolAddress {
   rtc::SocketAddress address;
   ProtocolType proto;
-  bool secure;
 
   ProtocolAddress(const rtc::SocketAddress& a, ProtocolType p)
-      : address(a), proto(p), secure(false) { }
-  ProtocolAddress(const rtc::SocketAddress& a, ProtocolType p, bool sec)
-      : address(a), proto(p), secure(sec) { }
+      : address(a), proto(p) {}
 
   bool operator==(const ProtocolAddress& o) const {
-    return address == o.address && proto == o.proto && secure == o.secure;
+    return address == o.address && proto == o.proto;
   }
   bool operator!=(const ProtocolAddress& o) const { return !(*this == o); }
 };
@@ -244,7 +248,7 @@ class Port : public PortInterface, public rtc::MessageHandler,
       rtc::AsyncPacketSocket* socket, const char* data, size_t size,
       const rtc::SocketAddress& remote_addr,
       const rtc::PacketTime& packet_time) {
-    ASSERT(false);
+    RTC_NOTREACHED();
     return false;
   }
 
@@ -426,14 +430,6 @@ class Connection : public CandidatePairInterface,
     uint32_t nomination;
   };
 
-  // States are from RFC 5245. http://tools.ietf.org/html/rfc5245#section-5.7.4
-  enum State {
-    STATE_WAITING = 0,  // Check has not been performed, Waiting pair on CL.
-    STATE_INPROGRESS,   // Check has been sent, transaction is in progress.
-    STATE_SUCCEEDED,    // Check already done, produced a successful result.
-    STATE_FAILED        // Check for this connection failed.
-  };
-
   virtual ~Connection();
 
   // The local port where this connection sends and receives packets.
@@ -474,6 +470,8 @@ class Connection : public CandidatePairInterface,
   // Estimate of the round-trip time over this connection.
   int rtt() const { return rtt_; }
 
+  // Gets the |ConnectionInfo| stats, where |best_connection| has not been
+  // populated (default value false).
   ConnectionInfo stats();
 
   sigslot::signal1<Connection*> SignalStateChange;
@@ -582,7 +580,7 @@ class Connection : public CandidatePairInterface,
   // Invoked when Connection receives STUN error response with 487 code.
   void HandleRoleConflictFromPeer();
 
-  State state() const { return state_; }
+  IceCandidatePairState state() const { return state_; }
 
   int num_pings_sent() const { return num_pings_sent_; }
 
@@ -637,7 +635,7 @@ class Connection : public CandidatePairInterface,
   // Changes the state and signals if necessary.
   void set_write_state(WriteState value);
   void UpdateReceiving(int64_t now);
-  void set_state(State state);
+  void set_state(IceCandidatePairState state);
   void set_connected(bool value);
 
   uint32_t nomination() const { return nomination_; }
@@ -693,7 +691,7 @@ class Connection : public CandidatePairInterface,
   std::vector<SentPing> pings_since_last_response_;
 
   bool reported_;
-  State state_;
+  IceCandidatePairState state_;
   // Time duration to switch from receiving to not receiving.
   int receiving_timeout_;
   int64_t time_created_ms_;

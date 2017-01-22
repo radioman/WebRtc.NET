@@ -11,13 +11,14 @@
 #ifndef WEBRTC_BASE_NETWORK_H_
 #define WEBRTC_BASE_NETWORK_H_
 
+#include <stdint.h>
+
 #include <deque>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "webrtc/base/basictypes.h"
 #include "webrtc/base/ipaddress.h"
 #include "webrtc/base/networkmonitor.h"
 #include "webrtc/base/messagehandler.h"
@@ -142,6 +143,7 @@ class NetworkManagerBase : public NetworkManager {
 
   void GetNetworks(NetworkList* networks) const override;
   void GetAnyAddressNetworks(NetworkList* networks) override;
+  // Defaults to true.
   bool ipv6_enabled() const { return ipv6_enabled_; }
   void set_ipv6_enabled(bool enabled) { ipv6_enabled_ = enabled; }
 

@@ -25,11 +25,12 @@
 #include <string>
 #include <vector>
 
-#include "webrtc/api/call/audio_receive_stream.h"
-#include "webrtc/api/call/audio_send_stream.h"
+#include "webrtc/api/video/video_frame.h"
 #include "webrtc/base/buffer.h"
-#include "webrtc/call.h"
-#include "webrtc/video_frame.h"
+#include "webrtc/call/audio_receive_stream.h"
+#include "webrtc/call/audio_send_stream.h"
+#include "webrtc/call/call.h"
+#include "webrtc/call/flexfec_receive_stream.h"
 #include "webrtc/video_receive_stream.h"
 #include "webrtc/video_send_stream.h"
 
@@ -165,7 +166,7 @@ class FakeVideoSendStream final
   bool resolution_scaling_enabled_;
   rtc::VideoSourceInterface<webrtc::VideoFrame>* source_;
   int num_swapped_frames_;
-  webrtc::VideoFrame last_frame_;
+  rtc::Optional<webrtc::VideoFrame> last_frame_;
   webrtc::VideoSendStream::Stats stats_;
   int num_encoder_reconfigurations_ = 0;
 };
@@ -265,7 +266,7 @@ class FakeCall final : public webrtc::Call, public webrtc::PacketReceiver {
       webrtc::VideoReceiveStream* receive_stream) override;
 
   webrtc::FlexfecReceiveStream* CreateFlexfecReceiveStream(
-      webrtc::FlexfecReceiveStream::Config config) override;
+      const webrtc::FlexfecReceiveStream::Config& config) override;
   void DestroyFlexfecReceiveStream(
       webrtc::FlexfecReceiveStream* receive_stream) override;
 

@@ -22,11 +22,14 @@
 
 namespace webrtc {
 
+class RtcEventLog;
+
 class AudioNetworkAdaptorImpl final : public AudioNetworkAdaptor {
  public:
   struct Config {
     Config();
     ~Config();
+    RtcEventLog* event_log;
     const Clock* clock;
   };
 
@@ -44,6 +47,8 @@ class AudioNetworkAdaptorImpl final : public AudioNetworkAdaptor {
   void SetRtt(int rtt_ms) override;
 
   void SetTargetAudioBitrate(int target_audio_bitrate_bps) override;
+
+  void SetOverhead(size_t overhead_bytes_per_packet) override;
 
   EncoderRuntimeConfig GetEncoderRuntimeConfig() override;
 

@@ -148,8 +148,7 @@ namespace webrtc
 		token_partitions_(VP8_ONE_TOKENPARTITION),
 		down_scale_requested_(false),
 		down_scale_bitrate_(0),
-		key_frame_request_(kMaxSimulcastStreams, false),
-		quality_scaler_enabled_(false)
+		key_frame_request_(kMaxSimulcastStreams, false)
 	{
 		uint32_t seed = rtc::Time32();
 		srand(seed);
@@ -302,14 +301,7 @@ namespace webrtc
 				return WEBRTC_VIDEO_CODEC_ERROR;
 			}
 		}
-		quality_scaler_.ReportFramerate(new_framerate);
 		return WEBRTC_VIDEO_CODEC_OK;
-	}
-
-	void VP8EncoderImpl::OnDroppedFrame()
-	{
-		if (quality_scaler_enabled_)
-			quality_scaler_.ReportDroppedFrame();
 	}
 
 	const char* VP8EncoderImpl::ImplementationName() const
@@ -456,7 +448,8 @@ namespace webrtc
 			{
 				delete[] encoded_images_[i]._buffer;
 			}
-			encoded_images_[i]._size = CalcBufferSize(kI420, codec_.width, codec_.height);
+			encoded_images_[i]._size =
+				CalcBufferSize(kI420, codec_.width, codec_.height);
 			encoded_images_[i]._buffer = new uint8_t[encoded_images_[i]._size];
 			encoded_images_[i]._completeFrame = true;
 		}
@@ -615,17 +608,6 @@ namespace webrtc
 		}
 
 		rps_.Init();
-		quality_scaler_.Init(codec_.codecType, codec_.startBitrate, codec_.width,
-							 codec_.height, codec_.maxFramerate);
-
-		// Only apply scaling to improve for single-layer streams. The scaling metrics
-		// use frame drops as a signal and is only applicable when we drop frames.
-		quality_scaler_enabled_ = encoders_.size() == 1 &&
-			configurations_[0].rc_dropframe_thresh > 0 &&
-			codec_.VP8()->automaticResizeOn;
-		
-		// custom override
-		quality_scaler_enabled_ = Native::CFG_quality_scaler_enabled_;
 
 		return InitAndSetControlSettings();
 	}
@@ -784,36 +766,21 @@ namespace webrtc
 							   const CodecSpecificInfo* codec_specific_info,
 							   const std::vector<FrameType>* frame_types)
 	{
+		RTC_DCHECK_EQ(frame.width(), codec_.width);
+		RTC_DCHECK_EQ(frame.height(), codec_.height);
+
 		if (!inited_)
 			return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
-		if (frame.IsZeroSize())
-			return WEBRTC_VIDEO_CODEC_ERR_PARAMETER;
 		if (encoded_complete_callback_ == NULL)
 			return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
 
 		rtc::scoped_refptr<VideoFrameBuffer> input_image = frame.video_frame_buffer();
-
-		if (quality_scaler_enabled_)
-		{
-			quality_scaler_.OnEncodeFrame(frame.width(), frame.height());
-			input_image = quality_scaler_.GetScaledBuffer(input_image);
-
-			if (input_image->width() != codec_.width ||
-				input_image->height() != codec_.height)
-			{
-				int ret =
-					UpdateCodecFrameSize(input_image->width(), input_image->height());
-				if (ret < 0)
-					return ret;
-			}
-		}
-
 		// Since we are extracting raw pointers from |input_image| to
 		// |raw_images_[0]|, the resolution of these frames must match. Note that
 		// |input_image| might be scaled from |frame|. In that case, the resolution of
 		// |raw_images_[0]| should have been updated in UpdateCodecFrameSize.
-		RTC_DCHECK_EQ(input_image->width(), static_cast<int>(raw_images_[0].d_w));
-		RTC_DCHECK_EQ(input_image->height(), static_cast<int>(raw_images_[0].d_h));
+		RTC_DCHECK_EQ(input_image->width(), raw_images_[0].d_w);
+		RTC_DCHECK_EQ(input_image->height(), raw_images_[0].d_h);
 
 		// Image in vpx_image_t format.
 		// Input image is const. VP8's raw image is not defined as const.
@@ -1147,9 +1114,6 @@ namespace webrtc
 						codec_.simulcastStream[stream_idx].height;
 					encoded_images_[encoder_idx]._encodedWidth =
 						codec_.simulcastStream[stream_idx].width;
-					encoded_images_[encoder_idx]
-						.adapt_reason_.quality_resolution_downscales =
-						quality_scaler_enabled_ ? quality_scaler_.downscale_shift() : -1;
 					// Report once per frame (lowest stream always sent).
 					encoded_images_[encoder_idx].adapt_reason_.bw_resolutions_disabled =
 						(stream_idx == 0) ? bw_resolutions_disabled : -1;
@@ -1166,20 +1130,16 @@ namespace webrtc
 				}
 			}
 		}
-		if (encoders_.size() == 1 && send_stream_[0])
-		{
-			if (encoded_images_[0]._length > 0)
-			{
-				int qp_128;
-				vpx_codec_control(&encoders_[0], VP8E_GET_LAST_QUANTIZER, &qp_128);
-				quality_scaler_.ReportQP(qp_128);
-			}
-			else
-			{
-				quality_scaler_.ReportDroppedFrame();
-			}
-		}
 		return result;
+	}
+
+	VideoEncoder::ScalingSettings VP8EncoderImpl::GetScalingSettings() const
+	{
+		const bool enable_scaling = encoders_.size() == 1 &&
+			configurations_[0].rc_dropframe_thresh > 0 &&
+			codec_.VP8().automaticResizeOn;
+
+		return VideoEncoder::ScalingSettings(enable_scaling && Native::CFG_quality_scaler_enabled_);
 	}
 
 	int VP8EncoderImpl::SetChannelParameters(uint32_t packetLoss, int64_t rtt)
@@ -1226,6 +1186,7 @@ namespace webrtc
 		if (decoder_ == NULL)
 		{
 			decoder_ = new vpx_codec_ctx_t;
+			memset(decoder_, 0, sizeof(*decoder_));
 		}
 		if (inst && inst->codecType == kVideoCodecVP8)
 		{
@@ -1244,6 +1205,8 @@ namespace webrtc
 
 		if (vpx_codec_dec_init(decoder_, vpx_codec_vp8_dx(), &cfg, flags))
 		{
+			delete decoder_;
+			decoder_ = nullptr;
 			return WEBRTC_VIDEO_CODEC_MEMORY;
 		}
 

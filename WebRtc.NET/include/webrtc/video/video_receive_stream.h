@@ -50,6 +50,7 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
  public:
   VideoReceiveStream(int num_cpu_cores,
                      CongestionController* congestion_controller,
+                     PacketRouter* packet_router,
                      VideoReceiveStream::Config config,
                      webrtc::VoiceEngine* voice_engine,
                      ProcessThread* process_thread,
@@ -117,10 +118,10 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
   CongestionController* const congestion_controller_;
   CallStats* const call_stats_;
 
+  std::unique_ptr<VCMTiming> timing_;  // Jitter buffer experiment.
   vcm::VideoReceiver video_receiver_;
   std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>> incoming_video_stream_;
   ReceiveStatisticsProxy stats_proxy_;
-  std::unique_ptr<VCMTiming> timing_;  // Jitter buffer experiment.
   RtpStreamReceiver rtp_stream_receiver_;
   std::unique_ptr<VideoStreamDecoder> video_stream_decoder_;
   RtpStreamsSynchronizer rtp_stream_sync_;

@@ -16,14 +16,13 @@
 #include <string>
 #include <vector>
 
-#include "webrtc/api/call/audio_state.h"
 #include "webrtc/base/buffer.h"
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/base/networkroute.h"
 #include "webrtc/base/scoped_ref_ptr.h"
-#include "webrtc/base/stream.h"
 #include "webrtc/base/thread_checker.h"
-#include "webrtc/call.h"
+#include "webrtc/call/audio_state.h"
+#include "webrtc/call/call.h"
 #include "webrtc/config.h"
 #include "webrtc/media/base/rtputils.h"
 #include "webrtc/media/engine/webrtccommon.h"
@@ -34,6 +33,7 @@
 namespace cricket {
 
 class AudioDeviceModule;
+class AudioMixer;
 class AudioSource;
 class VoEWrapper;
 class WebRtcVoiceMediaChannel;
@@ -48,11 +48,13 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
 
   WebRtcVoiceEngine(
       webrtc::AudioDeviceModule* adm,
-      const rtc::scoped_refptr<webrtc::AudioDecoderFactory>& decoder_factory);
+      const rtc::scoped_refptr<webrtc::AudioDecoderFactory>& decoder_factory,
+      rtc::scoped_refptr<webrtc::AudioMixer> audio_mixer);
   // Dependency injection for testing.
   WebRtcVoiceEngine(
       webrtc::AudioDeviceModule* adm,
       const rtc::scoped_refptr<webrtc::AudioDecoderFactory>& decoder_factory,
+      rtc::scoped_refptr<webrtc::AudioMixer> audio_mixer,
       VoEWrapper* voe_wrapper);
   ~WebRtcVoiceEngine() override;
 
@@ -259,6 +261,7 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   bool playout_ = false;
   bool send_ = false;
   webrtc::Call* const call_ = nullptr;
+  webrtc::Call::Config::BitrateConfig bitrate_config_;
 
   // SSRC of unsignalled receive stream, or -1 if there isn't one.
   int64_t default_recv_ssrc_ = -1;

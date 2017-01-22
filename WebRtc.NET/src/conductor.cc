@@ -264,7 +264,7 @@ namespace Native
 	{
 		std::vector<std::string> device_names;
 		{
-			std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo(0));
+			std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
 			if (info)
 			{
 				int num_devices = info->NumberOfDevices();

@@ -22,6 +22,7 @@
 #include "webrtc/api/peerconnectioninterface.h"
 #include "webrtc/api/statstypes.h"
 #include "webrtc/base/constructormagic.h"
+#include "webrtc/base/optional.h"
 #include "webrtc/base/sigslot.h"
 #include "webrtc/base/sslidentity.h"
 #include "webrtc/base/thread.h"
@@ -37,7 +38,9 @@
 namespace cricket {
 
 class ChannelManager;
-class DataChannel;
+class RtpDataChannel;
+class SctpTransportInternal;
+class SctpTransportInternalFactory;
 class StatsReport;
 class VideoChannel;
 class VoiceChannel;
@@ -67,8 +70,8 @@ extern const char kSdpWithoutIceUfragPwd[];
 extern const char kSdpWithoutSdesAndDtlsDisabled[];
 extern const char kSessionError[];
 extern const char kSessionErrorDesc[];
-extern const char kDtlsSetupFailureRtp[];
-extern const char kDtlsSetupFailureRtcp[];
+extern const char kDtlsSrtpSetupFailureRtp[];
+extern const char kDtlsSrtpSetupFailureRtcp[];
 extern const char kEnableBundleFailed[];
 
 // Maximum number of received video streams that will be processed by webrtc
@@ -115,6 +118,20 @@ struct SessionStats {
   TransportStatsMap transport_stats;
 };
 
+struct ChannelNamePair {
+  ChannelNamePair(
+      const std::string& content_name, const std::string& transport_name)
+      : content_name(content_name), transport_name(transport_name) {}
+  std::string content_name;
+  std::string transport_name;
+};
+
+struct ChannelNamePairs {
+  rtc::Optional<ChannelNamePair> voice;
+  rtc::Optional<ChannelNamePair> video;
+  rtc::Optional<ChannelNamePair> data;
+};
+
 // A WebRtcSession manages general session state. This includes negotiation
 // of both the application-level and network-level protocols:  the former
 // defines what will be sent and the latter defines how it will be sent.  Each
@@ -144,13 +161,15 @@ class WebRtcSession :
     ERROR_TRANSPORT = 2,  // transport error of some kind
   };
 
+  // |sctp_factory| may be null, in which case SCTP is treated as unsupported.
   WebRtcSession(
       webrtc::MediaControllerInterface* media_controller,
       rtc::Thread* network_thread,
       rtc::Thread* worker_thread,
       rtc::Thread* signaling_thread,
       cricket::PortAllocator* port_allocator,
-      std::unique_ptr<cricket::TransportController> transport_controller);
+      std::unique_ptr<cricket::TransportController> transport_controller,
+      std::unique_ptr<cricket::SctpTransportInternalFactory> sctp_factory);
   virtual ~WebRtcSession();
 
   // These are const to allow them to be called from const methods.
@@ -185,27 +204,34 @@ class WebRtcSession :
     ice_observer_ = observer;
   }
 
+  // Exposed for stats collecting.
   virtual cricket::VoiceChannel* voice_channel() {
     return voice_channel_.get();
   }
   virtual cricket::VideoChannel* video_channel() {
     return video_channel_.get();
   }
-  virtual cricket::DataChannel* data_channel() {
-    return data_channel_.get();
+  // Only valid when using deprecated RTP data channels.
+  virtual cricket::RtpDataChannel* rtp_data_channel() {
+    return rtp_data_channel_.get();
+  }
+  virtual rtc::Optional<std::string> sctp_content_name() const {
+    return sctp_content_name_;
+  }
+  virtual rtc::Optional<std::string> sctp_transport_name() const {
+    return sctp_transport_name_;
   }
 
   cricket::BaseChannel* GetChannel(const std::string& content_name);
 
-  void SetSdesPolicy(cricket::SecurePolicy secure_policy);
   cricket::SecurePolicy SdesPolicy() const;
 
-  // Get current ssl role from transport.
-  bool GetSslRole(const std::string& transport_name, rtc::SSLRole* role);
-
-  // Get current SSL role for this channel's transport.
-  // If |transport| is null, returns false.
-  bool GetSslRole(const cricket::BaseChannel* channel, rtc::SSLRole* role);
+  // Get current SSL role used by SCTP's underlying transport.
+  bool GetSctpSslRole(rtc::SSLRole* role);
+  // Get SSL role for an arbitrary m= section (handles bundling correctly).
+  // TODO(deadbeef): This is only used internally by the session description
+  // factory, it shouldn't really be public).
+  bool GetSslRole(const std::string& content_name, rtc::SSLRole* role);
 
   void CreateOffer(
       CreateSessionDescriptionObserver* observer,
@@ -219,6 +245,7 @@ class WebRtcSession :
   // The ownership of |desc| will be transferred after this call.
   bool SetRemoteDescription(SessionDescriptionInterface* desc,
                             std::string* err_desc);
+
   bool ProcessIceMessage(const IceCandidateInterface* ice_candidate);
 
   bool RemoveRemoteIceCandidates(
@@ -234,10 +261,24 @@ class WebRtcSession :
   void MaybeStartGathering();
 
   const SessionDescriptionInterface* local_description() const {
-    return local_desc_.get();
+    return pending_local_description_ ? pending_local_description_.get()
+                                      : current_local_description_.get();
   }
   const SessionDescriptionInterface* remote_description() const {
-    return remote_desc_.get();
+    return pending_remote_description_ ? pending_remote_description_.get()
+                                       : current_remote_description_.get();
+  }
+  const SessionDescriptionInterface* current_local_description() const {
+    return current_local_description_.get();
+  }
+  const SessionDescriptionInterface* current_remote_description() const {
+    return current_remote_description_.get();
+  }
+  const SessionDescriptionInterface* pending_local_description() const {
+    return pending_local_description_.get();
+  }
+  const SessionDescriptionInterface* pending_remote_description() const {
+    return pending_remote_description_.get();
   }
 
   // Get the id used as a media stream track's "id" field from ssrc.
@@ -262,10 +303,14 @@ class WebRtcSession :
 
   // Returns stats for all channels of all transports.
   // This avoids exposing the internal structures used to track them.
-  virtual bool GetTransportStats(SessionStats* stats);
-
-  // Get stats for a specific channel
-  bool GetChannelTransportStats(cricket::BaseChannel* ch, SessionStats* stats);
+  // The parameterless version creates |ChannelNamePairs| from |voice_channel|,
+  // |video_channel| and |voice_channel| if available - this requires it to be
+  // called on the signaling thread - and invokes the other |GetStats|. The
+  // other |GetStats| can be invoked on any thread; if not invoked on the
+  // network thread a thread hop will happen.
+  std::unique_ptr<SessionStats> GetStats_s();
+  virtual std::unique_ptr<SessionStats> GetStats(
+      const ChannelNamePairs& channel_name_pairs);
 
   // virtual so it can be mocked in unit tests
   virtual bool GetLocalCertificate(
@@ -278,13 +323,24 @@ class WebRtcSession :
 
   cricket::DataChannelType data_channel_type() const;
 
+  // Returns true if there was an ICE restart initiated by the remote offer.
   bool IceRestartPending(const std::string& content_name) const;
+
+  // Set the "needs-ice-restart" flag as described in JSEP. After the flag is
+  // set, offers should generate new ufrags/passwords until an ICE restart
+  // occurs.
+  void SetNeedsIceRestartFlag();
+  // Returns true if the ICE restart flag above was set, and no ICE restart has
+  // occurred yet for this transport (by applying a local description with
+  // changed ufrag/password). If the transport has been deleted as a result of
+  // bundling, returns false.
+  bool NeedsIceRestart(const std::string& content_name) const;
 
   // Called when an RTCCertificate is generated or retrieved by
   // WebRTCSessionDescriptionFactory. Should happen before setLocalDescription.
   void OnCertificateReady(
       const rtc::scoped_refptr<rtc::RTCCertificate>& certificate);
-  void OnDtlsSetupFailure(cricket::BaseChannel*, bool rtcp);
+  void OnDtlsSrtpSetupFailure(cricket::BaseChannel*, bool rtcp);
 
   // For unit test.
   bool waiting_for_certificate_for_testing() const;
@@ -296,8 +352,9 @@ class WebRtcSession :
     transport_controller_->SetMetricsObserver(metrics_observer);
   }
 
-  // Called when voice_channel_, video_channel_ and data_channel_ are created
-  // and destroyed. As a result of, for example, setting a new description.
+  // Called when voice_channel_, video_channel_ and
+  // rtp_data_channel_/sctp_transport_ are created and destroyed. As a result
+  // of, for example, setting a new description.
   sigslot::signal0<> SignalVoiceChannelCreated;
   sigslot::signal0<> SignalVoiceChannelDestroyed;
   sigslot::signal0<> SignalVideoChannelCreated;
@@ -326,6 +383,17 @@ class WebRtcSession :
     kAnswer,
   };
 
+  // Non-const versions of local_description()/remote_description(), for use
+  // internally.
+  SessionDescriptionInterface* mutable_local_description() {
+    return pending_local_description_ ? pending_local_description_.get()
+                                      : current_local_description_.get();
+  }
+  SessionDescriptionInterface* mutable_remote_description() {
+    return pending_remote_description_ ? pending_remote_description_.get()
+                                       : current_remote_description_.get();
+  }
+
   // Log session state.
   void LogState(State old_state, State new_state);
 
@@ -344,6 +412,7 @@ class WebRtcSession :
   bool PushdownMediaDescription(cricket::ContentAction action,
                                 cricket::ContentSource source,
                                 std::string* error_desc);
+  bool PushdownSctpParameters_n(cricket::ContentSource source);
 
   bool PushdownTransportDescription(cricket::ContentSource source,
                                     cricket::ContentAction action,
@@ -405,11 +474,27 @@ class WebRtcSession :
   bool CreateDataChannel(const cricket::ContentInfo* content,
                          const std::string* bundle_transport);
 
-  // Listens to SCTP CONTROL messages on unused SIDs and process them as OPEN
-  // messages.
-  void OnDataChannelMessageReceived(cricket::DataChannel* channel,
-                                    const cricket::ReceiveDataParams& params,
-                                    const rtc::CopyOnWriteBuffer& payload);
+  std::unique_ptr<SessionStats> GetStats_n(
+      const ChannelNamePairs& channel_name_pairs);
+
+  bool CreateSctpTransport_n(const std::string& content_name,
+                             const std::string& transport_name);
+  // For bundling.
+  void ChangeSctpTransport_n(const std::string& transport_name);
+  void DestroySctpTransport_n();
+  // SctpTransport signal handlers. Needed to marshal signals from the network
+  // to signaling thread.
+  void OnSctpTransportReadyToSendData_n();
+  // This may be called with "false" if the direction of the m= section causes
+  // us to tear down the SCTP connection.
+  void OnSctpTransportReadyToSendData_s(bool ready);
+  void OnSctpTransportDataReceived_n(const cricket::ReceiveDataParams& params,
+                                     const rtc::CopyOnWriteBuffer& payload);
+  // Beyond just firing the signal to the signaling thread, listens to SCTP
+  // CONTROL messages on unused SIDs and processes them as OPEN messages.
+  void OnSctpTransportDataReceived_s(const cricket::ReceiveDataParams& params,
+                                     const rtc::CopyOnWriteBuffer& payload);
+  void OnSctpStreamClosedRemotely_n(int sid);
 
   std::string BadStateErrMsg(State state);
   void SetIceConnectionState(PeerConnectionInterface::IceConnectionState state);
@@ -438,6 +523,11 @@ class WebRtcSession :
                                  const SessionDescriptionInterface* remote_desc,
                                  bool* valid);
 
+  // Returns true if SRTP (either using DTLS-SRTP or SDES) is required by
+  // this session.
+  bool SrtpRequired() const;
+
+  // TransportController signal handlers.
   void OnTransportControllerConnectionState(cricket::IceConnectionState state);
   void OnTransportControllerReceiving(bool receiving);
   void OnTransportControllerGatheringState(cricket::IceGatheringState state);
@@ -446,6 +536,7 @@ class WebRtcSession :
       const std::vector<cricket::Candidate>& candidates);
   void OnTransportControllerCandidatesRemoved(
       const std::vector<cricket::Candidate>& candidates);
+  void OnTransportControllerDtlsHandshakeError(rtc::SSLHandshakeError error);
 
   std::string GetSessionErrorMsg();
 
@@ -462,7 +553,10 @@ class WebRtcSession :
 
   const std::string GetTransportName(const std::string& content_name);
 
-  void OnDtlsHandshakeError(rtc::SSLHandshakeError error);
+  void DestroyRtcpTransport_n(const std::string& transport_name);
+  void DestroyVideoChannel();
+  void DestroyVoiceChannel();
+  void DestroyDataChannel();
 
   rtc::Thread* const network_thread_;
   rtc::Thread* const worker_thread_;
@@ -475,17 +569,48 @@ class WebRtcSession :
   const std::string sid_;
   bool initial_offerer_ = false;
 
-  std::unique_ptr<cricket::TransportController> transport_controller_;
+  const std::unique_ptr<cricket::TransportController> transport_controller_;
+  const std::unique_ptr<cricket::SctpTransportInternalFactory> sctp_factory_;
   MediaControllerInterface* media_controller_;
   std::unique_ptr<cricket::VoiceChannel> voice_channel_;
   std::unique_ptr<cricket::VideoChannel> video_channel_;
-  std::unique_ptr<cricket::DataChannel> data_channel_;
+  // |rtp_data_channel_| is used if in RTP data channel mode, |sctp_transport_|
+  // when using SCTP.
+  std::unique_ptr<cricket::RtpDataChannel> rtp_data_channel_;
+
+  std::unique_ptr<cricket::SctpTransportInternal> sctp_transport_;
+  // |sctp_transport_name_| keeps track of what DTLS transport the SCTP
+  // transport is using (which can change due to bundling).
+  rtc::Optional<std::string> sctp_transport_name_;
+  // |sctp_content_name_| is the content name (MID) in SDP.
+  rtc::Optional<std::string> sctp_content_name_;
+  // Value cached on signaling thread. Only updated when SctpReadyToSendData
+  // fires on the signaling thread.
+  bool sctp_ready_to_send_data_ = false;
+  // Same as signals provided by SctpTransport, but these are guaranteed to
+  // fire on the signaling thread, whereas SctpTransport fires on the networking
+  // thread.
+  // |sctp_invoker_| is used so that any signals queued on the signaling thread
+  // from the network thread are immediately discarded if the SctpTransport is
+  // destroyed (due to m= section being rejected).
+  // TODO(deadbeef): Use a proxy object to ensure that method calls/signals
+  // are marshalled to the right thread. Could almost use proxy.h for this,
+  // but it doesn't have a mechanism for marshalling sigslot::signals
+  std::unique_ptr<rtc::AsyncInvoker> sctp_invoker_;
+  sigslot::signal1<bool> SignalSctpReadyToSendData;
+  sigslot::signal2<const cricket::ReceiveDataParams&,
+                   const rtc::CopyOnWriteBuffer&>
+      SignalSctpDataReceived;
+  sigslot::signal1<int> SignalSctpStreamClosedRemotely;
+
   cricket::ChannelManager* channel_manager_;
   IceObserver* ice_observer_;
   PeerConnectionInterface::IceConnectionState ice_connection_state_;
   bool ice_connection_receiving_;
-  std::unique_ptr<SessionDescriptionInterface> local_desc_;
-  std::unique_ptr<SessionDescriptionInterface> remote_desc_;
+  std::unique_ptr<SessionDescriptionInterface> current_local_description_;
+  std::unique_ptr<SessionDescriptionInterface> pending_local_description_;
+  std::unique_ptr<SessionDescriptionInterface> current_remote_description_;
+  std::unique_ptr<SessionDescriptionInterface> pending_remote_description_;
   // If the remote peer is using a older version of implementation.
   bool older_version_remote_peer_;
   bool dtls_enabled_;

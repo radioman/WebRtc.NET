@@ -207,18 +207,11 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
 
   void SetTmmbn(std::vector<rtcp::TmmbItem> bounding_set) override;
 
-  uint16_t MaxPayloadLength() const override;
+  size_t MaxPayloadSize() const override;
 
-  uint16_t MaxDataPayloadLength() const override;
+  size_t MaxRtpPacketSize() const override;
 
-  int32_t SetMaxTransferUnit(uint16_t size) override;
-
-  // TODO(michaelt): deprecate the function.
-  int32_t SetTransportOverhead(bool tcp,
-                               bool ipv6,
-                               uint8_t authentication_overhead = 0) override;
-
-  void SetTransportOverhead(int transport_overhead_per_packet) override;
+  void SetMaxRtpPacketSize(size_t max_packet_size) override;
 
   // (NACK) Negative acknowledgment part.
 
@@ -260,8 +253,8 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
 
   // Audio part.
 
-  // Set audio packet size, used to determine when it's time to send a DTMF
-  // packet in silence (CNG).
+  // This function is deprecated. It was previously used to determine when it
+  // was time to send a DTMF packet in silence (CNG).
   int32_t SetAudioPacketSize(uint16_t packet_size_samples) override;
 
   // Send a TelephoneEvent tone using RFC 2833 (4733).
@@ -312,6 +305,8 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
   void OnReceivedRtcpReportBlocks(
       const ReportBlockList& report_blocks) override;
   void OnRequestSendReport() override;
+
+  void SetVideoBitrateAllocation(const BitrateAllocation& bitrate) override;
 
  protected:
   bool UpdateRTCPReceiveInformationTimers();

@@ -15,28 +15,29 @@
 #include <string>
 #include <vector>
 
+#include "webrtc/api/video/video_rotation.h"
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/event.h"
 #include "webrtc/base/sequenced_task_checker.h"
 #include "webrtc/base/task_queue.h"
-#include "webrtc/call.h"
+#include "webrtc/call/call.h"
 #include "webrtc/common_types.h"
 #include "webrtc/common_video/include/video_bitrate_allocator.h"
-#include "webrtc/common_video/rotation.h"
 #include "webrtc/media/base/videosinkinterface.h"
 #include "webrtc/modules/video_coding/include/video_coding_defines.h"
+#include "webrtc/modules/video_coding/utility/quality_scaler.h"
 #include "webrtc/modules/video_coding/video_coding_impl.h"
-#include "webrtc/modules/video_processing/include/video_processing.h"
 #include "webrtc/system_wrappers/include/atomic32.h"
+#include "webrtc/typedefs.h"
 #include "webrtc/video/overuse_frame_detector.h"
 #include "webrtc/video_encoder.h"
 #include "webrtc/video_send_stream.h"
-#include "webrtc/typedefs.h"
 
 namespace webrtc {
 
 class ProcessThread;
 class SendStatisticsProxy;
+class VideoBitrateAllocationObserver;
 
 // VieEncoder represent a video encoder that accepts raw video frames as input
 // and produces an encoded bit stream.
@@ -49,7 +50,7 @@ class SendStatisticsProxy;
 class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
                    public EncodedImageCallback,
                    public VCMSendStatisticsCallback,
-                   public CpuOveruseObserver {
+                   public ScalingObserverInterface {
  public:
   // Interface for receiving encoded video frames and notifications about
   // configuration changes.
@@ -60,7 +61,7 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
         int min_transmit_bitrate_bps) = 0;
   };
 
-  // Down grade resolution at most 2 times for CPU reasons.
+  // Downscale resolution at most 2 times for CPU reasons.
   static const int kMaxCpuDowngrades = 2;
 
   ViEEncoder(uint32_t number_of_cores,
@@ -91,6 +92,8 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
   // TODO(perkj): Can we remove VideoCodec.startBitrate ?
   void SetStartBitrate(int start_bitrate_bps);
 
+  void SetBitrateObserver(VideoBitrateAllocationObserver* bitrate_observer);
+
   void ConfigureEncoder(VideoEncoderConfig config,
                         size_t max_data_payload_length,
                         bool nack_enabled);
@@ -111,21 +114,22 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
                         int64_t round_trip_time_ms);
 
  protected:
-  // Used for testing. For example the |CpuOveruseObserver| methods must be
-  // called on |encoder_queue_|.
+  // Used for testing. For example the |ScalingObserverInterface| methods must
+  // be called on |encoder_queue_|.
   rtc::TaskQueue* encoder_queue() { return &encoder_queue_; }
 
-  // webrtc::CpuOveruseObserver implementation.
+  // webrtc::ScalingObserverInterface implementation.
   // These methods are protected for easier testing.
-  void OveruseDetected() override;
-  void NormalUsage() override;
+  void ScaleUp(ScaleReason reason) override;
+  void ScaleDown(ScaleReason reason) override;
 
  private:
   class ConfigureEncoderTask;
   class EncodeTask;
   class VideoSourceProxy;
 
-  struct VideoFrameInfo {
+  class VideoFrameInfo {
+   public:
     VideoFrameInfo(int width,
                    int height,
                    VideoRotation rotation,
@@ -138,6 +142,7 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
     int height;
     VideoRotation rotation;
     bool is_texture;
+    int pixel_count() const { return width * height; }
   };
 
   void ConfigureEncoderOnTaskQueue(VideoEncoderConfig config,
@@ -161,6 +166,8 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
       const CodecSpecificInfo* codec_specific_info,
       const RTPFragmentationHeader* fragmentation) override;
 
+  void OnDroppedFrame() override;
+
   bool EncoderPaused() const;
   void TraceFrameDropStart();
   void TraceFrameDropEnd();
@@ -176,6 +183,7 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
 
   vcm::VideoSender video_sender_ ACCESS_ON(&encoder_queue_);
   OveruseFrameDetector overuse_detector_ ACCESS_ON(&encoder_queue_);
+  std::unique_ptr<QualityScaler> quality_scaler_ ACCESS_ON(&encoder_queue_);
 
   SendStatisticsProxy* const stats_proxy_;
   rtc::VideoSinkInterface<VideoFrame>* const pre_encode_callback_;
@@ -203,15 +211,12 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
   bool has_received_rpsi_ ACCESS_ON(&encoder_queue_);
   uint64_t picture_id_rpsi_ ACCESS_ON(&encoder_queue_);
   Clock* const clock_;
+  // Counters used for deciding if the video resolution is currently
+  // restricted, and if so, why.
+  std::vector<int> scale_counter_ ACCESS_ON(&encoder_queue_);
+  // Set depending on degradation preferences
+  bool scaling_enabled_ ACCESS_ON(&encoder_queue_) = false;
 
-  VideoSendStream::DegradationPreference degradation_preference_
-      ACCESS_ON(&encoder_queue_);
-  // Counter used for deciding if the video resolution is currently
-  // restricted by CPU usage.
-  int cpu_restricted_counter_ ACCESS_ON(&encoder_queue_);
-
-  int last_frame_width_ ACCESS_ON(&encoder_queue_);
-  int last_frame_height_ ACCESS_ON(&encoder_queue_);
   // Pixel count last time the resolution was requested to be changed down.
   rtc::Optional<int> max_pixel_count_ ACCESS_ON(&encoder_queue_);
   // Pixel count last time the resolution was requested to be changed up.
@@ -228,6 +233,9 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
   int64_t last_frame_log_ms_ GUARDED_BY(incoming_frame_race_checker_);
   int captured_frame_count_ ACCESS_ON(&encoder_queue_);
   int dropped_frame_count_ ACCESS_ON(&encoder_queue_);
+
+  VideoBitrateAllocationObserver* bitrate_observer_ ACCESS_ON(&encoder_queue_);
+  rtc::Optional<int64_t> last_parameters_update_ms_ ACCESS_ON(&encoder_queue_);
 
   // All public methods are proxied to |encoder_queue_|. It must must be
   // destroyed first to make sure no tasks are run that use other members.

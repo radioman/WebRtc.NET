@@ -144,11 +144,10 @@ class DataChannel : public DataChannelInterface,
   // stream on an existing DataMediaChannel, and we've finished negotiation.
   void OnChannelReady(bool writable);
 
-  // Sigslots from cricket::DataChannel
-  void OnDataReceived(cricket::DataChannel* channel,
-                      const cricket::ReceiveDataParams& params,
+  // Slots for provider to connect signals to.
+  void OnDataReceived(const cricket::ReceiveDataParams& params,
                       const rtc::CopyOnWriteBuffer& payload);
-  void OnStreamClosedRemotely(uint32_t sid);
+  void OnStreamClosedRemotely(int sid);
 
   // The remote peer request that this channel should be closed.
   void RemotePeerRequestClose();
@@ -273,6 +272,7 @@ class DataChannel : public DataChannelInterface,
 
 // Define proxy for DataChannelInterface.
 BEGIN_SIGNALING_PROXY_MAP(DataChannel)
+  PROXY_SIGNALING_THREAD_DESTRUCTOR()
   PROXY_METHOD1(void, RegisterObserver, DataChannelObserver*)
   PROXY_METHOD0(void, UnregisterObserver)
   PROXY_CONSTMETHOD0(std::string, label)
@@ -291,7 +291,7 @@ BEGIN_SIGNALING_PROXY_MAP(DataChannel)
   PROXY_CONSTMETHOD0(uint64_t, buffered_amount)
   PROXY_METHOD0(void, Close)
   PROXY_METHOD1(bool, Send, const DataBuffer&)
-END_SIGNALING_PROXY()
+END_PROXY_MAP()
 
 }  // namespace webrtc
 

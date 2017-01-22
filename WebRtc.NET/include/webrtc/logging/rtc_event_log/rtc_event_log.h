@@ -14,9 +14,9 @@
 #include <memory>
 #include <string>
 
-#include "webrtc/api/call/audio_receive_stream.h"
-#include "webrtc/api/call/audio_send_stream.h"
 #include "webrtc/base/platform_file.h"
+#include "webrtc/call/audio_receive_stream.h"
+#include "webrtc/call/audio_send_stream.h"
 #include "webrtc/video_receive_stream.h"
 #include "webrtc/video_send_stream.h"
 
@@ -40,7 +40,13 @@ class RtcEventLog {
   virtual ~RtcEventLog() {}
 
   // Factory method to create an RtcEventLog object.
-  static std::unique_ptr<RtcEventLog> Create(const Clock* clock);
+  static std::unique_ptr<RtcEventLog> Create();
+  // TODO(nisse): webrtc::Clock is deprecated. Delete this method and
+  // above forward declaration of Clock when
+  // webrtc/system_wrappers/include/clock.h is deleted.
+  static std::unique_ptr<RtcEventLog> Create(const Clock* clock) {
+    return Create();
+  }
 
   // Create an RtcEventLog object that does nothing.
   static std::unique_ptr<RtcEventLog> CreateNull();

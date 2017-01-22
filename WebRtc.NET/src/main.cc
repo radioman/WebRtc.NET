@@ -60,15 +60,9 @@
 // unknown
 #pragma comment(lib,"builtin_audio_decoder_factory.lib")
 #pragma comment(lib,"field_trial_default.lib")
-#pragma comment(lib,"g711.lib")
-#pragma comment(lib,"g722.lib")
-#pragma comment(lib,"ilbc.lib")
-#pragma comment(lib,"isac.lib")
-#pragma comment(lib,"isac_common.lib")
 #pragma comment(lib,"metrics_default.lib")
 #pragma comment(lib,"neteq.lib")
 #pragma comment(lib,"opus.lib")
-#pragma comment(lib,"pcm16b.lib")
 #pragma comment(lib,"red.lib")
 #pragma comment(lib,"rent_a_codec.lib")
 #pragma comment(lib,"level_indicator.lib")
@@ -76,12 +70,28 @@
 #pragma comment(lib,"ana_config_proto.lib")
 #pragma comment(lib,"ana_debug_dump_proto.lib")
 
+#pragma comment(lib,"g711.lib")
+#pragma comment(lib,"g711_c.lib")
+#pragma comment(lib,"g722.lib")
+#pragma comment(lib,"g722_c.lib")
+#pragma comment(lib,"ilbc.lib")
+#pragma comment(lib,"ilbc_c.lib")
+#pragma comment(lib,"isac.lib")
+#pragma comment(lib,"isac_c.lib")
+#pragma comment(lib,"isac_common.lib")
+#pragma comment(lib,"isac_fix.lib")
+#pragma comment(lib,"isac_fix_c.lib")
+#pragma comment(lib,"pcm16b.lib")
+#pragma comment(lib,"pcm16b_c.lib")
+
 // etc
 #pragma comment(lib,"protobuf_lite.lib")
 #pragma comment(lib,"winsdk_samples.lib")
 #pragma comment(lib,"dl.lib")
 #pragma comment(lib,"simd.lib")
 //#pragma comment(lib,"simd_asm.lib")
+#pragma comment(lib,"file_player.lib")
+#pragma comment(lib,"file_recorder.lib")
 
 #pragma comment(lib,"rtc_base.lib")
 #pragma comment(lib,"rtc_base_approved.lib")
@@ -95,9 +105,9 @@
 #pragma comment(lib,"rtp_rtcp.lib")
 #pragma comment(lib,"rtc_task_queue.lib")
 #pragma comment(lib,"rtc_stats.lib")
-#pragma comment(lib,"rtc_analytics.lib")
+//#pragma comment(lib,"rtc_analytics.lib")//old
 #pragma comment(lib,"rtc_media_base.lib")
-
+#pragma comment(lib,"rtc_numerics.lib")
 
 #pragma comment(lib,"audio.lib")
 #pragma comment(lib,"audio_coding.lib")
@@ -109,9 +119,11 @@
 #pragma comment(lib,"audio_device.lib")
 #pragma comment(lib,"audio_encoder_interface.lib")
 #pragma comment(lib,"audio_processing.lib")
+#pragma comment(lib,"audio_processing_c.lib")
 #pragma comment(lib,"audio_processing_sse2.lib")
 #pragma comment(lib,"audioproc_debug_proto.lib")
-
+#pragma comment(lib,"audio_coder.lib")
+#pragma comment(lib,"audio_frame_operations.lib")
 #pragma comment(lib,"audio_mixer_impl.lib")
 #pragma comment(lib,"audio_frame_manipulator.lib")
 
@@ -122,18 +134,20 @@
 #pragma comment(lib,"video_coding_utility.lib")
 #pragma comment(lib,"video_processing.lib")
 #pragma comment(lib,"video_processing_sse2.lib")
+#pragma comment(lib,"video_frame_api.lib")
 
 #pragma comment(lib,"webrtc_common.lib")
 #pragma comment(lib,"webrtc_h264.lib")
 #pragma comment(lib,"webrtc_i420.lib")
 #pragma comment(lib,"webrtc_opus.lib")
+#pragma comment(lib,"webrtc_opus_c.lib")
 #pragma comment(lib,"webrtc_vp9.lib")
 
 #pragma comment(lib,"libjingle_peerconnection.lib")
 #pragma comment(lib,"system_wrappers.lib")
 #pragma comment(lib,"voice_engine.lib")
 #pragma comment(lib,"call.lib")
-#pragma comment(lib,"call_api.lib")
+#pragma comment(lib,"call_interfaces.lib")
 
 // modules
 #pragma comment(lib,"pacing.lib")
@@ -141,6 +155,7 @@
 #pragma comment(lib,"media_file.lib")
 #pragma comment(lib,"remote_bitrate_estimator.lib")
 #pragma comment(lib,"common_audio.lib")
+#pragma comment(lib,"common_audio_c.lib")
 #pragma comment(lib,"common_audio_sse2.lib")
 #pragma comment(lib,"common_video.lib")
 #pragma comment(lib,"congestion_controller.lib")

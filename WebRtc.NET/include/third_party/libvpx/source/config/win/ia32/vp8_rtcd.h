@@ -297,7 +297,7 @@ static void setup_rtcd_internal(void)
     vp8_mbuverror = vp8_mbuverror_c;
     if (flags & HAS_SSE2) vp8_mbuverror = vp8_mbuverror_sse2;
     vp8_refining_search_sad = vp8_refining_search_sad_c;
-    if (flags & HAS_SSE3) vp8_refining_search_sad = vp8_refining_search_sadx4;
+    if (flags & HAS_SSE2) vp8_refining_search_sad = vp8_refining_search_sadx4;
     vp8_regular_quantize_b = vp8_regular_quantize_b_c;
     if (flags & HAS_SSE2) vp8_regular_quantize_b = vp8_regular_quantize_b_sse2;
     if (flags & HAS_SSE4_1) vp8_regular_quantize_b = vp8_regular_quantize_b_sse4_1;

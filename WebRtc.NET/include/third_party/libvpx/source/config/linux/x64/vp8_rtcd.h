@@ -169,7 +169,7 @@ int vp8_mbuverror_sse2(struct macroblock *mb);
 
 int vp8_refining_search_sad_c(struct macroblock *x, struct block *b, struct blockd *d, union int_mv *ref_mv, int sad_per_bit, int distance, struct variance_vtable *fn_ptr, int *mvcost[2], union int_mv *center_mv);
 int vp8_refining_search_sadx4(struct macroblock *x, struct block *b, struct blockd *d, union int_mv *ref_mv, int sad_per_bit, int distance, struct variance_vtable *fn_ptr, int *mvcost[2], union int_mv *center_mv);
-RTCD_EXTERN int (*vp8_refining_search_sad)(struct macroblock *x, struct block *b, struct blockd *d, union int_mv *ref_mv, int sad_per_bit, int distance, struct variance_vtable *fn_ptr, int *mvcost[2], union int_mv *center_mv);
+#define vp8_refining_search_sad vp8_refining_search_sadx4
 
 void vp8_regular_quantize_b_c(struct block *, struct blockd *);
 void vp8_regular_quantize_b_sse2(struct block *, struct blockd *);
@@ -240,8 +240,6 @@ static void setup_rtcd_internal(void)
     vp8_full_search_sad = vp8_full_search_sad_c;
     if (flags & HAS_SSE3) vp8_full_search_sad = vp8_full_search_sadx3;
     if (flags & HAS_SSE4_1) vp8_full_search_sad = vp8_full_search_sadx8;
-    vp8_refining_search_sad = vp8_refining_search_sad_c;
-    if (flags & HAS_SSE3) vp8_refining_search_sad = vp8_refining_search_sadx4;
     vp8_regular_quantize_b = vp8_regular_quantize_b_sse2;
     if (flags & HAS_SSE4_1) vp8_regular_quantize_b = vp8_regular_quantize_b_sse4_1;
     vp8_sixtap_predict16x16 = vp8_sixtap_predict16x16_sse2;

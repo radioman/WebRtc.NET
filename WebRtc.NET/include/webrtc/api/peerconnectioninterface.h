@@ -52,6 +52,7 @@
 #define WEBRTC_API_PEERCONNECTIONINTERFACE_H_
 
 #include <memory>
+#include <ostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -86,6 +87,7 @@ class WebRtcVideoEncoderFactory;
 
 namespace webrtc {
 class AudioDeviceModule;
+class AudioMixer;
 class MediaConstraintsInterface;
 
 // MediaStream container interface.
@@ -113,32 +115,61 @@ class StatsObserver : public rtc::RefCountInterface {
   virtual ~StatsObserver() {}
 };
 
-class MetricsObserverInterface : public rtc::RefCountInterface {
- public:
-
-  // |type| is the type of the enum counter to be incremented. |counter|
-  // is the particular counter in that type. |counter_max| is the next sequence
-  // number after the highest counter.
-  virtual void IncrementEnumCounter(PeerConnectionEnumCounterType type,
-                                    int counter,
-                                    int counter_max) {}
-
-  // This is used to handle sparse counters like SSL cipher suites.
-  // TODO(guoweis): Remove the implementation once the dependency's interface
-  // definition is updated.
-  virtual void IncrementSparseEnumCounter(PeerConnectionEnumCounterType type,
-                                          int counter) {
-    IncrementEnumCounter(type, counter, 0 /* Ignored */);
-  }
-
-  virtual void AddHistogramSample(PeerConnectionMetricsName type,
-                                  int value) = 0;
-
- protected:
-  virtual ~MetricsObserverInterface() {}
+// Enumeration to represent distinct classes of errors that an application
+// may wish to act upon differently. These roughly map to DOMExceptions or
+// RTCError "errorDetailEnum" values in the web API, as described in the
+// comments below.
+enum class RTCErrorType {
+  // No error.
+  NONE,
+  // A supplied parameter is valid, but currently unsupported.
+  // Maps to InvalidAccessError DOMException.
+  UNSUPPORTED_PARAMETER,
+  // General error indicating that a supplied parameter is invalid.
+  // Maps to InvalidAccessError or TypeError DOMException depending on context.
+  INVALID_PARAMETER,
+  // Slightly more specific than INVALID_PARAMETER; a parameter's value was
+  // outside the allowed range.
+  // Maps to RangeError DOMException.
+  INVALID_RANGE,
+  // Slightly more specific than INVALID_PARAMETER; an error occurred while
+  // parsing string input.
+  // Maps to SyntaxError DOMException.
+  SYNTAX_ERROR,
+  // The object does not support this operation in its current state.
+  // Maps to InvalidStateError DOMException.
+  INVALID_STATE,
+  // An attempt was made to modify the object in an invalid way.
+  // Maps to InvalidModificationError DOMException.
+  INVALID_MODIFICATION,
+  // An error occurred within an underlying network protocol.
+  // Maps to NetworkError DOMException.
+  NETWORK_ERROR,
+  // The operation failed due to an internal error.
+  // Maps to OperationError DOMException.
+  INTERNAL_ERROR,
 };
 
-typedef MetricsObserverInterface UMAObserver;
+// Roughly corresponds to RTCError in the web api. Holds an error type and
+// possibly additional information specific to that error.
+//
+// Doesn't contain anything beyond a type now, but will in the future as more
+// errors are implemented.
+class RTCError {
+ public:
+  RTCError() : type_(RTCErrorType::NONE) {}
+  explicit RTCError(RTCErrorType type) : type_(type) {}
+
+  RTCErrorType type() const { return type_; }
+  void set_type(RTCErrorType type) { type_ = type; }
+
+ private:
+  RTCErrorType type_;
+};
+
+// Outputs the error as a friendly string.
+// Update this method when adding a new error type.
+std::ostream& operator<<(std::ostream& stream, RTCErrorType error);
 
 class PeerConnectionInterface : public rtc::RefCountInterface {
  public:
@@ -169,12 +200,30 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     kIceConnectionMax,
   };
 
+  // TLS certificate policy.
+  enum TlsCertPolicy {
+    // For TLS based protocols, ensure the connection is secure by not
+    // circumventing certificate validation.
+    kTlsCertPolicySecure,
+    // For TLS based protocols, disregard security completely by skipping
+    // certificate validation. This is insecure and should never be used unless
+    // security is irrelevant in that particular context.
+    kTlsCertPolicyInsecureNoCheck,
+  };
+
   struct IceServer {
     // TODO(jbauch): Remove uri when all code using it has switched to urls.
     std::string uri;
     std::vector<std::string> urls;
     std::string username;
     std::string password;
+    TlsCertPolicy tls_cert_policy = kTlsCertPolicySecure;
+
+    bool operator==(const IceServer& o) const {
+      return uri == o.uri && urls == o.urls && username == o.username &&
+             password == o.password && tls_cert_policy == o.tls_cert_policy;
+    }
+    bool operator!=(const IceServer& o) const { return !(*this == o); }
   };
   typedef std::vector<IceServer> IceServers;
 
@@ -254,6 +303,9 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
       }
     }
 
+    bool operator==(const RTCConfiguration& o) const;
+    bool operator!=(const RTCConfiguration& o) const;
+
     bool dscp() { return media_config.enable_dscp; }
     void set_dscp(bool enable) { media_config.enable_dscp = enable; }
 
@@ -327,6 +379,9 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
     // If true, ICE role is redetermined when peerconnection sets a local
     // transport description that indicates an ICE restart.
     bool redetermine_role_on_ice_restart = true;
+    //
+    // Don't forget to update operator== if adding something.
+    //
   };
 
   struct RTCOfferAnswerOptions {
@@ -441,6 +496,25 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
 
   virtual const SessionDescriptionInterface* local_description() const = 0;
   virtual const SessionDescriptionInterface* remote_description() const = 0;
+  // A "current" description the one currently negotiated from a complete
+  // offer/answer exchange.
+  virtual const SessionDescriptionInterface* current_local_description() const {
+    return nullptr;
+  }
+  virtual const SessionDescriptionInterface* current_remote_description()
+      const {
+    return nullptr;
+  }
+  // A "pending" description is one that's part of an incomplete offer/answer
+  // exchange (thus, either an offer or a pranswer). Once the offer/answer
+  // exchange is finished, the "pending" description will become "current".
+  virtual const SessionDescriptionInterface* pending_local_description() const {
+    return nullptr;
+  }
+  virtual const SessionDescriptionInterface* pending_remote_description()
+      const {
+    return nullptr;
+  }
 
   // Create a new offer.
   // The CreateSessionDescriptionObserver callback will be called when done.
@@ -485,13 +559,37 @@ class PeerConnectionInterface : public rtc::RefCountInterface {
   virtual PeerConnectionInterface::RTCConfiguration GetConfiguration() {
     return PeerConnectionInterface::RTCConfiguration();
   }
+
   // Sets the PeerConnection's global configuration to |config|.
+  //
+  // The members of |config| that may be changed are |type|, |servers|,
+  // |ice_candidate_pool_size| and |prune_turn_ports| (though the candidate
+  // pool size can't be changed after the first call to SetLocalDescription).
+  // Note that this means the BUNDLE and RTCP-multiplexing policies cannot be
+  // changed with this method.
+  //
   // Any changes to STUN/TURN servers or ICE candidate policy will affect the
   // next gathering phase, and cause the next call to createOffer to generate
-  // new ICE credentials. Note that the BUNDLE and RTCP-multiplexing policies
-  // cannot be changed with this method.
+  // new ICE credentials, as described in JSEP. This also occurs when
+  // |prune_turn_ports| changes, for the same reasoning.
+  //
+  // If an error occurs, returns false and populates |error| if non-null:
+  // - INVALID_MODIFICATION if |config| contains a modified parameter other
+  //   than one of the parameters listed above.
+  // - INVALID_RANGE if |ice_candidate_pool_size| is out of range.
+  // - SYNTAX_ERROR if parsing an ICE server URL failed.
+  // - INVALID_PARAMETER if a TURN server is missing |username| or |password|.
+  // - INTERNAL_ERROR if an unexpected error occurred.
+  //
   // TODO(deadbeef): Make this pure virtual once all Chrome subclasses of
   // PeerConnectionInterface implement it.
+  virtual bool SetConfiguration(
+      const PeerConnectionInterface::RTCConfiguration& config,
+      RTCError* error) {
+    return false;
+  }
+  // Version without error output param for backwards compatibility.
+  // TODO(deadbeef): Remove once chromium is updated.
   virtual bool SetConfiguration(
       const PeerConnectionInterface::RTCConfiguration& config) {
     return false;
@@ -603,7 +701,7 @@ class PeerConnectionObserver {
   // implement it.
   virtual void OnAddTrack(
       rtc::scoped_refptr<RtpReceiverInterface> receiver,
-      std::vector<rtc::scoped_refptr<MediaStreamInterface>> streams) {}
+      const std::vector<rtc::scoped_refptr<MediaStreamInterface>>& streams) {}
 
  protected:
   // Dtor protected as objects shouldn't be deleted via this interface.
@@ -671,6 +769,7 @@ class PeerConnectionFactoryInterface : public rtc::RefCountInterface {
   virtual rtc::scoped_refptr<AudioSourceInterface> CreateAudioSource(
       const cricket::AudioOptions& options) = 0;
   // Deprecated - use version above.
+  // Can use CopyConstraintsIntoAudioOptions to bridge the gap.
   virtual rtc::scoped_refptr<AudioSourceInterface> CreateAudioSource(
       const MediaConstraintsInterface* constraints) = 0;
 
@@ -758,6 +857,20 @@ rtc::scoped_refptr<PeerConnectionFactoryInterface> CreatePeerConnectionFactory(
     AudioDeviceModule* default_adm,
     cricket::WebRtcVideoEncoderFactory* encoder_factory,
     cricket::WebRtcVideoDecoderFactory* decoder_factory);
+
+// Create a new instance of PeerConnectionFactoryInterface with external audio
+// mixer.
+//
+// If |audio_mixer| is null, an internal audio mixer will be created and used.
+rtc::scoped_refptr<PeerConnectionFactoryInterface>
+CreatePeerConnectionFactoryWithAudioMixer(
+    rtc::Thread* network_thread,
+    rtc::Thread* worker_thread,
+    rtc::Thread* signaling_thread,
+    AudioDeviceModule* default_adm,
+    cricket::WebRtcVideoEncoderFactory* encoder_factory,
+    cricket::WebRtcVideoDecoderFactory* decoder_factory,
+    rtc::scoped_refptr<AudioMixer> audio_mixer);
 
 // Create a new instance of PeerConnectionFactoryInterface.
 // Same thread is used as worker and network thread.
