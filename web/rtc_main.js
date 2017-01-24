@@ -108,21 +108,21 @@ function startStream() {
                     Promise.all([
                         remotestream.getStats(null).then(function (o) {
 
-                            var rcv = o[Object.keys(o).find(function (key) {
-                                var s = o[key];
-                                return (
-                                        (s.type == "inboundrtp" && !s.isRemote) ||
-                                        (s.type == "ssrc" && s.mediaType == "video" && s.id.indexOf("recv") >= 0)
-                                       );
-                            })];
+                            var rcv = null;
+                            var snd = null;
 
-                            var snd = o[Object.keys(o).find(function (key) {
-                                var s = o[key];
-                                return (
-                                        (s.type == "outboundrtp" && !s.isRemote) ||
-                                        (s.type == "ssrc" && s.mediaType == "video" && s.id.indexOf("send") >= 0)
-                                       );
-                            })];
+                            o.forEach(function (s) {
+                                if ((s.type == "inbound-rtp" && s.mediaType == "video" && !s.isRemote) ||
+                                   (s.type == "ssrc" && s.mediaType == "video" && s.id.indexOf("recv") >= 0))
+                                {
+                                    rcv = s;
+                                }
+                                else if((s.type == "outbound-rtp" && s.mediaType == "video" && !s.isRemote) ||
+                                        (s.type == "ssrc" && s.mediaType == "video" && s.id.indexOf("send") >= 0))
+                                {
+                                    snd = s;
+                                }
+                            });                            
 
                             return dumpStat(rcv, snd);                           
                         })
