@@ -231,6 +231,11 @@ namespace WebRtc.NET.Demo
                     {
                         g.Clear(Color.DarkBlue);
 
+                        if (checkBoxScreen.Checked)
+                        {
+                            g.CopyFromScreen(Cursor.Position, new Point(), new Size(screenWidth, screenHeight));
+                        }
+
                         var rc = RectangleF.FromLTRB(0, 0, img.Width, img.Height);
                         g.DrawString(string.Format("{0}", DateTime.Now.ToString("hh:mm:ss.fff")), fBig, Brushes.LimeGreen, rc, sfTopRight);
                     }

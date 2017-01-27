@@ -45,6 +45,7 @@
             this.numericMaxClients = new System.Windows.Forms.NumericUpDown();
             this.checkBoxWebsocket = new System.Windows.Forms.CheckBox();
             this.numericWebSocket = new System.Windows.Forms.NumericUpDown();
+            this.checkBoxScreen = new System.Windows.Forms.CheckBox();
             this.tabControl1.SuspendLayout();
             this.tabPage2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxRemote)).BeginInit();
@@ -131,6 +132,7 @@
             // 
             // groupBox5
             // 
+            this.groupBox5.Controls.Add(this.checkBoxScreen);
             this.groupBox5.Controls.Add(this.comboBoxVideo);
             this.groupBox5.Controls.Add(this.checkBoxVirtualCam);
             this.groupBox5.Location = new System.Drawing.Point(172, 19);
@@ -264,6 +266,17 @@
             0,
             0});
             // 
+            // checkBoxScreen
+            // 
+            this.checkBoxScreen.AutoSize = true;
+            this.checkBoxScreen.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(186)));
+            this.checkBoxScreen.Location = new System.Drawing.Point(98, 46);
+            this.checkBoxScreen.Name = "checkBoxScreen";
+            this.checkBoxScreen.Size = new System.Drawing.Size(58, 17);
+            this.checkBoxScreen.TabIndex = 22;
+            this.checkBoxScreen.Text = "screen";
+            this.checkBoxScreen.UseVisualStyleBackColor = true;
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -310,5 +323,6 @@
         private System.Windows.Forms.Label label1;
         internal System.Windows.Forms.ComboBox comboBoxVideo;
         internal System.Windows.Forms.CheckBox checkBoxVirtualCam;
+        internal System.Windows.Forms.CheckBox checkBoxScreen;
     }
 }
