@@ -183,6 +183,14 @@
 
 #include "stdafx.h"
 
+#if DESKTOP_CAPTURE
+#pragma comment(lib,"desktop_capture.lib")
+#pragma comment(lib,"desktop_capture_differ_sse2.lib")
+#pragma comment(lib,"primitives.lib")
+#pragma comment(lib,"dxgi.lib")
+#pragma comment(lib,"d3d11.lib")
+#endif
+
 #include "webrtc/base/ssladapter.h"
 #include "webrtc/base/win32socketinit.h"
 #include "webrtc/base/win32socketserver.h"

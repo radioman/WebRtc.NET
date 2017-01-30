@@ -6,12 +6,18 @@
 #include "webrtc/media/base/videocapturer.h"
 #include "webrtc/media/base/yuvframegenerator.h"
 #include "webrtc/api/mediastreaminterface.h"
+#include "webrtc/modules/desktop_capture/desktop_capturer.h"
+
+#include "internals.h"
 
 namespace Native
 {
 	class Conductor;
 
 	class YuvFramesCapturer2 : public cricket::VideoCapturer
+#if DESKTOP_CAPTURE
+		, webrtc::DesktopCapturer::Callback
+#endif
 	{
 	public:
 		YuvFramesCapturer2(Conductor & c);
@@ -28,6 +34,10 @@ namespace Native
 
 		void PushFrame();
 
+#if DESKTOP_CAPTURE
+		void CaptureFrame();
+		virtual void OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame);
+#endif
 		rtc::scoped_refptr<webrtc::I420Buffer> video_buffer;
 		uint32_t frame_data_size_;
 
@@ -45,7 +55,9 @@ namespace Native
 		int32_t barcode_interval_;
 		bool run;
 
-		RTC_DISALLOW_COPY_AND_ASSIGN(YuvFramesCapturer2);
+#if DESKTOP_CAPTURE
+		std::unique_ptr<webrtc::DesktopCapturer> desktop_capturer;
+#endif
 	};
 
 	class VideoRenderer : public rtc::VideoSinkInterface<webrtc::VideoFrame>

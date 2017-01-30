@@ -3,6 +3,9 @@
 #include "internals.h"
 #include "conductor.h"
 
+
+#include "webrtc/modules/desktop_capture/desktop_capture_options.h"
+
 namespace Native
 {
 	int I420DataSize(int height, int stride_y, int stride_u, int stride_v)
@@ -13,6 +16,9 @@ namespace Native
 	YuvFramesCapturer2::YuvFramesCapturer2(Conductor & c) :
 		barcode_interval_(1),
 		frame_generator_(nullptr),
+#if DESKTOP_CAPTURE
+		desktop_capturer(nullptr),
+#endif
 		run(false),
 		con(&c)
 	{
@@ -52,8 +58,22 @@ namespace Native
 		SetCaptureFormat(&capture_format);
 
 		barcode_reference_timestamp_millis_ = rtc::TimeNanos();
-
 		run = true;
+
+#if DESKTOP_CAPTURE
+		if (con->desktopCaptureEnabled)
+		{
+			webrtc::DesktopCaptureOptions co;
+			co.set_allow_directx_capturer(true);
+			desktop_capturer = webrtc::DesktopCapturer::CreateScreenCapturer(co);
+
+			webrtc::DesktopCapturer::SourceList sl;
+			desktop_capturer->GetSourceList(&sl);
+			desktop_capturer->SelectSource(sl[0].id);
+
+			desktop_capturer->Start(this);
+		}
+#endif
 
 		LOG(LS_INFO) << "Yuv Frame Generator started";
 		return cricket::CS_RUNNING;
@@ -118,6 +138,28 @@ namespace Native
 			OnFrame(*video_frame, con->width_, con->height_);
 		}
 	}
+
+#if DESKTOP_CAPTURE
+	void YuvFramesCapturer2::CaptureFrame()
+	{
+		if (desktop_capturer)
+		{
+			desktop_capturer->CaptureFrame();
+		}
+	}
+
+	// webrtc::DesktopCapturer::Callback implementation
+	void YuvFramesCapturer2::OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame)
+	{
+		if (con->desktopCaptureEnabled)
+		{
+			uint8_t * d = frame->data();
+			webrtc::DesktopSize s = frame->size();
+
+			//todo: add event
+		}
+	}
+#endif
 
 	// VideoSinkInterface implementation
 	void VideoRenderer::OnFrame(const webrtc::VideoFrame& frame)

@@ -66,8 +66,10 @@ namespace Native
 		width_ = 640;
 	    height_ = 360;			
 		caputureFps = 5;
-		barcodeEnabled = false;
 		audioEnabled = false;
+
+		barcodeEnabled = false;		
+		desktopCaptureEnabled = false;
 
 		turnServer = nullptr;
 		data_channel = nullptr;
@@ -97,7 +99,7 @@ namespace Native
 
 	void Conductor::DeletePeerConnection()
 	{
-		if (peer_connection_)
+		if (peer_connection_.get())
 		{
 			local_video.reset();
 

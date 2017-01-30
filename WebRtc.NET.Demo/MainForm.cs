@@ -215,6 +215,8 @@ namespace WebRtc.NET.Demo
         readonly byte[] imgBuf = new byte[screenWidth * 3 * screenHeight];
         IntPtr imgBufPtr = IntPtr.Zero;
         Bitmap img;
+        Graphics g;
+
         private void timerVirtualCam_Tick(object sender, EventArgs e)
         {
             try
@@ -224,10 +226,11 @@ namespace WebRtc.NET.Demo
                     var bufHandle = GCHandle.Alloc(imgBuf, GCHandleType.Pinned);
                     imgBufPtr = bufHandle.AddrOfPinnedObject();
                     img = new Bitmap(screenWidth, screenHeight, screenWidth * 3, PixelFormat.Format24bppRgb, imgBufPtr);
+                    g = Graphics.FromImage(img);
                 }
 
                 {
-                    using (var g = Graphics.FromImage(img))
+                    // render
                     {
                         g.Clear(Color.DarkBlue);
 

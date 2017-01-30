@@ -11,46 +11,14 @@ namespace WebRtc
 	{
 		using namespace System;
 
-		public ref class FilterGrayParams
-		{
-		public:
-			Boolean FilterSubtractBackground = true;
-			Boolean FilterInvertGray = false;
-
-			Boolean FilterBilateralGray = false;
-
-			Boolean FilterEqualizeTRC = false;
-			Single FilterEqualizeTRC_fract = 0.5f;
-			Int32 FilterEqualizeTRC_factor = 1;
-
-			Boolean FilterSobelEdgeFilter = false;
-
-			Boolean FilterUnsharpMaskingGray = true;
-			Int32 FilterUnsharpMaskingGray_usm_halfwidth = 5;
-			Single FilterUnsharpMaskingGray_usm_fract = 2.5f;
-
-			Boolean FilterContrastTRC = true;
-			Single FilterContrastTRC_factor = 1.0f;
-
-			Boolean FilterContrastNorm = true;
-
-			Boolean FilterBlockconvGray = false;
-			Int32 FilterBlockconvGray_wc = 2;
-			Int32 FilterBlockconvGray_hc = 2;
-
-			Boolean FilterSauvolaBinarize = false;
-			Boolean FilterSauvolaBinarize_mark = true;
-
-			Boolean FilterOtsuAdaptiveThreshold = false;
-			Boolean FilterOtsuAdaptiveThreshold_mark = true;
-		};
-
 		public ref class TurboJpegEncoder
 		{
 		private:
 			tjhandle jpeg;
 			tjhandle jpegc;
 			tjscalingfactor * pBestFactor;
+			int lwidth;
+			int lheight;
 
 			unsigned char * _rgbBuf;
 
@@ -63,19 +31,22 @@ namespace WebRtc
 			static TurboJpegEncoder^ CreateEncoder();
 
 			int EncodeJpegToI420(array<Byte> ^ buffer, array<Byte> ^% yuv);
-			int EncodeRGB24toI420(array<Byte> ^ buffer, Int32 w, Int32 h, array<Byte> ^% yuv, Boolean fast);
+
+			int EncodeI420(array<System::Byte> ^ buffer, Int32 w, Int32 h, Int32 pxFormat, System::Boolean fast, array<System::Byte> ^% yuv);
 			int EncodeBGR24toI420(Byte * rgbBuf, Int32 w, Int32 h, Byte * yuv, Int64 yuvSize, Boolean fast);
 			int EncodeI420toBGR24(Byte * yuv, UInt32 w, UInt32 h, array<System::Byte> ^% bgrBuffer, Boolean fast);
 
 			int EncodeJpeg(array<Byte> ^ buffer, Int32 bufferSize, array<Byte> ^% rgb, Int32 maxwidth, Double scale, Int32 % jwidth, Int32 % jheight, Int32 % pitch, Int32 pxFormat);
+			int DecodeJpeg(array<Byte> ^ buffer, Int32 bufferSize, Int32 maxwidth, Double scale, Int32 % jwidth, Int32 % jheight);
 
-			int EncodeBGR24toJpeg(array<System::Byte> ^ buffer, Int32 w, Int32 h, array<System::Byte> ^% jpegBuffer, Int32 % jpegOutSize, Int32 jpegQual);
-
-			void FilterGray(array<Byte> ^ bufferBg, array<Byte> ^ buffer, Int32 w, Int32 h, FilterGrayParams ^ p);
+			int EncodeToJpeg(array<System::Byte> ^ buffer, Int32 w, Int32 h, Int32 pxFormat, array<System::Byte> ^% jpegBuffer, Int32 % jpegOutSize, Int32 jpegQual);
+			int EncodeGrayToJpeg(array<System::Byte> ^ buffer, Int32 w, Int32 h, array<System::Byte> ^% jpegBuffer, Int32 % jpegOutSize, Int32 jpegQual);
 
 			void ResetScale()
 			{
 				pBestFactor = nullptr;
+				lwidth = 0;
+				lheight = 0;
 			}
 
 			static property String^ TurboJpegEncoder::LastJpegError

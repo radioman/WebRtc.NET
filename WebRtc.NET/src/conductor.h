@@ -6,6 +6,8 @@
 #include "webrtc/api/mediastreaminterface.h"
 #include "webrtc/api/peerconnectioninterface.h"
 
+#include "internals.h"
+
 namespace cricket
 {
 	class TurnServer;
@@ -63,6 +65,15 @@ namespace Native
 			}
 		}
 
+#if DESKTOP_CAPTURE
+		void CaptureFrame()
+		{
+			if (capturer)
+			{
+				capturer->CaptureFrame();
+			}
+		}
+#endif
 		void CreateDataChannel(const std::string & label);
 		void DataChannelSendText(const std::string & text);
 
@@ -188,8 +199,10 @@ namespace Native
 
 	public:
 		int caputureFps;
-		bool barcodeEnabled;
 		bool audioEnabled;
+
+		bool barcodeEnabled;
+		bool desktopCaptureEnabled;
 
 		int width_;
 		int height_;

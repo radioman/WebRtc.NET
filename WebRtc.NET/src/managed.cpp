@@ -296,6 +296,13 @@ namespace WebRtc
 				cd->PushFrame();
 			}
 
+#if DESKTOP_CAPTURE
+			void CaptureFrame()
+			{
+				cd->CaptureFrame();
+			}
+#endif
+
 #pragma region -- Servers --
 			bool RunStunServer(String ^ bindIp)
 			{
