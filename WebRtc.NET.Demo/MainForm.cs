@@ -217,6 +217,9 @@ namespace WebRtc.NET.Demo
         Bitmap img;
         Graphics g;
 
+        public int desktopWidth;
+        public int desktopHeight;
+
         private void timerVirtualCam_Tick(object sender, EventArgs e)
         {
             try
@@ -237,6 +240,36 @@ namespace WebRtc.NET.Demo
                         if (checkBoxScreen.Checked)
                         {
                             g.CopyFromScreen(Cursor.Position, new Point(), new Size(screenWidth, screenHeight));
+                        }
+
+                        if (checkBoxScreen.Checked)
+                        {
+                            #region -- TODO: native desktop capture --
+                            //foreach (var s in webSocketServer.Streams)
+                            //{
+                            //    s.Value.WebRtc.CaptureFrame();
+
+                            //    if (imgDesktop == null)
+                            //    {
+                            //        var bufHandle = GCHandle.Alloc(imgBufDesktop, GCHandleType.Pinned);
+                            //        varimgBufDesktopPtr = bufHandle.AddrOfPinnedObject();
+                            //        img = new Bitmap(screenWidth, screenHeight, screenWidth * 3, PixelFormat.Format24bppRgb, imgBufPtr);
+                            //        g = Graphics.FromImage(img);
+                            //    }
+                            //    if (desktopWidth == 0)
+                            //    {
+                            //        s.Value.WebRtc.DesktopCapturerSize(ref desktopWidth, ref desktopHeight);
+                            //    }
+                            //    unsafe
+                            //    {
+                            //        var rgba = s.Value.WebRtc.DesktopCapturerRGBAbuffer();
+                            //        if (rgba != null)
+                            //        {
+                            //            //encoderRemote.EncodeBGRAtoI420((byte*)imgBufPtr.ToPointer(), screenWidth, screenHeight, yuv, 0, true);
+                            //        }
+                            //    }
+                            //} 
+                            #endregion
                         }
 
                         var rc = RectangleF.FromLTRB(0, 0, img.Width, img.Height);

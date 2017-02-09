@@ -69,11 +69,12 @@ namespace Native
 		audioEnabled = false;
 
 		barcodeEnabled = false;		
-		desktopCaptureEnabled = false;
 
 		turnServer = nullptr;
 		data_channel = nullptr;
 		onDataMessage = nullptr;
+		capturer_internal = nullptr;
+		capturer = nullptr;
 	}
 
 	Conductor::~Conductor()
@@ -121,6 +122,9 @@ namespace Native
 			data_channel = nullptr;
 		}
 		serverConfigs.clear();
+
+		capturer_internal = nullptr;
+		capturer = nullptr;
 	}
 
 	bool Conductor::InitializePeerConnection()
@@ -287,12 +291,15 @@ namespace Native
 	
 	bool Conductor::OpenVideoCaptureDevice(std::string & name)
 	{
-		cricket::WebRtcVideoDeviceCapturerFactory factory;
-		capturer_internal.reset(factory.Create(cricket::Device(name, 0)));
-		if (capturer_internal)
+		if (!capturer_internal)
 		{
-			LOG(LS_ERROR) << "Capturer != NULL!";
-			return true;
+			cricket::WebRtcVideoDeviceCapturerFactory factory;
+			capturer_internal = factory.Create(cricket::Device(name, 0));
+			if (capturer_internal)
+			{
+				LOG(LS_ERROR) << "Capturer != NULL!";
+				return true;
+			}
 		}
 		return false;
 	}
@@ -305,15 +312,14 @@ namespace Native
 		cricket::VideoCapturer * vc = nullptr;
 		if (capturer_internal)
 		{
-			vc = capturer_internal.get();
+			vc = capturer_internal;
 		}
 		else
 		{
-			capturer.reset(new Native::YuvFramesCapturer2(*this));
-			vc = capturer.get();
+			vc = capturer = new Native::YuvFramesCapturer2(*this);
 		}
 
-		auto v = pc_factory_->CreateVideoSource(vc, NULL);
+		auto v = pc_factory_->CreateVideoSource(vc);
 		auto video_track = pc_factory_->CreateVideoTrack(kVideoLabel, v);
 		if (onRenderLocal)
 		{
@@ -368,10 +374,12 @@ namespace Native
 	void Conductor::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 	{
 		LOG(INFO) << __FUNCTION__ << " " << stream->label();
-		remote_video.reset();
-		remote_audio.reset();
-		capturer.reset();
-		capturer_internal.reset();
+		remote_video.reset(nullptr);
+		remote_audio.reset(nullptr);
+
+		// lost ownership, do not delete
+		capturer = nullptr;
+		capturer_internal = nullptr;
 	}
 
 	void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate)

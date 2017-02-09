@@ -297,6 +297,19 @@ namespace WebRtc
 			}
 
 #if DESKTOP_CAPTURE
+			System::Byte * DesktopCapturerRGBAbuffer()
+			{
+				return cd->DesktopCapturerRGBAbuffer();
+			}
+
+			void DesktopCapturerSize(Int32 % w, Int32 % h)
+			{
+				int wn = 0, hn = 0;
+				cd->DesktopCapturerSize(wn, hn);
+				w = wn;
+				h = hn;
+			}
+
 			void CaptureFrame()
 			{
 				cd->CaptureFrame();

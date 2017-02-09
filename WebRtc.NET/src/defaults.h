@@ -37,6 +37,8 @@ namespace Native
 #if DESKTOP_CAPTURE
 		void CaptureFrame();
 		virtual void OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame);
+		std::unique_ptr<webrtc::DesktopFrame> desktop_frame;
+		webrtc::DesktopCapturer::SourceList desktop_screens;
 #endif
 		rtc::scoped_refptr<webrtc::I420Buffer> video_buffer;
 		uint32_t frame_data_size_;
@@ -70,7 +72,8 @@ namespace Native
 		}
 		virtual ~VideoRenderer()
 		{
-			rendered_track_->RemoveSink(this);
+			if(rendered_track_.get())
+				rendered_track_->RemoveSink(this);
 		}
 
 		// VideoSinkInterface implementation

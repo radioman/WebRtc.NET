@@ -66,6 +66,25 @@ namespace Native
 		}
 
 #if DESKTOP_CAPTURE
+		void DesktopCapturerSize(int & w, int & h)
+		{
+			if (capturer && capturer->desktop_frame)
+			{
+				webrtc::DesktopSize s = capturer->desktop_frame->size();
+				w = s.width();
+				h = s.height();
+			}
+		}
+
+		uint8_t * DesktopCapturerRGBAbuffer()
+		{
+			if (capturer && capturer->desktop_frame)
+			{
+				return capturer->desktop_frame->data();
+			}
+			return nullptr;
+		}
+
 		void CaptureFrame()
 		{
 			if (capturer)
@@ -188,8 +207,9 @@ namespace Native
 		rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel;
 		std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
 
-		std::unique_ptr<YuvFramesCapturer2> capturer;
-		std::unique_ptr<cricket::VideoCapturer> capturer_internal;
+		YuvFramesCapturer2 * capturer;
+		cricket::VideoCapturer * capturer_internal;
+
 		std::unique_ptr<VideoRenderer> local_video;
 		std::unique_ptr<VideoRenderer> remote_video;
 		std::unique_ptr<AudioRenderer> remote_audio;
@@ -200,9 +220,7 @@ namespace Native
 	public:
 		int caputureFps;
 		bool audioEnabled;
-
 		bool barcodeEnabled;
-		bool desktopCaptureEnabled;
 
 		int width_;
 		int height_;

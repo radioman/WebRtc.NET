@@ -39,7 +39,11 @@ namespace Native
 
 	YuvFramesCapturer2::~YuvFramesCapturer2()
 	{
-		delete video_frame;
+		if (video_frame)
+		{
+			delete video_frame;
+			video_frame = nullptr;
+		}
 
 		if (frame_generator_)
 		{
@@ -61,16 +65,17 @@ namespace Native
 		run = true;
 
 #if DESKTOP_CAPTURE
-		if (con->desktopCaptureEnabled)
 		{
 			webrtc::DesktopCaptureOptions co;
 			co.set_allow_directx_capturer(true);
 			desktop_capturer = webrtc::DesktopCapturer::CreateScreenCapturer(co);
 
-			webrtc::DesktopCapturer::SourceList sl;
-			desktop_capturer->GetSourceList(&sl);
-			desktop_capturer->SelectSource(sl[0].id);
-
+			desktop_capturer->GetSourceList(&desktop_screens);
+			for each(auto & s in desktop_screens)
+			{
+				LOG(INFO) << "screen: " << s.id << " -> " << s.title;
+			}
+			desktop_capturer->SelectSource(desktop_screens[0].id);
 			desktop_capturer->Start(this);
 		}
 #endif
@@ -151,12 +156,9 @@ namespace Native
 	// webrtc::DesktopCapturer::Callback implementation
 	void YuvFramesCapturer2::OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame)
 	{
-		if (con->desktopCaptureEnabled)
+		if (desktop_capturer)
 		{
-			uint8_t * d = frame->data();
-			webrtc::DesktopSize s = frame->size();
-
-			//todo: add event
+			desktop_frame.reset(frame.release());	
 		}
 	}
 #endif
