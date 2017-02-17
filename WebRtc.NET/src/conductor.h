@@ -22,6 +22,7 @@ namespace Native
 	typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdp_mid, int sdp_mline_index, const char * sdp);
 	typedef void(__stdcall *OnRenderCallbackNative)(uint8_t * frame_buffer, uint32_t w, uint32_t h);
 	typedef void(__stdcall *OnDataMessageCallbackNative)(const char * msg);
+	typedef void(__stdcall *OnDataBinaryMessageCallbackNative)(const uint8_t * msg, int size);
 
 	class Conductor : public webrtc::PeerConnectionObserver,
 		public webrtc::CreateSessionDescriptionObserver,
@@ -95,6 +96,7 @@ namespace Native
 #endif
 		void CreateDataChannel(const std::string & label);
 		void DataChannelSendText(const std::string & text);
+		void DataChannelSendData(const webrtc::DataBuffer & data);
 
 		OnErrorCallbackNative onError;
 		OnSuccessCallbackNative onSuccess;
@@ -103,6 +105,7 @@ namespace Native
 		OnRenderCallbackNative onRenderLocal;
 		OnRenderCallbackNative onRenderRemote;
 		OnDataMessageCallbackNative onDataMessage;
+		OnDataBinaryMessageCallbackNative onDataBinaryMessage;
 
 		bool RunStunServer(const std::string & bindIp);
 		bool RunTurnServer(const std::string & bindIp, const std::string & ip,

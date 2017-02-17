@@ -461,15 +461,31 @@ namespace Native
 		data_channel->Send(webrtc::DataBuffer(text));
 	}
 
+	void Conductor::DataChannelSendData(const webrtc::DataBuffer & data)
+	{
+		data_channel->Send(data);
+	}
+
 	//  A data buffer was successfully received.
 	void Conductor::OnMessage(const webrtc::DataBuffer& buffer)
 	{
 		LOG(INFO) << __FUNCTION__;
 
-		if (onDataMessage != nullptr)
+		if (buffer.binary)
 		{
-			std::string msg(buffer.data.data<char>(), buffer.size());
-			onDataMessage(msg.c_str());
+			if (onDataBinaryMessage != nullptr)
+			{
+				auto * data = buffer.data.data();
+				onDataBinaryMessage(data, buffer.size());
+			}
+		}
+		else
+		{
+			if (onDataMessage != nullptr)
+			{
+				std::string msg(buffer.data.data<char>(), buffer.size());
+				onDataMessage(msg.c_str());
+			}
 		}
 	}
 

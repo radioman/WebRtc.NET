@@ -59,6 +59,10 @@ namespace WebRtc
 			_OnDataMessageCallback ^ onDataMessage;
 			GCHandle ^ onDataMessageHandle;
 
+			delegate void _OnDataBinaryMessageCallback(uint8_t * msg, Int32 size);
+			_OnDataBinaryMessageCallback ^ onDataBinaryMessage;
+			GCHandle ^ onDataBinaryMessageHandle;
+
 			delegate void _OnIceCandidateCallback(String ^ sdp_mid, Int32 sdp_mline_index, String ^ sdp);
 			_OnIceCandidateCallback ^ onIceCandidate;
 			GCHandle ^ onIceCandidateHandle;
@@ -114,6 +118,17 @@ namespace WebRtc
 				OnDataMessage(msg);
 			}
 
+			void _OnDataBinaryMessage(uint8_t* data, Int32 size)
+			{
+				array<Byte>^ data_array = gcnew array<Byte>(size);
+				for (int i = 0; i < data_array->Length; ++i)
+					data_array[i] = data[i];
+
+				Trace::WriteLine(String::Format("OnDataBinaryMessage: {0}", data_array));
+
+				OnDataBinaryMessage(data_array, size);
+			}
+
 			void _OnRenderLocal(uint8_t * frame_buffer, uint32_t w, uint32_t h)
 			{
 				OnRenderLocal(frame_buffer, w, h);
@@ -140,6 +155,9 @@ namespace WebRtc
 
 			delegate void OnCallbackDataMessage(String ^ msg);
 			event OnCallbackDataMessage ^ OnDataMessage;
+
+			delegate void OnCallbackDataBinaryMessage(array<Byte>^ msg, Int32 size);
+			event OnCallbackDataBinaryMessage ^ OnDataBinaryMessage;
 
 			delegate void OnCallbackRender(System::Byte * frame_buffer, System::UInt32 w, System::UInt32 h);
 			event OnCallbackRender ^ OnRenderLocal;
@@ -173,6 +191,10 @@ namespace WebRtc
 				onDataMessage = gcnew _OnDataMessageCallback(this, &ManagedConductor::_OnDataMessage);
 				onDataMessageHandle = GCHandle::Alloc(onDataMessage);
 				cd->onDataMessage = static_cast<Native::OnDataMessageCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataMessage).ToPointer());
+
+				onDataBinaryMessage = gcnew _OnDataBinaryMessageCallback(this, &ManagedConductor::_OnDataBinaryMessage);
+				onDataBinaryMessageHandle = GCHandle::Alloc(onDataBinaryMessage);
+				cd->onDataBinaryMessage = static_cast<Native::OnDataBinaryMessageCallbackNative>(Marshal::GetFunctionPointerForDelegate(onDataBinaryMessage).ToPointer());
 
 				onIceCandidate = gcnew _OnIceCandidateCallback(this, &ManagedConductor::_OnIceCandidate);
 				onIceCandidateHandle = GCHandle::Alloc(onIceCandidate);
@@ -271,6 +293,15 @@ namespace WebRtc
 			void DataChannelSendText(String ^ text)
 			{
 				cd->DataChannelSendText(marshal_as<std::string>(text));
+			}
+
+			void DataChannelSendData(array<Byte>^ array_data)
+			{
+				pin_ptr<Byte> thePtr = &array_data[0];
+				BYTE* bPtr = thePtr;
+				rtc::CopyOnWriteBuffer writeBuffer;
+				writeBuffer.AppendData(bPtr, array_data->Length);
+				cd->DataChannelSendData(webrtc::DataBuffer(writeBuffer, true));
 			}
 
 			void SetAudio(bool enable)
