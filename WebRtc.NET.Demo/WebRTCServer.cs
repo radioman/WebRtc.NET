@@ -264,6 +264,16 @@ namespace WebRtc.NET.Demo
                                             Trace.WriteLine("OnError");
                                         };
 
+                                        session.WebRtc.OnDataMessage += delegate(string dmsg)
+                                        {
+                                            Trace.WriteLine($"OnDataMessage: {dmsg}");
+                                        };
+
+                                        session.WebRtc.OnDataBinaryMessage += delegate (byte [] dmsg)
+                                        {
+                                            Trace.WriteLine($"OnDataBinaryMessage: {dmsg.Length}");
+                                        };
+
                                         unsafe
                                         {
                                             session.WebRtc.OnRenderRemote += delegate (byte* frame_buffer, uint w, uint h)

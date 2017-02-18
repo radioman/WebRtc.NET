@@ -22,7 +22,7 @@ namespace Native
 	typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdp_mid, int sdp_mline_index, const char * sdp);
 	typedef void(__stdcall *OnRenderCallbackNative)(uint8_t * frame_buffer, uint32_t w, uint32_t h);
 	typedef void(__stdcall *OnDataMessageCallbackNative)(const char * msg);
-	typedef void(__stdcall *OnDataBinaryMessageCallbackNative)(const uint8_t * msg, int size);
+	typedef void(__stdcall *OnDataBinaryMessageCallbackNative)(const uint8_t * msg, uint32_t size);
 
 	class Conductor : public webrtc::PeerConnectionObserver,
 		public webrtc::CreateSessionDescriptionObserver,

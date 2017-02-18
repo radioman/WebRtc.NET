@@ -59,7 +59,7 @@ namespace WebRtc
 			_OnDataMessageCallback ^ onDataMessage;
 			GCHandle ^ onDataMessageHandle;
 
-			delegate void _OnDataBinaryMessageCallback(uint8_t * msg, Int32 size);
+			delegate void _OnDataBinaryMessageCallback(uint8_t * msg, uint32_t size);
 			_OnDataBinaryMessageCallback ^ onDataBinaryMessage;
 			GCHandle ^ onDataBinaryMessageHandle;
 
@@ -113,20 +113,17 @@ namespace WebRtc
 
 			void _OnDataMessage(String ^ msg)
 			{
-				Trace::WriteLine(String::Format("OnDataMessage: {0}", msg));
-
 				OnDataMessage(msg);
 			}
 
-			void _OnDataBinaryMessage(uint8_t* data, Int32 size)
+			void _OnDataBinaryMessage(uint8_t * data, uint32_t size)
 			{
 				array<Byte>^ data_array = gcnew array<Byte>(size);
-				for (int i = 0; i < data_array->Length; ++i)
-					data_array[i] = data[i];
 
-				Trace::WriteLine(String::Format("OnDataBinaryMessage: {0}", data_array));
+				IntPtr src(data);
+				Marshal::Copy(src, data_array, 0, size);
 
-				OnDataBinaryMessage(data_array, size);
+				OnDataBinaryMessage(data_array);
 			}
 
 			void _OnRenderLocal(uint8_t * frame_buffer, uint32_t w, uint32_t h)
@@ -156,7 +153,7 @@ namespace WebRtc
 			delegate void OnCallbackDataMessage(String ^ msg);
 			event OnCallbackDataMessage ^ OnDataMessage;
 
-			delegate void OnCallbackDataBinaryMessage(array<Byte>^ msg, Int32 size);
+			delegate void OnCallbackDataBinaryMessage(array<Byte>^ msg);
 			event OnCallbackDataBinaryMessage ^ OnDataBinaryMessage;
 
 			delegate void OnCallbackRender(System::Byte * frame_buffer, System::UInt32 w, System::UInt32 h);
@@ -297,10 +294,9 @@ namespace WebRtc
 
 			void DataChannelSendData(array<Byte>^ array_data)
 			{
-				pin_ptr<Byte> thePtr = &array_data[0];
-				BYTE* bPtr = thePtr;
-				rtc::CopyOnWriteBuffer writeBuffer;
-				writeBuffer.AppendData(bPtr, array_data->Length);
+				pin_ptr<uint8_t> thePtr = &array_data[0];
+				uint8_t * bPtr = thePtr;
+				rtc::CopyOnWriteBuffer writeBuffer(bPtr, array_data->Length);
 				cd->DataChannelSendData(webrtc::DataBuffer(writeBuffer, true));
 			}
 
