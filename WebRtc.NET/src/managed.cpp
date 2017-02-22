@@ -323,25 +323,35 @@ namespace WebRtc
 				cd->PushFrame();
 			}
 
-#if DESKTOP_CAPTURE
 			System::Byte * DesktopCapturerRGBAbuffer()
 			{
+#if DESKTOP_CAPTURE
 				return cd->DesktopCapturerRGBAbuffer();
+#else
+				throw gcnew System::NotImplementedException("set internals.h #define DESKTOP_CAPTURE 1");
+#endif
 			}
 
 			void DesktopCapturerSize(Int32 % w, Int32 % h)
 			{
+#if DESKTOP_CAPTURE
 				int wn = 0, hn = 0;
 				cd->DesktopCapturerSize(wn, hn);
 				w = wn;
 				h = hn;
+#else
+				throw gcnew System::NotImplementedException("set internals.h #define DESKTOP_CAPTURE 1");
+#endif
 			}
 
 			void CaptureFrame()
 			{
+#if DESKTOP_CAPTURE
 				cd->CaptureFrame();
-			}
+#else
+				throw gcnew System::NotImplementedException("set internals.h #define DESKTOP_CAPTURE 1");
 #endif
+			}
 
 #pragma region -- Servers --
 			bool RunStunServer(String ^ bindIp)

@@ -224,13 +224,13 @@ namespace WebRtc
 			return 0;
 		}
 
-		int TurboJpegEncoder::EncodeBGR24toI420(Byte * rgbBuf, Int32 w, Int32 h, Byte * yuv, Int64 yuvSize, Boolean fast)
+		int TurboJpegEncoder::EncodeI420(Byte * rgbBuf, Int32 w, Int32 h, Int32 pxFormat, Int64 yuvSize, Boolean fast, Byte * yuv)
 		{
 			int pad = 4;
 
 			int width = w;
 			int height = h;
-			int pitch = TJPAD(tjPixelSize[TJPF_BGR] * width);
+			int pitch = TJPAD(tjPixelSize[pxFormat] * width);
 
 			if (yuvSize > 0)
 			{
@@ -242,7 +242,7 @@ namespace WebRtc
 				}
 			}
 
-			int r = tjEncodeYUV3(jpegc, rgbBuf, width, pitch, height, TJPF_BGR, yuv, pad, TJSAMP_420, fast ? TJFLAG_FASTDCT : TJFLAG_ACCURATEDCT);
+			int r = tjEncodeYUV3(jpegc, rgbBuf, width, pitch, height, pxFormat, yuv, pad, TJSAMP_420, fast ? TJFLAG_FASTDCT : TJFLAG_ACCURATEDCT);
 			if (r != 0)
 			{
 				Debug::WriteLine(String::Format("tjEncodeYUV3, LastJpegError: {0}", LastJpegError));

@@ -33,7 +33,7 @@ namespace WebRtc
 			int EncodeJpegToI420(array<Byte> ^ buffer, array<Byte> ^% yuv);
 
 			int EncodeI420(array<System::Byte> ^ buffer, Int32 w, Int32 h, Int32 pxFormat, System::Boolean fast, array<System::Byte> ^% yuv);
-			int EncodeBGR24toI420(Byte * rgbBuf, Int32 w, Int32 h, Byte * yuv, Int64 yuvSize, Boolean fast);
+			int EncodeI420(Byte * rgbBuf, Int32 w, Int32 h, Int32 pxFormat, Int64 yuvSize, Boolean fast, Byte * yuv);
 			int EncodeI420toBGR24(Byte * yuv, UInt32 w, UInt32 h, array<System::Byte> ^% bgrBuffer, Boolean fast);
 
 			int EncodeJpeg(array<Byte> ^ buffer, Int32 bufferSize, array<Byte> ^% rgb, Int32 maxwidth, Double scale, Int32 % jwidth, Int32 % jheight, Int32 % pitch, Int32 pxFormat);

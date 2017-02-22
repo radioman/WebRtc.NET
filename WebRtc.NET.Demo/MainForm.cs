@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -217,8 +218,9 @@ namespace WebRtc.NET.Demo
         Bitmap img;
         Graphics g;
 
-        public int desktopWidth;
-        public int desktopHeight;
+        int desktopWidth;
+        int desktopHeight;
+        readonly Dictionary<IntPtr, Bitmap> imgDesktop = new Dictionary<IntPtr, Bitmap>();
 
         private void timerVirtualCam_Tick(object sender, EventArgs e)
         {
@@ -231,7 +233,7 @@ namespace WebRtc.NET.Demo
                     img = new Bitmap(screenWidth, screenHeight, screenWidth * 3, PixelFormat.Format24bppRgb, imgBufPtr);
                     g = Graphics.FromImage(img);
                 }
-
+                
                 {
                     // render
                     {
@@ -242,33 +244,38 @@ namespace WebRtc.NET.Demo
                             g.CopyFromScreen(Cursor.Position, new Point(), new Size(screenWidth, screenHeight));
                         }
 
-                        if (checkBoxScreen.Checked)
+                        if (checkBoxInternalScreen.Checked)
                         {
-                            #region -- TODO: native desktop capture --
-                            //foreach (var s in webSocketServer.Streams)
-                            //{
-                            //    s.Value.WebRtc.CaptureFrame();
+                            #region -- native webrtc desktop capture --
 
-                            //    if (imgDesktop == null)
-                            //    {
-                            //        var bufHandle = GCHandle.Alloc(imgBufDesktop, GCHandleType.Pinned);
-                            //        varimgBufDesktopPtr = bufHandle.AddrOfPinnedObject();
-                            //        img = new Bitmap(screenWidth, screenHeight, screenWidth * 3, PixelFormat.Format24bppRgb, imgBufPtr);
-                            //        g = Graphics.FromImage(img);
-                            //    }
-                            //    if (desktopWidth == 0)
-                            //    {
-                            //        s.Value.WebRtc.DesktopCapturerSize(ref desktopWidth, ref desktopHeight);
-                            //    }
-                            //    unsafe
-                            //    {
-                            //        var rgba = s.Value.WebRtc.DesktopCapturerRGBAbuffer();
-                            //        if (rgba != null)
-                            //        {
-                            //            //encoderRemote.EncodeBGRAtoI420((byte*)imgBufPtr.ToPointer(), screenWidth, screenHeight, yuv, 0, true);
-                            //        }
-                            //    }
-                            //} 
+                            //set internals.h #define DESKTOP_CAPTURE 1
+
+                            foreach (var s in webSocketServer.Streams)
+                            {
+                                s.Value.WebRtc.CaptureFrame();
+                                unsafe
+                                {
+                                    var rgba = s.Value.WebRtc.DesktopCapturerRGBAbuffer();
+                                    if (rgba != null)
+                                    {
+                                        var rgbaPtr = new IntPtr(rgba);
+                                        Bitmap desktopImg;
+                                        if(!imgDesktop.TryGetValue(rgbaPtr, out desktopImg))
+                                        {
+                                            s.Value.WebRtc.DesktopCapturerSize(ref desktopWidth, ref desktopHeight);
+                                            imgDesktop[rgbaPtr] = new Bitmap(desktopWidth, desktopHeight, desktopWidth * 4, PixelFormat.Format32bppRgb, rgbaPtr);
+                                        }
+
+                                        g.DrawImage(desktopImg, 0,0, new Rectangle(Cursor.Position, new Size(screenWidth, screenHeight)), GraphicsUnit.Pixel);
+
+                                        // if no editing is needed
+                                        //var yuv = s.Value.WebRtc.VideoCapturerI420Buffer();
+                                        //encoderRemote.EncodeI420((byte*)rgba, screenWidth, screenHeight, (int)TJPF.TJPF_BGRX, 0, true, yuv);
+                                    }
+                                }
+                                break;
+                            }
+
                             #endregion
                         }
 
@@ -285,7 +292,7 @@ namespace WebRtc.NET.Demo
                                 var yuv = s.Value.WebRtc.VideoCapturerI420Buffer();
                                 if (yuv != null)
                                 {
-                                    encoderRemote.EncodeBGR24toI420((byte*)imgBufPtr.ToPointer(), screenWidth, screenHeight, yuv, 0, true);
+                                    encoderRemote.EncodeI420((byte*)imgBufPtr.ToPointer(), screenWidth, screenHeight, (int)TJPF.TJPF_BGR, 0, true, yuv);
                                 }
                             }
                         }
@@ -295,7 +302,7 @@ namespace WebRtc.NET.Demo
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("timerDemo_Tick: " + ex);
+                Trace.WriteLine("timerDemo_Tick: " + ex);
             }
         }
 
