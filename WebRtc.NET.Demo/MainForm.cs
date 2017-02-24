@@ -218,9 +218,9 @@ namespace WebRtc.NET.Demo
         Bitmap img;
         Graphics g;
 
-        int desktopWidth;
-        int desktopHeight;
-        readonly Dictionary<IntPtr, Bitmap> imgDesktop = new Dictionary<IntPtr, Bitmap>();
+        int captureWidth;
+        int captureHeight;
+        readonly Dictionary<IntPtr, Bitmap> imgCapture = new Dictionary<IntPtr, Bitmap>();
 
         private void timerVirtualCam_Tick(object sender, EventArgs e)
         {
@@ -259,14 +259,23 @@ namespace WebRtc.NET.Demo
                                     if (rgba != null)
                                     {
                                         var rgbaPtr = new IntPtr(rgba);
-                                        Bitmap desktopImg;
-                                        if(!imgDesktop.TryGetValue(rgbaPtr, out desktopImg))
-                                        {
-                                            s.Value.WebRtc.DesktopCapturerSize(ref desktopWidth, ref desktopHeight);
-                                            imgDesktop[rgbaPtr] = new Bitmap(desktopWidth, desktopHeight, desktopWidth * 4, PixelFormat.Format32bppRgb, rgbaPtr);
-                                        }
+                                        Bitmap captureImg = null;
 
-                                        g.DrawImage(desktopImg, 0,0, new Rectangle(Cursor.Position, new Size(screenWidth, screenHeight)), GraphicsUnit.Pixel);
+                                        int x = -1, y = -1;
+                                        s.Value.WebRtc.DesktopCapturerSize(ref x, ref y);
+
+                                        if (x != captureWidth || y != captureHeight 
+                                            || !imgCapture.TryGetValue(rgbaPtr, out captureImg))
+                                        {
+                                            if (captureImg != null)
+                                                captureImg.Dispose();
+
+                                            imgCapture[rgbaPtr] = captureImg = new Bitmap(x, y, x * 4, PixelFormat.Format32bppRgb, rgbaPtr);
+
+                                            captureWidth = x;
+                                            captureHeight = y;
+                                        }         
+                                        g.DrawImage(captureImg, 0, 0, new Rectangle(Cursor.Position, new Size(screenWidth, screenHeight)), GraphicsUnit.Pixel);
 
                                         // if no editing is needed
                                         //var yuv = s.Value.WebRtc.VideoCapturerI420Buffer();

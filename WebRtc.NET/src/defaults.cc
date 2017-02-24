@@ -69,6 +69,7 @@ namespace Native
 			webrtc::DesktopCaptureOptions co;
 			co.set_allow_directx_capturer(true);
 			desktop_capturer = webrtc::DesktopCapturer::CreateScreenCapturer(co);
+			//desktop_capturer = webrtc::DesktopCapturer::CreateWindowCapturer(co);
 
 			desktop_capturer->GetSourceList(&desktop_screens);
 			for each(auto & s in desktop_screens)
