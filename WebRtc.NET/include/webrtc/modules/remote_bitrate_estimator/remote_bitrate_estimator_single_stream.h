@@ -26,7 +26,7 @@ namespace webrtc {
 class RemoteBitrateEstimatorSingleStream : public RemoteBitrateEstimator {
  public:
   RemoteBitrateEstimatorSingleStream(RemoteBitrateObserver* observer,
-                                     Clock* clock);
+                                     const Clock* clock);
   virtual ~RemoteBitrateEstimatorSingleStream();
 
   void IncomingPacket(int64_t arrival_time_ms,
@@ -56,12 +56,12 @@ class RemoteBitrateEstimatorSingleStream : public RemoteBitrateEstimator {
   // otherwise creates it.
   AimdRateControl* GetRemoteRate() EXCLUSIVE_LOCKS_REQUIRED(crit_sect_.get());
 
-  Clock* clock_;
+  const Clock* const clock_;
   SsrcOveruseEstimatorMap overuse_detectors_ GUARDED_BY(crit_sect_.get());
   RateStatistics incoming_bitrate_ GUARDED_BY(crit_sect_.get());
   uint32_t last_valid_incoming_bitrate_ GUARDED_BY(crit_sect_.get());
   std::unique_ptr<AimdRateControl> remote_rate_ GUARDED_BY(crit_sect_.get());
-  RemoteBitrateObserver* observer_ GUARDED_BY(crit_sect_.get());
+  RemoteBitrateObserver* const observer_ GUARDED_BY(crit_sect_.get());
   std::unique_ptr<CriticalSectionWrapper> crit_sect_;
   int64_t last_process_time_;
   int64_t process_interval_ms_ GUARDED_BY(crit_sect_.get());

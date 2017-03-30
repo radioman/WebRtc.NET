@@ -16,10 +16,10 @@
 #include <string>
 #include <vector>
 
+#include "webrtc/api/audio_codecs/audio_decoder_factory.h"
 #include "webrtc/api/call/transport.h"
 #include "webrtc/base/optional.h"
 #include "webrtc/base/scoped_ref_ptr.h"
-#include "webrtc/modules/audio_coding/codecs/audio_decoder_factory.h"
 #include "webrtc/common_types.h"
 #include "webrtc/config.h"
 #include "webrtc/typedefs.h"
@@ -116,6 +116,8 @@ class AudioReceiveStream {
   virtual void Stop() = 0;
 
   virtual Stats GetStats() const = 0;
+  // TODO(solenberg): Remove, once AudioMonitor is gone.
+  virtual int GetOutputLevel() const = 0;
 
   // Sets an audio sink that receives unmixed audio from the receive stream.
   // Ownership of the sink is passed to the stream and can be used by the

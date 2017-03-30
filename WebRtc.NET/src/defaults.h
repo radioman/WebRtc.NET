@@ -50,7 +50,7 @@ namespace Native
 	private:
 
 		Conductor * con;
-		cricket::YuvFrameGenerator* frame_generator_;		
+		cricket::YuvFrameGenerator* frame_generator_;
 		webrtc::VideoFrame * video_frame;
 
 		int64_t barcode_reference_timestamp_millis_;
@@ -83,7 +83,7 @@ namespace Native
 
 		bool remote;
 		Conductor * con;
-		rtc::scoped_refptr<webrtc::VideoTrackInterface> rendered_track_;		
+		rtc::scoped_refptr<webrtc::VideoTrackInterface> rendered_track_;
 	};
 
 	class AudioRenderer : public webrtc::AudioTrackSinkInterface
@@ -110,6 +110,6 @@ namespace Native
 		bool remote;
 		Conductor * con;
 		rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track_;
-	};	
+	};
 }
 #endif  // WEBRTC_NET_DEFAULTS_H_

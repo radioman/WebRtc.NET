@@ -28,11 +28,11 @@
 #include "webrtc/modules/remote_bitrate_estimator/include/remote_bitrate_estimator.h"
 #include "webrtc/modules/rtp_rtcp/include/receive_statistics.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "webrtc/modules/rtp_rtcp/source/rtcp_nack_stats.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet/dlrr.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet/report_block.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet/tmmb_item.h"
-#include "webrtc/modules/rtp_rtcp/source/rtcp_utility.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -60,7 +60,6 @@ class RTCPSender {
   struct FeedbackState {
     FeedbackState();
 
-    uint8_t send_payload_type;
     uint32_t packets_sent;
     size_t media_bytes_sent;
     uint32_t send_bitrate;
@@ -97,6 +96,8 @@ class RTCPSender {
 
   void SetLastRtpTime(uint32_t rtp_timestamp, int64_t capture_time_ms);
 
+  uint32_t SSRC() const;
+
   void SetSSRC(uint32_t ssrc);
 
   void SetRemoteSSRC(uint32_t ssrc);
@@ -112,16 +113,12 @@ class RTCPSender {
   int32_t SendRTCP(const FeedbackState& feedback_state,
                    RTCPPacketType packetType,
                    int32_t nackSize = 0,
-                   const uint16_t* nackList = 0,
-                   bool repeat = false,
-                   uint64_t pictureID = 0);
+                   const uint16_t* nackList = 0);
 
   int32_t SendCompoundRTCP(const FeedbackState& feedback_state,
                            const std::set<RTCPPacketType>& packetTypes,
                            int32_t nackSize = 0,
-                           const uint16_t* nackList = 0,
-                           bool repeat = false,
-                           uint64_t pictureID = 0);
+                           const uint16_t* nackList = 0);
 
   bool REMB() const;
 
@@ -188,10 +185,6 @@ class RTCPSender {
       EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
   std::unique_ptr<rtcp::RtcpPacket> BuildFIR(const RtcpContext& context)
       EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  std::unique_ptr<rtcp::RtcpPacket> BuildSLI(const RtcpContext& context)
-      EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  std::unique_ptr<rtcp::RtcpPacket> BuildRPSI(const RtcpContext& context)
-      EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
   std::unique_ptr<rtcp::RtcpPacket> BuildNACK(const RtcpContext& context)
       EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
 
@@ -240,7 +233,7 @@ class RTCPSender {
       GUARDED_BY(critical_section_rtcp_sender_);
   uint32_t tmmbr_send_bps_ GUARDED_BY(critical_section_rtcp_sender_);
   uint32_t packet_oh_send_ GUARDED_BY(critical_section_rtcp_sender_);
-  size_t max_packet_size_;
+  size_t max_packet_size_ GUARDED_BY(critical_section_rtcp_sender_);
 
   // APP
   uint8_t app_sub_type_ GUARDED_BY(critical_section_rtcp_sender_);
@@ -261,7 +254,7 @@ class RTCPSender {
   RtcpPacketTypeCounter packet_type_counter_
       GUARDED_BY(critical_section_rtcp_sender_);
 
-  RTCPUtility::NackStats nack_stats_ GUARDED_BY(critical_section_rtcp_sender_);
+  RtcpNackStats nack_stats_ GUARDED_BY(critical_section_rtcp_sender_);
 
   rtc::Optional<BitrateAllocation> video_bitrate_allocation_
       GUARDED_BY(critical_section_rtcp_sender_);

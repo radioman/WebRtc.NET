@@ -34,6 +34,23 @@ typedef BOOL (WINAPI *PAvRevertMmThreadCharacteristics)(HANDLE);
 typedef HANDLE (WINAPI *PAvSetMmThreadCharacteristicsA)(LPCSTR, LPDWORD);
 typedef BOOL (WINAPI *PAvSetMmThreadPriority)(HANDLE, AVRT_PRIORITY);
 
+//typedef struct
+//{
+//	DWORD    ChannelMapping;
+//	COLORREF           Color;
+//	DWORD ConnectionType;
+//	DWORD    GeoLocation;
+//	DWORD    GenLocation;
+//	DWORD PortConnection;
+//	BOOL               IsConnected;
+//} KSJACK_DESCRIPTION, *PKSJACK_DESCRIPTION;
+//
+//typedef struct _KSJACK_DESCRIPTION2
+//{
+//	DWORD DeviceStateInfo;
+//	DWORD JackCapabilities;
+//} KSJACK_DESCRIPTION2, *PKSJACK_DESCRIPTION2;
+
 namespace webrtc {
 
 const float MAX_CORE_SPEAKER_VOLUME = 255.0f;
@@ -332,7 +349,7 @@ private:  // WASAPI
     UINT64                                  _readSamples;
     uint32_t                          _sndCardRecDelay;
 
-    uint16_t                          _recChannelsPrioList[2];
+    uint16_t                          _recChannelsPrioList[3];
     uint16_t                          _playChannelsPrioList[2];
 
     LARGE_INTEGER                           _perfCounterFreq;

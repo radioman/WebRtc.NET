@@ -21,6 +21,9 @@
 extern "C" {
 #endif
 
+// Used to control aggressive VBR mode.
+// #define AGGRESSIVE_VBR 1
+
 // Bits Per MB at different Q (Multiplied by 512)
 #define BPER_MB_NORMBITS 9
 
@@ -178,6 +181,8 @@ int vp9_estimate_bits_at_q(FRAME_TYPE frame_kind, int q, int mbs,
                            double correction_factor, vpx_bit_depth_t bit_depth);
 
 double vp9_convert_qindex_to_q(int qindex, vpx_bit_depth_t bit_depth);
+
+int vp9_convert_q_to_qindex(double q_val, vpx_bit_depth_t bit_depth);
 
 void vp9_rc_init_minq_luts(void);
 

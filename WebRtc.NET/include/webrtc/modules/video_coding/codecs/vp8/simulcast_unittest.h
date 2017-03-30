@@ -21,9 +21,9 @@
 #include "webrtc/base/checks.h"
 #include "webrtc/common_video/libyuv/include/webrtc_libyuv.h"
 #include "webrtc/modules/video_coding/codecs/vp8/include/vp8.h"
+#include "webrtc/modules/video_coding/codecs/vp8/simulcast_rate_allocator.h"
 #include "webrtc/modules/video_coding/codecs/vp8/temporal_layers.h"
 #include "webrtc/modules/video_coding/include/mock/mock_video_codec_interface.h"
-#include "webrtc/modules/video_coding/utility/simulcast_rate_allocator.h"
 #include "webrtc/test/gtest.h"
 #include "webrtc/video_frame.h"
 
@@ -145,6 +145,11 @@ class Vp8TestDecodedImageCallback : public DecodedImageCallback {
     RTC_NOTREACHED();
     return -1;
   }
+  void Decoded(VideoFrame& decoded_image,
+               rtc::Optional<int32_t> decode_time_ms,
+               rtc::Optional<uint8_t> qp) override {
+    Decoded(decoded_image);
+  }
   int DecodedFrames() { return decoded_frames_; }
 
  private:
@@ -219,7 +224,6 @@ class TestVp8Simulcast : public ::testing::Test {
     settings->VP8()->denoisingOn = true;
     settings->VP8()->errorConcealmentOn = false;
     settings->VP8()->automaticResizeOn = false;
-    settings->VP8()->feedbackModeOn = false;
     settings->VP8()->frameDroppingOn = true;
     settings->VP8()->keyFrameInterval = 3000;
   }
@@ -566,147 +570,6 @@ class TestVp8Simulcast : public ::testing::Test {
   void TestSwitchingToOneOddStream() { SwitchingToOneStream(1023, 769); }
 
   void TestSwitchingToOneSmallStream() { SwitchingToOneStream(4, 4); }
-
-  void TestRPSIEncoder() {
-    Vp8TestEncodedImageCallback encoder_callback;
-    encoder_->RegisterEncodeCompleteCallback(&encoder_callback);
-
-    SetRates(kMaxBitrates[2], 30);  // To get all three streams.
-
-    EXPECT_EQ(0, encoder_->Encode(*input_frame_, NULL, NULL));
-    int picture_id = -1;
-    int temporal_layer = -1;
-    bool layer_sync = false;
-    encoder_callback.GetLastEncodedFrameInfo(&picture_id, &temporal_layer,
-                                             &layer_sync, 0);
-    EXPECT_EQ(0, temporal_layer);
-    EXPECT_TRUE(layer_sync);
-    int key_frame_picture_id = picture_id;
-
-    input_frame_->set_timestamp(input_frame_->timestamp() + 3000);
-    EXPECT_EQ(0, encoder_->Encode(*input_frame_, NULL, NULL));
-    encoder_callback.GetLastEncodedFrameInfo(&picture_id, &temporal_layer,
-                                             &layer_sync, 0);
-    EXPECT_EQ(2, temporal_layer);
-    EXPECT_TRUE(layer_sync);
-
-    input_frame_->set_timestamp(input_frame_->timestamp() + 3000);
-    EXPECT_EQ(0, encoder_->Encode(*input_frame_, NULL, NULL));
-    encoder_callback.GetLastEncodedFrameInfo(&picture_id, &temporal_layer,
-                                             &layer_sync, 0);
-    EXPECT_EQ(1, temporal_layer);
-    EXPECT_TRUE(layer_sync);
-
-    input_frame_->set_timestamp(input_frame_->timestamp() + 3000);
-    EXPECT_EQ(0, encoder_->Encode(*input_frame_, NULL, NULL));
-    encoder_callback.GetLastEncodedFrameInfo(&picture_id, &temporal_layer,
-                                             &layer_sync, 0);
-    EXPECT_EQ(2, temporal_layer);
-    EXPECT_FALSE(layer_sync);
-
-    CodecSpecificInfo codec_specific;
-    codec_specific.codecType = kVideoCodecVP8;
-    codec_specific.codecSpecific.VP8.hasReceivedRPSI = true;
-
-    // Must match last key frame to trigger.
-    codec_specific.codecSpecific.VP8.pictureIdRPSI = key_frame_picture_id;
-
-    input_frame_->set_timestamp(input_frame_->timestamp() + 3000);
-    EXPECT_EQ(0, encoder_->Encode(*input_frame_, &codec_specific, NULL));
-    encoder_callback.GetLastEncodedFrameInfo(&picture_id, &temporal_layer,
-                                             &layer_sync, 0);
-
-    EXPECT_EQ(0, temporal_layer);
-    EXPECT_TRUE(layer_sync);
-
-    // Must match last key frame to trigger, test bad id.
-    codec_specific.codecSpecific.VP8.pictureIdRPSI = key_frame_picture_id + 17;
-
-    input_frame_->set_timestamp(input_frame_->timestamp() + 3000);
-    EXPECT_EQ(0, encoder_->Encode(*input_frame_, &codec_specific, NULL));
-    encoder_callback.GetLastEncodedFrameInfo(&picture_id, &temporal_layer,
-                                             &layer_sync, 0);
-
-    EXPECT_EQ(2, temporal_layer);
-    // The previous frame was a base layer sync (since it was a frame that
-    // only predicts from key frame and hence resets the temporal pattern),
-    // so this frame (the next one) must have |layer_sync| set to true.
-    EXPECT_TRUE(layer_sync);
-  }
-
-  void TestRPSIEncodeDecode() {
-    Vp8TestEncodedImageCallback encoder_callback;
-    Vp8TestDecodedImageCallback decoder_callback;
-    encoder_->RegisterEncodeCompleteCallback(&encoder_callback);
-    decoder_->RegisterDecodeCompleteCallback(&decoder_callback);
-
-    SetRates(kMaxBitrates[2], 30);  // To get all three streams.
-
-    // Set color.
-    int plane_offset[kNumOfPlanes];
-    plane_offset[kYPlane] = kColorY;
-    plane_offset[kUPlane] = kColorU;
-    plane_offset[kVPlane] = kColorV;
-    CreateImage(input_buffer_, plane_offset);
-
-    EXPECT_EQ(0, encoder_->Encode(*input_frame_, NULL, NULL));
-    int picture_id = -1;
-    int temporal_layer = -1;
-    bool layer_sync = false;
-    encoder_callback.GetLastEncodedFrameInfo(&picture_id, &temporal_layer,
-                                             &layer_sync, 0);
-    EXPECT_EQ(0, temporal_layer);
-    EXPECT_TRUE(layer_sync);
-    int key_frame_picture_id = picture_id;
-
-    // Change color.
-    plane_offset[kYPlane] += 1;
-    plane_offset[kUPlane] += 1;
-    plane_offset[kVPlane] += 1;
-    CreateImage(input_buffer_, plane_offset);
-    input_frame_->set_timestamp(input_frame_->timestamp() + 3000);
-    EXPECT_EQ(0, encoder_->Encode(*input_frame_, NULL, NULL));
-
-    // Change color.
-    plane_offset[kYPlane] += 1;
-    plane_offset[kUPlane] += 1;
-    plane_offset[kVPlane] += 1;
-    CreateImage(input_buffer_, plane_offset);
-
-    input_frame_->set_timestamp(input_frame_->timestamp() + 3000);
-    EXPECT_EQ(0, encoder_->Encode(*input_frame_, NULL, NULL));
-
-    // Change color.
-    plane_offset[kYPlane] += 1;
-    plane_offset[kUPlane] += 1;
-    plane_offset[kVPlane] += 1;
-    CreateImage(input_buffer_, plane_offset);
-
-    input_frame_->set_timestamp(input_frame_->timestamp() + 3000);
-    EXPECT_EQ(0, encoder_->Encode(*input_frame_, NULL, NULL));
-
-    CodecSpecificInfo codec_specific;
-    codec_specific.codecType = kVideoCodecVP8;
-    codec_specific.codecSpecific.VP8.hasReceivedRPSI = true;
-    // Must match last key frame to trigger.
-    codec_specific.codecSpecific.VP8.pictureIdRPSI = key_frame_picture_id;
-
-    // Change color back to original.
-    plane_offset[kYPlane] = kColorY;
-    plane_offset[kUPlane] = kColorU;
-    plane_offset[kVPlane] = kColorV;
-    CreateImage(input_buffer_, plane_offset);
-
-    input_frame_->set_timestamp(input_frame_->timestamp() + 3000);
-    EXPECT_EQ(0, encoder_->Encode(*input_frame_, &codec_specific, NULL));
-
-    EncodedImage encoded_frame;
-    encoder_callback.GetLastEncodedKeyFrame(&encoded_frame);
-    decoder_->Decode(encoded_frame, false, NULL);
-    encoder_callback.GetLastEncodedFrame(&encoded_frame);
-    decoder_->Decode(encoded_frame, false, NULL);
-    EXPECT_EQ(2, decoder_callback.DecodedFrames());
-  }
 
   // Test the layer pattern and sync flag for various spatial-temporal patterns.
   // 3-3-3 pattern: 3 temporal layers for all spatial streams, so same

@@ -41,10 +41,10 @@ class PacketRouter;
 class ProcessThread;
 class ReceiveStatistics;
 class ReceiveStatisticsProxy;
-class RemoteBitrateEstimator;
 class RemoteNtpTimeEstimator;
 class RtcpRttStats;
 class RtpHeaderParser;
+class RtpPacketReceived;
 class RTPPayloadRegistry;
 class RtpReceiver;
 class Transport;
@@ -65,17 +65,13 @@ class RtpStreamReceiver : public RtpData,
                           public CallStatsObserver {
  public:
   RtpStreamReceiver(
-      vcm::VideoReceiver* video_receiver,
-      RemoteBitrateEstimator* remote_bitrate_estimator,
       Transport* transport,
       RtcpRttStats* rtt_stats,
-      PacedSender* paced_sender,
       PacketRouter* packet_router,
       VieRemb* remb,
       const VideoReceiveStream::Config* config,
       ReceiveStatisticsProxy* receive_stats_proxy,
       ProcessThread* process_thread,
-      RateLimiter* retransmission_rate_limiter,
       NackSender* nack_sender,
       KeyFrameRequestSender* keyframe_request_sender,
       video_coding::OnCompleteFrameCallback* complete_frame_callback,
@@ -84,9 +80,6 @@ class RtpStreamReceiver : public RtpData,
 
   bool AddReceiveCodec(const VideoCodec& video_codec,
                        const std::map<std::string, std::string>& codec_params);
-
-  bool AddReceiveCodec(const VideoCodec& video_codec);
-
   uint32_t GetRemoteSsrc() const;
   int GetCsrcs(uint32_t* csrcs) const;
 
@@ -96,9 +89,6 @@ class RtpStreamReceiver : public RtpData,
   void StartReceive();
   void StopReceive();
 
-  bool DeliverRtp(const uint8_t* rtp_packet,
-                  size_t rtp_packet_length,
-                  const PacketTime& packet_time);
   bool DeliverRtcp(const uint8_t* rtcp_packet, size_t rtcp_packet_length);
 
   void FrameContinuous(uint16_t seq_num);
@@ -106,6 +96,9 @@ class RtpStreamReceiver : public RtpData,
   void FrameDecoded(uint16_t seq_num);
 
   void SignalNetworkState(NetworkState state);
+
+  // TODO(nisse): Intended to be part of an RtpPacketReceiver interface.
+  void OnRtpPacket(const RtpPacketReceived& packet);
 
   // Implements RtpData.
   int32_t OnReceivedPayloadData(const uint8_t* payload_data,
@@ -124,7 +117,6 @@ class RtpStreamReceiver : public RtpData,
 
   // Implements VCMFrameTypeCallback.
   int32_t RequestKeyFrame() override;
-  int32_t SliceLossIndicationRequest(const uint64_t picture_id) override;
 
   bool IsUlpfecEnabled() const;
   bool IsRetransmissionsEnabled() const;
@@ -146,6 +138,7 @@ class RtpStreamReceiver : public RtpData,
   void OnRttUpdate(int64_t avg_rtt_ms, int64_t max_rtt_ms) override;
 
  private:
+  bool AddReceiveCodec(const VideoCodec& video_codec);
   bool ReceivePacket(const uint8_t* packet,
                      size_t packet_length,
                      const RTPHeader& header,
@@ -166,8 +159,6 @@ class RtpStreamReceiver : public RtpData,
   Clock* const clock_;
   // Ownership of this object lies with VideoReceiveStream, which owns |this|.
   const VideoReceiveStream::Config& config_;
-  vcm::VideoReceiver* const video_receiver_;
-  RemoteBitrateEstimator* const remote_bitrate_estimator_;
   PacketRouter* const packet_router_;
   VieRemb* const remb_;
   ProcessThread* const process_thread_;
@@ -189,7 +180,6 @@ class RtpStreamReceiver : public RtpData,
   const std::unique_ptr<RtpRtcp> rtp_rtcp_;
 
   // Members for the new jitter buffer experiment.
-  bool jitter_buffer_experiment_;
   video_coding::OnCompleteFrameCallback* complete_frame_callback_;
   KeyFrameRequestSender* keyframe_request_sender_;
   VCMTiming* timing_;

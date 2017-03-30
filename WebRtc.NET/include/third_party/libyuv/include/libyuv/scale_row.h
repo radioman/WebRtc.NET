@@ -95,17 +95,22 @@ extern "C" {
 #endif
 
 // The following are available on Mips platforms:
-#if !defined(LIBYUV_DISABLE_MIPS) && !defined(__native_client__) && \
+#if !defined(LIBYUV_DISABLE_DSPR2) && !defined(__native_client__) && \
     defined(__mips__) && defined(__mips_dsp) && (__mips_dsp_rev >= 2)
 #define HAS_SCALEROWDOWN2_DSPR2
 #define HAS_SCALEROWDOWN4_DSPR2
 #define HAS_SCALEROWDOWN34_DSPR2
 #define HAS_SCALEROWDOWN38_DSPR2
+#define HAS_SCALEADDROW_DSPR2
 #endif
 
 #if !defined(LIBYUV_DISABLE_MSA) && defined(__mips_msa)
 #define HAS_SCALEARGBROWDOWN2_MSA
 #define HAS_SCALEARGBROWDOWNEVEN_MSA
+#define HAS_SCALEROWDOWN2_MSA
+#define HAS_SCALEROWDOWN4_MSA
+#define HAS_SCALEROWDOWN38_MSA
+#define HAS_SCALEADDROW_MSA
 #endif
 
 // Scale ARGB vertically with bilinear interpolation.
@@ -842,6 +847,79 @@ void ScaleRowDown38_3_Box_DSPR2(const uint8* src_ptr,
                                 ptrdiff_t src_stride,
                                 uint8* dst_ptr,
                                 int dst_width);
+void ScaleAddRow_DSPR2(const uint8* src_ptr, uint16* dst_ptr, int src_width);
+void ScaleAddRow_Any_DSPR2(const uint8* src_ptr,
+                           uint16* dst_ptr,
+                           int src_width);
+
+void ScaleRowDown2_MSA(const uint8_t* src_ptr,
+                       ptrdiff_t src_stride,
+                       uint8_t* dst,
+                       int dst_width);
+void ScaleRowDown2Linear_MSA(const uint8_t* src_ptr,
+                             ptrdiff_t src_stride,
+                             uint8_t* dst,
+                             int dst_width);
+void ScaleRowDown2Box_MSA(const uint8_t* src_ptr,
+                          ptrdiff_t src_stride,
+                          uint8_t* dst,
+                          int dst_width);
+void ScaleRowDown4_MSA(const uint8_t* src_ptr,
+                       ptrdiff_t src_stride,
+                       uint8_t* dst,
+                       int dst_width);
+void ScaleRowDown4Box_MSA(const uint8_t* src_ptr,
+                          ptrdiff_t src_stride,
+                          uint8_t* dst,
+                          int dst_width);
+void ScaleRowDown38_MSA(const uint8_t* src_ptr,
+                        ptrdiff_t src_stride,
+                        uint8_t* dst,
+                        int dst_width);
+void ScaleRowDown38_2_Box_MSA(const uint8_t* src_ptr,
+                              ptrdiff_t src_stride,
+                              uint8_t* dst_ptr,
+                              int dst_width);
+void ScaleRowDown38_3_Box_MSA(const uint8_t* src_ptr,
+                              ptrdiff_t src_stride,
+                              uint8_t* dst_ptr,
+                              int dst_width);
+void ScaleAddRow_MSA(const uint8_t* src_ptr, uint16_t* dst_ptr, int src_width);
+void ScaleRowDown2_Any_MSA(const uint8_t* src_ptr,
+                           ptrdiff_t src_stride,
+                           uint8_t* dst,
+                           int dst_width);
+void ScaleRowDown2Linear_Any_MSA(const uint8_t* src_ptr,
+                                 ptrdiff_t src_stride,
+                                 uint8_t* dst,
+                                 int dst_width);
+void ScaleRowDown2Box_Any_MSA(const uint8_t* src_ptr,
+                              ptrdiff_t src_stride,
+                              uint8_t* dst,
+                              int dst_width);
+void ScaleRowDown4_Any_MSA(const uint8_t* src_ptr,
+                           ptrdiff_t src_stride,
+                           uint8_t* dst,
+                           int dst_width);
+void ScaleRowDown4Box_Any_MSA(const uint8_t* src_ptr,
+                              ptrdiff_t src_stride,
+                              uint8_t* dst,
+                              int dst_width);
+void ScaleRowDown38_Any_MSA(const uint8_t* src_ptr,
+                            ptrdiff_t src_stride,
+                            uint8_t* dst,
+                            int dst_width);
+void ScaleRowDown38_2_Box_Any_MSA(const uint8_t* src_ptr,
+                                  ptrdiff_t src_stride,
+                                  uint8_t* dst_ptr,
+                                  int dst_width);
+void ScaleRowDown38_3_Box_Any_MSA(const uint8_t* src_ptr,
+                                  ptrdiff_t src_stride,
+                                  uint8_t* dst_ptr,
+                                  int dst_width);
+void ScaleAddRow_Any_MSA(const uint8_t* src_ptr,
+                         uint16_t* dst_ptr,
+                         int src_width);
 
 #ifdef __cplusplus
 }  // extern "C"

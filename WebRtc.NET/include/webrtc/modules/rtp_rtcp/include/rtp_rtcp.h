@@ -155,6 +155,8 @@ class RtpRtcp : public Module {
 
   virtual int32_t DeregisterSendRtpHeaderExtension(RTPExtensionType type) = 0;
 
+  virtual bool HasBweExtensions() const = 0;
+
   // Returns start timestamp.
   virtual uint32_t StartTimestamp() const = 0;
 
@@ -247,9 +249,10 @@ class RtpRtcp : public Module {
                                 uint16_t sequence_number,
                                 int64_t capture_time_ms,
                                 bool retransmission,
-                                int probe_cluster_id) = 0;
+                                const PacedPacketInfo& pacing_info) = 0;
 
-  virtual size_t TimeToSendPadding(size_t bytes, int probe_cluster_id) = 0;
+  virtual size_t TimeToSendPadding(size_t bytes,
+                                   const PacedPacketInfo& pacing_info) = 0;
 
   // Called on generation of new statistics after an RTP send.
   virtual void RegisterSendChannelRtpStatisticsCallback(
@@ -309,13 +312,6 @@ class RtpRtcp : public Module {
   // Returns -1 on failure else 0.
   virtual int32_t SendCompoundRTCP(
       const std::set<RTCPPacketType>& rtcp_packet_types) = 0;
-
-  // Notifies the sender about good state of the RTP receiver.
-  virtual int32_t SendRTCPReferencePictureSelection(uint64_t picture_id) = 0;
-
-  // Send a RTCP Slice Loss Indication (SLI).
-  //   |picture_id| - 6 least significant bits of picture_id.
-  virtual int32_t SendRTCPSliceLossIndication(uint8_t picture_id) = 0;
 
   // Returns statistics of the amount of data sent.
   // Returns -1 on failure else 0.

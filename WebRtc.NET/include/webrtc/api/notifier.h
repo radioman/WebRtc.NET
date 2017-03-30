@@ -15,11 +15,11 @@
 
 #include "webrtc/api/mediastreaminterface.h"
 #include "webrtc/base/checks.h"
-#include "webrtc/base/common.h"
 
 namespace webrtc {
 
-// Implement a template version of a notifier.
+// Implements a template version of a notifier.
+// TODO(deadbeef): This is an implementation detail; move out of api/.
 template <class T>
 class Notifier : public T {
  public:
@@ -27,7 +27,7 @@ class Notifier : public T {
   }
 
   virtual void RegisterObserver(ObserverInterface* observer) {
-    RTC_DCHECK(observer != NULL);
+    RTC_DCHECK(observer != nullptr);
     observers_.push_back(observer);
   }
 

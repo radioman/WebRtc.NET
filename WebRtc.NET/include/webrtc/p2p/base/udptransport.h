@@ -14,11 +14,11 @@
 #include <memory>
 #include <string>
 
-#include "webrtc/api/udptransportinterface.h"
+#include "webrtc/api/ortc/udptransportinterface.h"
 #include "webrtc/base/asyncpacketsocket.h"  // For PacketOptions.
 #include "webrtc/base/optional.h"
 #include "webrtc/base/thread_checker.h"
-#include "webrtc/p2p/base/packettransportinterface.h"
+#include "webrtc/p2p/base/packettransportinternal.h"
 
 namespace rtc {
 class AsyncPacketSocket;
@@ -31,8 +31,8 @@ namespace cricket {
 
 // Implementation of UdpTransportInterface.
 // Used by OrtcFactory.
-class UdpTransport : public webrtc::UdpTransportInterface,
-                     public rtc::PacketTransportInterface {
+class UdpTransport : public rtc::PacketTransportInternal,
+                     public webrtc::UdpTransportInterface {
  public:
   // |transport_name| is only used for identification/logging.
   // |socket| must be non-null.
@@ -45,7 +45,7 @@ class UdpTransport : public webrtc::UdpTransportInterface,
   bool SetRemoteAddress(const rtc::SocketAddress& addr) override;
   rtc::SocketAddress GetRemoteAddress() const override;
 
-  // Overrides of PacketTransportInterface, used by webrtc internally.
+  // Overrides of PacketTransportInternal, used by webrtc internally.
   std::string debug_name() const override { return transport_name_; }
 
   bool receiving() const override {
@@ -64,6 +64,9 @@ class UdpTransport : public webrtc::UdpTransportInterface,
 
   int GetError() override { return send_error_; }
 
+ protected:
+  PacketTransportInternal* GetInternal() override { return this; }
+
  private:
   void OnSocketReadPacket(rtc::AsyncPacketSocket* socket,
                           const char* data,
@@ -80,6 +83,7 @@ class UdpTransport : public webrtc::UdpTransportInterface,
   rtc::SocketAddress remote_address_;
   rtc::ThreadChecker network_thread_checker_;
 };
+
 }  // namespace cricket
 
 #endif  // WEBRTC_P2P_BASE_UDPTRANSPORT_H_

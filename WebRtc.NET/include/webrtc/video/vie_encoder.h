@@ -11,6 +11,7 @@
 #ifndef WEBRTC_VIDEO_VIE_ENCODER_H_
 #define WEBRTC_VIDEO_VIE_ENCODER_H_
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -50,7 +51,7 @@ class VideoBitrateAllocationObserver;
 class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
                    public EncodedImageCallback,
                    public VCMSendStatisticsCallback,
-                   public ScalingObserverInterface {
+                   public AdaptationObserverInterface {
  public:
   // Interface for receiving encoded video frames and notifications about
   // configuration changes.
@@ -62,7 +63,9 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
   };
 
   // Downscale resolution at most 2 times for CPU reasons.
-  static const int kMaxCpuDowngrades = 2;
+  static const int kMaxCpuResolutionDowngrades = 2;
+  // Downscale framerate at most 4 times.
+  static const int kMaxCpuFramerateDowngrades = 4;
 
   ViEEncoder(uint32_t number_of_cores,
              SendStatisticsProxy* stats_proxy,
@@ -120,8 +123,8 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
 
   // webrtc::ScalingObserverInterface implementation.
   // These methods are protected for easier testing.
-  void ScaleUp(ScaleReason reason) override;
-  void ScaleDown(ScaleReason reason) override;
+  void AdaptUp(AdaptReason reason) override;
+  void AdaptDown(AdaptReason reason) override;
 
  private:
   class ConfigureEncoderTask;
@@ -150,6 +153,8 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
                                    bool nack_enabled);
   void ReconfigureEncoder();
 
+  void ConfigureQualityScaler();
+
   // Implements VideoSinkInterface.
   void OnFrame(const VideoFrame& video_frame) override;
 
@@ -172,9 +177,16 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
   void TraceFrameDropStart();
   void TraceFrameDropEnd();
 
+  const std::vector<int>& GetScaleCounters()
+      EXCLUSIVE_LOCKS_REQUIRED(&encoder_queue_);
+  void IncrementScaleCounter(int reason, int delta)
+      EXCLUSIVE_LOCKS_REQUIRED(&encoder_queue_);
+
   rtc::Event shutdown_event_;
 
   const uint32_t number_of_cores_;
+  // Counts how many frames we've dropped in the initial rampup phase.
+  int initial_rampup_;
 
   const std::unique_ptr<VideoSourceProxy> source_proxy_;
   EncoderSink* sink_;
@@ -212,15 +224,27 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
   uint64_t picture_id_rpsi_ ACCESS_ON(&encoder_queue_);
   Clock* const clock_;
   // Counters used for deciding if the video resolution is currently
-  // restricted, and if so, why.
-  std::vector<int> scale_counter_ ACCESS_ON(&encoder_queue_);
+  // restricted, and if so, why, on a per degradation preference basis.
+  // TODO(sprang): Replace this with a state holding a relative overuse measure
+  // instead, that can be translated into suitable down-scale or fps limit.
+  std::map<const VideoSendStream::DegradationPreference, std::vector<int>>
+      scale_counters_ ACCESS_ON(&encoder_queue_);
   // Set depending on degradation preferences
-  bool scaling_enabled_ ACCESS_ON(&encoder_queue_) = false;
+  VideoSendStream::DegradationPreference degradation_preference_
+      ACCESS_ON(&encoder_queue_);
 
-  // Pixel count last time the resolution was requested to be changed down.
-  rtc::Optional<int> max_pixel_count_ ACCESS_ON(&encoder_queue_);
-  // Pixel count last time the resolution was requested to be changed up.
-  rtc::Optional<int> max_pixel_count_step_up_ ACCESS_ON(&encoder_queue_);
+  struct AdaptationRequest {
+    // The pixel count produced by the source at the time of the adaptation.
+    int input_pixel_count_;
+    // Framerate received from the source at the time of the adaptation.
+    int framerate_fps_;
+    // Indicates if request was to adapt up or down.
+    enum class Mode { kAdaptUp, kAdaptDown } mode_;
+  };
+  // Stores a snapshot of the last adaptation request triggered by an AdaptUp
+  // or AdaptDown signal.
+  rtc::Optional<AdaptationRequest> last_adaptation_request_
+      ACCESS_ON(&encoder_queue_);
 
   rtc::RaceChecker incoming_frame_race_checker_
       GUARDED_BY(incoming_frame_race_checker_);

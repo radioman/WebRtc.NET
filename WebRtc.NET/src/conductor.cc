@@ -2,6 +2,7 @@
 #include "defaults.h"
 #include "conductor.h"
 
+#include "webrtc/base/checks.h"
 #include "webrtc/api/test/fakeconstraints.h"
 #include "webrtc/video_encoder.h"
 #include "webrtc/modules/video_coding/codecs/vp8/simulcast_encoder_adapter.h"
@@ -64,11 +65,11 @@ namespace Native
 		onIceCandidate = nullptr;
 
 		width_ = 640;
-	    height_ = 360;			
+	    height_ = 360;
 		caputureFps = 5;
 		audioEnabled = false;
 
-		barcodeEnabled = false;		
+		barcodeEnabled = false;
 
 		turnServer = nullptr;
 		data_channel = nullptr;
@@ -80,7 +81,7 @@ namespace Native
 	Conductor::~Conductor()
 	{
 		DeletePeerConnection();
-		ASSERT(peer_connection_ == nullptr);
+		RTC_DCHECK(peer_connection_ == nullptr);
 
 		if (turnServer)
 		{
@@ -94,7 +95,11 @@ namespace Native
 
 		if (turnServer || stunServer)
 		{
-			rtc::Thread::Current()->Quit();
+			auto c = rtc::Thread::Current();
+			if (c)
+			{
+				c->Quit();
+			}
 		}
 	}
 
@@ -129,8 +134,8 @@ namespace Native
 
 	bool Conductor::InitializePeerConnection()
 	{
-		ASSERT(pc_factory_ == nullptr);
-		ASSERT(peer_connection_ == nullptr);
+		RTC_DCHECK(pc_factory_ == nullptr);
+		RTC_DCHECK(peer_connection_ == nullptr);
 
 		pc_factory_ = webrtc::CreatePeerConnectionFactory();
 
@@ -159,8 +164,8 @@ namespace Native
 
 	bool Conductor::CreatePeerConnection(bool dtls)
 	{
-		ASSERT(pc_factory_ != nullptr);
-		ASSERT(peer_connection_ == nullptr);
+		RTC_DCHECK(pc_factory_ != nullptr);
+		RTC_DCHECK(peer_connection_ == nullptr);
 
 		webrtc::PeerConnectionInterface::RTCConfiguration config;
 		config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
@@ -288,13 +293,13 @@ namespace Native
 		}
 		return device_names;
 	}
-	
+
 	bool Conductor::OpenVideoCaptureDevice(std::string & name)
 	{
 		if (!capturer_internal)
 		{
 			cricket::WebRtcVideoDeviceCapturerFactory factory;
-			capturer_internal = factory.Create(cricket::Device(name, 0));
+			capturer_internal = factory.Create(cricket::Device(name, 0)).get();
 			if (capturer_internal)
 			{
 				LOG(LS_ERROR) << "Capturer != NULL!";
@@ -443,9 +448,9 @@ namespace Native
 		dc_options.maxRetransmits = 1;
 		dc_options.negotiated = false;
 		dc_options.ordered = false;
-		
+
 		data_channel = peer_connection_->CreateDataChannel(label, &dc_options);
-		data_channel->RegisterObserver(this);		
+		data_channel->RegisterObserver(this);
 	}
 
 	void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)

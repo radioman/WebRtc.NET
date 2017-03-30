@@ -16,16 +16,10 @@
 #include "webrtc/system_wrappers/include/atomic32.h"
 #include "webrtc/typedefs.h"
 #include "webrtc/voice_engine/voe_base_impl.h"
-#include "webrtc/voice_engine/voe_audio_processing_impl.h"
 #include "webrtc/voice_engine/voe_codec_impl.h"
-#include "webrtc/voice_engine/voe_external_media_impl.h"
 #include "webrtc/voice_engine/voe_file_impl.h"
-#include "webrtc/voice_engine/voe_hardware_impl.h"
-#include "webrtc/voice_engine/voe_neteq_stats_impl.h"
 #include "webrtc/voice_engine/voe_network_impl.h"
 #include "webrtc/voice_engine/voe_rtp_rtcp_impl.h"
-#include "webrtc/voice_engine/voe_video_sync_impl.h"
-#include "webrtc/voice_engine/voe_volume_control_impl.h"
 
 namespace webrtc {
 namespace voe {
@@ -34,30 +28,18 @@ class ChannelProxy;
 
 class VoiceEngineImpl : public voe::SharedData,  // Must be the first base class
                         public VoiceEngine,
-                        public VoEAudioProcessingImpl,
                         public VoECodecImpl,
-                        public VoEExternalMediaImpl,
                         public VoEFileImpl,
-                        public VoEHardwareImpl,
-                        public VoENetEqStatsImpl,
                         public VoENetworkImpl,
                         public VoERTP_RTCPImpl,
-                        public VoEVideoSyncImpl,
-                        public VoEVolumeControlImpl,
                         public VoEBaseImpl {
  public:
   VoiceEngineImpl()
       : SharedData(),
-        VoEAudioProcessingImpl(this),
         VoECodecImpl(this),
-        VoEExternalMediaImpl(this),
         VoEFileImpl(this),
-        VoEHardwareImpl(this),
-        VoENetEqStatsImpl(this),
         VoENetworkImpl(this),
         VoERTP_RTCPImpl(this),
-        VoEVideoSyncImpl(this),
-        VoEVolumeControlImpl(this),
         VoEBaseImpl(this),
         _ref_count(0) {}
   ~VoiceEngineImpl() override { assert(_ref_count.Value() == 0); }

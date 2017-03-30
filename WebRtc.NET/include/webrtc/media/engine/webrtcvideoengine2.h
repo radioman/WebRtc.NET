@@ -306,9 +306,14 @@ class WebRtcVideoChannel2 : public VideoMediaChannel, public webrtc::Transport {
 
     rtc::scoped_refptr<webrtc::VideoEncoderConfig::EncoderSpecificSettings>
     ConfigureVideoEncoderSettings(const VideoCodec& codec);
-    AllocatedEncoder CreateVideoEncoder(const VideoCodec& codec);
+    // If force_encoder_allocation is true, a new AllocatedEncoder is always
+    // created. If false, the allocated encoder may be reused, if the type
+    // matches.
+    AllocatedEncoder CreateVideoEncoder(const VideoCodec& codec,
+                                        bool force_encoder_allocation);
     void DestroyVideoEncoder(AllocatedEncoder* encoder);
-    void SetCodec(const VideoCodecSettings& codec);
+    void SetCodec(const VideoCodecSettings& codec,
+                  bool force_encoder_allocation);
     void RecreateWebRtcStream();
     webrtc::VideoEncoderConfig CreateVideoEncoderConfig(
         const VideoCodec& codec) const;
@@ -318,6 +323,9 @@ class WebRtcVideoChannel2 : public VideoMediaChannel, public webrtc::Transport {
     // Calls Start or Stop according to whether or not |sending_| is true,
     // and whether or not the encoding in |rtp_parameters_| is active.
     void UpdateSendState();
+
+    webrtc::VideoSendStream::DegradationPreference GetDegradationPreference()
+        const EXCLUSIVE_LOCKS_REQUIRED(&thread_checker_);
 
     rtc::ThreadChecker thread_checker_;
     rtc::AsyncInvoker invoker_;
@@ -329,6 +337,8 @@ class WebRtcVideoChannel2 : public VideoMediaChannel, public webrtc::Transport {
     rtc::VideoSourceInterface<webrtc::VideoFrame>* source_
         ACCESS_ON(&thread_checker_);
     WebRtcVideoEncoderFactory* const external_encoder_factory_
+        ACCESS_ON(&thread_checker_);
+    const std::unique_ptr<WebRtcVideoEncoderFactory> internal_encoder_factory_
         ACCESS_ON(&thread_checker_);
 
     webrtc::VideoSendStream* stream_ ACCESS_ON(&thread_checker_);

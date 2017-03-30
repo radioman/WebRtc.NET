@@ -25,10 +25,17 @@
 #include "webrtc/call/call.h"
 #include "webrtc/config.h"
 #include "webrtc/media/base/rtputils.h"
+#include "webrtc/media/engine/apm_helpers.h"
 #include "webrtc/media/engine/webrtccommon.h"
 #include "webrtc/media/engine/webrtcvoe.h"
 #include "webrtc/modules/audio_processing/include/audio_processing.h"
 #include "webrtc/pc/channel.h"
+
+namespace webrtc {
+namespace voe {
+class TransmitMixer;
+}  // namespace voe
+}  // namespace webrtc
 
 namespace cricket {
 
@@ -75,10 +82,6 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
   void RegisterChannel(WebRtcVoiceMediaChannel* channel);
   void UnregisterChannel(WebRtcVoiceMediaChannel* channel);
 
-  // Called by WebRtcVoiceMediaChannel to set a gain offset from
-  // the default AGC target level.
-  bool AdjustAgcLevel(int delta);
-
   VoEWrapper* voe() { return voe_wrapper_.get(); }
   int GetLastEngineError();
 
@@ -100,7 +103,6 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
   // ignored. This allows us to selectively turn on and off different options
   // easily at any time.
   bool ApplyOptions(const AudioOptions& options);
-  void SetDefaultDevices();
 
   // webrtc::TraceCallback:
   void Print(webrtc::TraceLevel level, const char* trace, int length) override;
@@ -109,6 +111,7 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
   int CreateVoEChannel();
   webrtc::AudioDeviceModule* adm();
   webrtc::AudioProcessing* apm();
+  webrtc::voe::TransmitMixer* transmit_mixer();
 
   AudioCodecs CollectRecvCodecs() const;
 
@@ -120,6 +123,8 @@ class WebRtcVoiceEngine final : public webrtc::TraceCallback  {
   rtc::scoped_refptr<webrtc::AudioDecoderFactory> decoder_factory_;
   // Reference to the APM, owned by VoE.
   webrtc::AudioProcessing* apm_ = nullptr;
+  // Reference to the TransmitMixer, owned by VoE.
+  webrtc::voe::TransmitMixer* transmit_mixer_ = nullptr;
   // The primary instance of WebRtc VoiceEngine.
   std::unique_ptr<VoEWrapper> voe_wrapper_;
   rtc::scoped_refptr<webrtc::AudioState> audio_state_;
@@ -183,12 +188,7 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   bool RemoveRecvStream(uint32_t ssrc) override;
   bool GetActiveStreams(AudioInfo::StreamList* actives) override;
   int GetOutputLevel() override;
-  int GetTimeSinceLastTyping() override;
-  void SetTypingDetectionParameters(int time_window,
-                                    int cost_per_typing,
-                                    int reporting_threshold,
-                                    int penalty_decay,
-                                    int type_event_delay) override;
+  // SSRC=0 will apply the new volume to current and future unsignaled streams.
   bool SetOutputVolume(uint32_t ssrc, double volume) override;
 
   bool CanInsertDtmf() override;
@@ -204,6 +204,8 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   void OnTransportOverheadChanged(int transport_overhead_per_packet) override;
   bool GetStats(VoiceMediaInfo* info) override;
 
+  // SSRC=0 will set the audio sink on the latest unsignaled stream, future or
+  // current. Only one stream at a time will use the sink.
   void SetRawAudioSink(
       uint32_t ssrc,
       std::unique_ptr<webrtc::AudioSinkInterface> sink) override;
@@ -235,16 +237,15 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
 
   WebRtcVoiceEngine* engine() { return engine_; }
   int GetLastEngineError() { return engine()->GetLastEngineError(); }
-  int GetOutputLevel(int channel);
   void ChangePlayout(bool playout);
   int CreateVoEChannel();
   bool DeleteVoEChannel(int channel);
-  bool IsDefaultRecvStream(uint32_t ssrc) {
-    return default_recv_ssrc_ == static_cast<int64_t>(ssrc);
-  }
   bool SetMaxSendBitrate(int bps);
   bool ValidateRtpParameters(const webrtc::RtpParameters& parameters);
   void SetupRecording();
+  // Check if 'ssrc' is an unsignaled stream, and if so mark it as not being
+  // unsignaled anymore (i.e. it is now removed, or signaled), and return true.
+  bool MaybeDeregisterUnsignaledRecvStream(uint32_t ssrc);
 
   rtc::ThreadChecker worker_thread_checker_;
 
@@ -263,11 +264,12 @@ class WebRtcVoiceMediaChannel final : public VoiceMediaChannel,
   webrtc::Call* const call_ = nullptr;
   webrtc::Call::Config::BitrateConfig bitrate_config_;
 
-  // SSRC of unsignalled receive stream, or -1 if there isn't one.
-  int64_t default_recv_ssrc_ = -1;
-  // Volume for unsignalled stream, which may be set before the stream exists.
+  // Queue of unsignaled SSRCs; oldest at the beginning.
+  std::vector<uint32_t> unsignaled_recv_ssrcs_;
+
+  // Volume for unsignaled streams, which may be set before the stream exists.
   double default_recv_volume_ = 1.0;
-  // Sink for unsignalled stream, which may be set before the stream exists.
+  // Sink for latest unsignaled stream - may be set before the stream exists.
   std::unique_ptr<webrtc::AudioSinkInterface> default_sink_;
   // Default SSRC to use for RTCP receiver reports in case of no signaled
   // send streams. See: https://code.google.com/p/webrtc/issues/detail?id=4740

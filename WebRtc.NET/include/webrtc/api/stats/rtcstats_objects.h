@@ -12,6 +12,7 @@
 #define WEBRTC_API_STATS_RTCSTATS_OBJECTS_H_
 
 #include <string>
+#include <vector>
 
 #include "webrtc/api/stats/rtcstats.h"
 
@@ -76,9 +77,6 @@ class RTCCertificateStats final : public RTCStats {
 };
 
 // https://w3c.github.io/webrtc-stats/#codec-dict*
-// Tracking bug crbug.com/659117
-// TODO(hbos): The present codec ID assignment is not sufficient to support
-// Unified Plan or unbundled connections in all cases. crbug.com/659117
 class RTCCodecStats final : public RTCStats {
  public:
   WEBRTC_RTCSTATS_DECL();
@@ -89,13 +87,13 @@ class RTCCodecStats final : public RTCStats {
   ~RTCCodecStats() override;
 
   RTCStatsMember<uint32_t> payload_type;
-  RTCStatsMember<std::string> codec;
+  RTCStatsMember<std::string> mime_type;
   RTCStatsMember<uint32_t> clock_rate;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659117
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7061
   RTCStatsMember<uint32_t> channels;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659117
-  RTCStatsMember<std::string> parameters;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659117
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7061
+  RTCStatsMember<std::string> sdp_fmtp_line;
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7061
   RTCStatsMember<std::string> implementation;
 };
 
@@ -121,7 +119,7 @@ class RTCDataChannelStats final : public RTCStats {
 };
 
 // https://w3c.github.io/webrtc-stats/#candidatepair-dict*
-// TODO(hbos): Tracking bug crbug.com/633550
+// TODO(hbos): Tracking bug https://bugs.webrtc.org/7062
 class RTCIceCandidatePairStats final : public RTCStats {
  public:
   WEBRTC_RTCSTATS_DECL();
@@ -138,38 +136,35 @@ class RTCIceCandidatePairStats final : public RTCStats {
   // "RTCStatsMember<RTCStatsIceCandidatePairState>"?
   RTCStatsMember<std::string> state;
   RTCStatsMember<uint64_t> priority;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
   RTCStatsMember<bool> nominated;
-  // TODO(hbos): Collected by |RTCStatsCollector| but different than the spec.
-  // crbug.com/633550
+  // TODO(hbos): Collect this the way the spec describes it. We have a value for
+  // it but it is not spec-compliant. https://bugs.webrtc.org/7062
   RTCStatsMember<bool> writable;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7062
   RTCStatsMember<bool> readable;
   RTCStatsMember<uint64_t> bytes_sent;
   RTCStatsMember<uint64_t> bytes_received;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
   RTCStatsMember<double> total_round_trip_time;
-  // TODO(hbos): Collected by |RTCStatsCollector| but different than the spec.
-  // crbug.com/633550
   RTCStatsMember<double> current_round_trip_time;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
   RTCStatsMember<double> available_outgoing_bitrate;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
+  // TODO(hbos): Populate this value. It is wired up and collected the same way
+  // "VideoBwe.googAvailableReceiveBandwidth" is, but that value is always
+  // undefined. https://bugs.webrtc.org/7062
   RTCStatsMember<double> available_incoming_bitrate;
   RTCStatsMember<uint64_t> requests_received;
   RTCStatsMember<uint64_t> requests_sent;
   RTCStatsMember<uint64_t> responses_received;
   RTCStatsMember<uint64_t> responses_sent;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7062
   RTCStatsMember<uint64_t> retransmissions_received;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7062
   RTCStatsMember<uint64_t> retransmissions_sent;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7062
   RTCStatsMember<uint64_t> consent_requests_received;
   RTCStatsMember<uint64_t> consent_requests_sent;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7062
   RTCStatsMember<uint64_t> consent_responses_received;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/633550
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7062
   RTCStatsMember<uint64_t> consent_responses_sent;
 };
 
@@ -268,7 +263,6 @@ class RTCMediaStreamTrackStats final : public RTCStats {
   RTCStatsMember<uint32_t> frames_sent;
   RTCStatsMember<uint32_t> frames_received;
   RTCStatsMember<uint32_t> frames_decoded;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
   RTCStatsMember<uint32_t> frames_dropped;
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/659137
   RTCStatsMember<uint32_t> frames_corrupted;
@@ -305,7 +299,7 @@ class RTCRTPStreamStats : public RTCStats {
   RTCRTPStreamStats(const RTCRTPStreamStats& other);
   ~RTCRTPStreamStats() override;
 
-  RTCStatsMember<std::string> ssrc;
+  RTCStatsMember<uint32_t> ssrc;
   // TODO(hbos): When the remote case is supported |RTCStatsCollector| needs to
   // set this. crbug.com/657855, 657856
   RTCStatsMember<std::string> associate_stats_id;
@@ -313,7 +307,7 @@ class RTCRTPStreamStats : public RTCStats {
   // crbug.com/657855, 657856
   RTCStatsMember<bool> is_remote;  // = false
   RTCStatsMember<std::string> media_type;
-  RTCStatsMember<std::string> media_track_id;
+  RTCStatsMember<std::string> track_id;
   RTCStatsMember<std::string> transport_id;
   RTCStatsMember<std::string> codec_id;
   // FIR and PLI counts are only defined for |media_type == "video"|.
@@ -325,8 +319,6 @@ class RTCRTPStreamStats : public RTCStats {
   // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657854
   // SLI count is only defined for |media_type == "video"|.
   RTCStatsMember<uint32_t> sli_count;
-  // TODO(hbos): Only collected for the outbound case, should also be collected
-  // for inbound case by |RTCStatsCollector|. crbug.com/657854, crbug.com/657855
   RTCStatsMember<uint64_t> qp_sum;
 
  protected:
@@ -335,8 +327,8 @@ class RTCRTPStreamStats : public RTCStats {
 };
 
 // https://w3c.github.io/webrtc-stats/#inboundrtpstats-dict*
-// Tracking bug crbug.com/657855
-// TODO(hbos): Support the remote case |is_remote = true|. crbug.com/657855
+// TODO(hbos): Support the remote case |is_remote = true|.
+// https://bugs.webrtc.org/7065
 class RTCInboundRTPStreamStats final : public RTCRTPStreamStats {
  public:
   WEBRTC_RTCSTATS_DECL();
@@ -349,36 +341,38 @@ class RTCInboundRTPStreamStats final : public RTCRTPStreamStats {
   RTCStatsMember<uint32_t> packets_received;
   RTCStatsMember<uint64_t> bytes_received;
   RTCStatsMember<uint32_t> packets_lost;
-  // TODO(hbos): Not collected in the "video" case by |RTCStatsCollector|.
-  // crbug.com/657855
+  // TODO(hbos): Collect and populate this value for both "audio" and "video",
+  // currently not collected for "video". https://bugs.webrtc.org/7065
   RTCStatsMember<double> jitter;
   RTCStatsMember<double> fraction_lost;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7065
+  RTCStatsMember<double> round_trip_time;
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7065
   RTCStatsMember<uint32_t> packets_discarded;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7065
   RTCStatsMember<uint32_t> packets_repaired;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7065
   RTCStatsMember<uint32_t> burst_packets_lost;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7065
   RTCStatsMember<uint32_t> burst_packets_discarded;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7065
   RTCStatsMember<uint32_t> burst_loss_count;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7065
   RTCStatsMember<uint32_t> burst_discard_count;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7065
   RTCStatsMember<double> burst_loss_rate;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7065
   RTCStatsMember<double> burst_discard_rate;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7065
   RTCStatsMember<double> gap_loss_rate;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657855
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7065
   RTCStatsMember<double> gap_discard_rate;
   RTCStatsMember<uint32_t> frames_decoded;
 };
 
 // https://w3c.github.io/webrtc-stats/#outboundrtpstats-dict*
-// Tracking bug crbug.com/657856
-// TODO(hbos): Support the remote case |is_remote = true|. crbug.com/657856
+// TODO(hbos): Support the remote case |is_remote = true|.
+// https://bugs.webrtc.org/7066
 class RTCOutboundRTPStreamStats final : public RTCRTPStreamStats {
  public:
   WEBRTC_RTCSTATS_DECL();
@@ -390,9 +384,8 @@ class RTCOutboundRTPStreamStats final : public RTCRTPStreamStats {
 
   RTCStatsMember<uint32_t> packets_sent;
   RTCStatsMember<uint64_t> bytes_sent;
-  // TODO(hbos): Not collected by |RTCStatsCollector|. crbug.com/657856
+  // TODO(hbos): Collect and populate this value. https://bugs.webrtc.org/7066
   RTCStatsMember<double> target_bitrate;
-  RTCStatsMember<double> round_trip_time;
   RTCStatsMember<uint32_t> frames_encoded;
 };
 

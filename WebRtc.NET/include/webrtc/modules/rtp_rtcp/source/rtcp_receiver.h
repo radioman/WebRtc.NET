@@ -19,8 +19,8 @@
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "webrtc/modules/rtp_rtcp/source/rtcp_nack_stats.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet/dlrr.h"
-#include "webrtc/modules/rtp_rtcp/source/rtcp_utility.h"
 #include "webrtc/system_wrappers/include/ntp_time.h"
 #include "webrtc/typedefs.h"
 
@@ -105,22 +105,20 @@ class RTCPReceiver {
   bool RtcpRrSequenceNumberTimeout(int64_t rtcp_interval_ms);
 
   std::vector<rtcp::TmmbItem> TmmbrReceived();
-
-  bool UpdateRTCPReceiveInformationTimers();
-
+  // Return true if new bandwidth should be set.
+  bool UpdateTmmbrTimers();
   std::vector<rtcp::TmmbItem> BoundingSet(bool* tmmbr_owner);
-
-  void UpdateTmmbr();
+  // Set new bandwidth and notify remote clients about it.
+  void NotifyTmmbrUpdated();
 
   void RegisterRtcpStatisticsCallback(RtcpStatisticsCallback* callback);
   RtcpStatisticsCallback* GetRtcpStatisticsCallback();
 
  private:
   struct PacketInformation;
-  struct ReceiveInformation;
+  struct TmmbrInformation;
   struct ReportBlockWithRtt;
-  // Mapped by remote ssrc.
-  using ReceivedInfoMap = std::map<uint32_t, ReceiveInformation>;
+  struct LastFirStatus;
   // RTCP report blocks mapped by remote SSRC.
   using ReportBlockInfoMap = std::map<uint32_t, ReportBlockWithRtt>;
   // RTCP report blocks map mapped by source SSRC.
@@ -133,9 +131,12 @@ class RTCPReceiver {
   void TriggerCallbacksFromRtcpPacket(
       const PacketInformation& packet_information);
 
-  void CreateReceiveInformation(uint32_t remote_ssrc)
+  TmmbrInformation* FindOrCreateTmmbrInfo(uint32_t remote_ssrc)
       EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
-  ReceiveInformation* GetReceiveInformation(uint32_t remote_ssrc)
+  // Update TmmbrInformation (if present) is alive.
+  void UpdateTmmbrRemoteIsAlive(uint32_t remote_ssrc)
+      EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+  TmmbrInformation* GetTmmbrInformation(uint32_t remote_ssrc)
       EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
 
   void HandleSenderReport(const rtcp::CommonHeader& rtcp_block,
@@ -241,14 +242,18 @@ class RTCPReceiver {
   bool xr_rrtr_status_ GUARDED_BY(rtcp_receiver_lock_);
   int64_t xr_rr_rtt_ms_;
 
-  // Received report blocks.
+  int64_t oldest_tmmbr_info_ms_ GUARDED_BY(rtcp_receiver_lock_);
+  // Mapped by remote ssrc.
+  std::map<uint32_t, TmmbrInformation> tmmbr_infos_
+      GUARDED_BY(rtcp_receiver_lock_);
+
   ReportBlockMap received_report_blocks_ GUARDED_BY(rtcp_receiver_lock_);
-  ReceivedInfoMap received_infos_ GUARDED_BY(rtcp_receiver_lock_);
+  std::map<uint32_t, LastFirStatus> last_fir_ GUARDED_BY(rtcp_receiver_lock_);
   std::map<uint32_t, std::string> received_cnames_
       GUARDED_BY(rtcp_receiver_lock_);
 
   // The last time we received an RTCP RR.
-  int64_t last_received_rr_ms_;
+  int64_t last_received_rr_ms_ GUARDED_BY(rtcp_receiver_lock_);
 
   // The time we last received an RTCP RR telling we have successfully
   // delivered RTP packet to the remote side.
@@ -259,7 +264,7 @@ class RTCPReceiver {
   RtcpPacketTypeCounterObserver* const packet_type_counter_observer_;
   RtcpPacketTypeCounter packet_type_counter_;
 
-  RTCPUtility::NackStats nack_stats_;
+  RtcpNackStats nack_stats_;
 
   size_t num_skipped_packets_;
   int64_t last_skipped_packets_warning_ms_;

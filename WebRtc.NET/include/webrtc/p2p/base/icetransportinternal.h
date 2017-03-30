@@ -13,10 +13,11 @@
 
 #include <string>
 
+#include "webrtc/base/stringencode.h"
 #include "webrtc/p2p/base/candidate.h"
 #include "webrtc/p2p/base/candidatepairinterface.h"
 #include "webrtc/p2p/base/jseptransport.h"
-#include "webrtc/p2p/base/packettransportinterface.h"
+#include "webrtc/p2p/base/packettransportinternal.h"
 #include "webrtc/p2p/base/transportdescription.h"
 
 namespace webrtc {
@@ -24,9 +25,6 @@ class MetricsObserverInterface;
 }
 
 namespace cricket {
-
-class IceTransportInternal;
-typedef IceTransportInternal IceTransportInternal2;
 
 // TODO(zhihuang): Replace this with
 // PeerConnectionInterface::IceConnectionState.
@@ -47,7 +45,7 @@ enum IceProtocolType {
 // Once the public interface is supported,
 // (https://www.w3.org/TR/webrtc/#rtcicetransport-interface)
 // the IceTransportInterface will be split from this class.
-class IceTransportInternal : public rtc::PacketTransportInterface {
+class IceTransportInternal : public rtc::PacketTransportInternal {
  public:
   virtual ~IceTransportInternal(){};
 
@@ -103,6 +101,10 @@ class IceTransportInternal : public rtc::PacketTransportInterface {
   // Returns the current stats for this connection.
   virtual bool GetStats(ConnectionInfos* infos) = 0;
 
+  // Returns RTT estimate over the currently active connection, or an empty
+  // rtc::Optional if there is none.
+  virtual rtc::Optional<int> GetRttEstimate() = 0;
+
   sigslot::signal1<IceTransportInternal*> SignalGatheringState;
 
   // Handles sending and receiving of candidates.
@@ -139,7 +141,7 @@ class IceTransportInternal : public rtc::PacketTransportInterface {
 
   // Debugging description of this transport.
   std::string debug_name() const override {
-    return transport_name() + " " + std::to_string(component());
+    return transport_name() + " " + rtc::ToString(component());
   }
 };
 

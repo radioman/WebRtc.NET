@@ -28,6 +28,7 @@
 namespace webrtc {
 
 class Clock;
+class VCMReceiveStatisticsCallback;
 class VCMJitterEstimator;
 class VCMTiming;
 
@@ -39,7 +40,8 @@ class FrameBuffer {
 
   FrameBuffer(Clock* clock,
               VCMJitterEstimator* jitter_estimator,
-              VCMTiming* timing);
+              VCMTiming* timing,
+              VCMReceiveStatisticsCallback* stats_proxy);
 
   virtual ~FrameBuffer();
 
@@ -141,35 +143,27 @@ class FrameBuffer {
 
   void UpdateJitterDelay() EXCLUSIVE_LOCKS_REQUIRED(crit_);
 
-  void UpdateHistograms() const;
-
   void ClearFramesAndHistory() EXCLUSIVE_LOCKS_REQUIRED(crit_);
 
   FrameMap frames_ GUARDED_BY(crit_);
 
   rtc::CriticalSection crit_;
   Clock* const clock_;
-  rtc::Event new_countinuous_frame_event_;
+  rtc::Event new_continuous_frame_event_;
   VCMJitterEstimator* const jitter_estimator_ GUARDED_BY(crit_);
   VCMTiming* const timing_ GUARDED_BY(crit_);
   VCMInterFrameDelay inter_frame_delay_ GUARDED_BY(crit_);
   uint32_t last_decoded_frame_timestamp_ GUARDED_BY(crit_);
   FrameMap::iterator last_decoded_frame_it_ GUARDED_BY(crit_);
   FrameMap::iterator last_continuous_frame_it_ GUARDED_BY(crit_);
+  FrameMap::iterator next_frame_it_ GUARDED_BY(crit_);
   int num_frames_history_ GUARDED_BY(crit_);
   int num_frames_buffered_ GUARDED_BY(crit_);
   bool stopped_ GUARDED_BY(crit_);
   VCMVideoProtection protection_mode_ GUARDED_BY(crit_);
+  VCMReceiveStatisticsCallback* const stats_callback_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(FrameBuffer);
-
-  // For WebRTC.Video.JitterBufferDelayInMs metric.
-  int64_t accumulated_delay_ = 0;
-  int64_t accumulated_delay_samples_ = 0;
-
-  // For WebRTC.Video.KeyFramesReceivedInPermille metric.
-  int64_t num_total_frames_ = 0;
-  int64_t num_key_frames_ = 0;
 };
 
 }  // namespace video_coding

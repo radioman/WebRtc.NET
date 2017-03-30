@@ -55,11 +55,6 @@ config("compiler") {
 
     # Work around crbug.com/526851, bug in VS 2015 RTM compiler.
     "/Zc:sizedDealloc-",
-
-    # Disable thread-safe statics to avoid overhead and because
-    # they are disabled on other platforms. See crbug.com/587210
-    # and -fno-threadsafe-statics.
-    "/Zc:threadSafeInit-",
   ]
 
   # Building with Clang on Windows is a work in progress and very
@@ -191,12 +186,13 @@ config("runtime_library") {
     "PSAPI_VERSION=1",
     "WIN32",
     "_SECURE_ATL",
+    "_ATL_XP_TARGETING"
   ]
 
   if (!use_vs_code_analysis) {
     # This is required for ATL to use XP-safe versions of its functions.
     # However it is prohibited when using /analyze
-    defines += [ "_USING_V110_SDK71_" ]
+    # defines += [ "_USING_V110_SDK71_" ]
   }
 }
 
@@ -204,9 +200,9 @@ config("runtime_library") {
 # targets need to manually override it for their compiles.
 config("winver") {
   defines = [
-    "NTDDI_VERSION=0x06010000",
-    "_WIN32_WINNT=0x0601",
-    "WINVER=0x0601",
+    "NTDDI_VERSION=0x05010300",
+    "_WIN32_WINNT=0x0501",
+    "WINVER=0x0501",
   ]
 }
 
@@ -257,22 +253,21 @@ config("common_linker_setup") {
     ldflags += [ "/DYNAMICBASE" ]
   }
 
+  # Control Flow Guard (CFG)
+  # https://msdn.microsoft.com/en-us/library/windows/desktop/mt637065.aspx
+  # /DYNAMICBASE (ASLR) is turned off in debug builds, therefore CFG can’t be
+  # turned on either.
+  # TODO(thakis): Turn this on with lld once supported, https://crbug.com/693709
+  if (!is_debug && !use_lld) {
+    # Turn on CFG in msvc linker, regardless of compiler used.
+    ldflags += [ "/guard:cf" ]
+  }
+
   if (win_linker_timing) {
     ldflags += [
       "/time",
       "/verbose:incr",
     ]
-  }
-}
-
-# Control Flow Guard (CFG)
-# https://msdn.microsoft.com/en-us/library/windows/desktop/mt637065.aspx
-config("win_msvc_cfg") {
-  # /DYNAMICBASE (ASLR) is turned off in debug builds, therefore CFG can’t be
-  # turned on either.
-  if (!is_clang && !is_debug) {
-    cflags = [ "/guard:cf" ]
-    ldflags = [ "/guard:cf" ]
   }
 }
 
@@ -286,22 +281,18 @@ config("default_crt") {
 }
 
 config("dynamic_crt") {
-    if (is_debug) {
+  if (is_debug) {
     cflags = [ "/MDd" ]
-    arflags = [ "/MDd" ]
   } else {
     cflags = [ "/MD" ]
-    arflags = [ "/MD" ]
   }
 }
 
 config("static_crt") {
-    if (is_debug) {
+  if (is_debug) {
     cflags = [ "/MDd" ]
-    arflags = [ "/MDd" ]
   } else {
     cflags = [ "/MD" ]
-    arflags = [ "/MD" ]
   }
 }
 

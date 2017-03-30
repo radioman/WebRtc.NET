@@ -65,7 +65,7 @@ class CpuOveruseMetricsObserver {
 class OveruseFrameDetector {
  public:
   OveruseFrameDetector(const CpuOveruseOptions& options,
-                       ScalingObserverInterface* overuse_observer,
+                       AdaptationObserverInterface* overuse_observer,
                        EncodedFrameObserver* encoder_timing_,
                        CpuOveruseMetricsObserver* metrics_observer);
   ~OveruseFrameDetector();
@@ -87,6 +87,7 @@ class OveruseFrameDetector {
   void CheckForOveruse();  // Protected for test purposes.
 
  private:
+  class OverdoseInjector;
   class SendProcessingUsage;
   class CheckOveruseTask;
   struct FrameTiming {
@@ -110,6 +111,9 @@ class OveruseFrameDetector {
 
   void ResetAll(int num_pixels);
 
+  static std::unique_ptr<SendProcessingUsage> CreateSendProcessingUsage(
+      const CpuOveruseOptions& options);
+
   rtc::SequencedTaskChecker task_checker_;
   // Owned by the task queue from where StartCheckForOveruse is called.
   CheckOveruseTask* check_overuse_task_;
@@ -117,7 +121,7 @@ class OveruseFrameDetector {
   const CpuOveruseOptions options_;
 
   // Observer getting overuse reports.
-  ScalingObserverInterface* const observer_;
+  AdaptationObserverInterface* const observer_;
   EncodedFrameObserver* const encoder_timing_;
 
   // Stats metrics.

@@ -13,7 +13,6 @@
 
 #include <vector>
 
-#include "webrtc/base/constructormagic.h"
 #include "webrtc/base/optional.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet/dlrr.h"
@@ -49,7 +48,7 @@ class ExtendedReports : public RtcpPacket {
   const rtc::Optional<VoipMetric>& voip_metric() const {
     return voip_metric_block_;
   }
-  const rtc::Optional<TargetBitrate>& target_bitrate() {
+  const rtc::Optional<TargetBitrate>& target_bitrate() const {
     return target_bitrate_;
   }
 
@@ -84,8 +83,6 @@ class ExtendedReports : public RtcpPacket {
   Dlrr dlrr_block_;  // Dlrr without items treated same as no dlrr block.
   rtc::Optional<VoipMetric> voip_metric_block_;
   rtc::Optional<TargetBitrate> target_bitrate_;
-
-  RTC_DISALLOW_COPY_AND_ASSIGN(ExtendedReports);
 };
 }  // namespace rtcp
 }  // namespace webrtc

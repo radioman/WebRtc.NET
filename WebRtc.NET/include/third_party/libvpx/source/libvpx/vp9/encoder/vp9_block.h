@@ -11,6 +11,8 @@
 #ifndef VP9_ENCODER_VP9_BLOCK_H_
 #define VP9_ENCODER_VP9_BLOCK_H_
 
+#include "vpx_util/vpx_thread.h"
+
 #include "vp9/common/vp9_entropymv.h"
 #include "vp9/common/vp9_entropy.h"
 
@@ -88,6 +90,9 @@ struct macroblock {
   int mb_energy;
   int *m_search_count_ptr;
   int *ex_search_count_ptr;
+#if CONFIG_MULTITHREAD
+  pthread_mutex_t *search_count_mutex;
+#endif
 
   // These are set to their default values at the beginning, and then adjusted
   // further in the encoding process.
@@ -131,6 +136,10 @@ struct macroblock {
   int use_lp32x32fdct;
   int skip_encode;
 
+  // In first pass, intra prediction is done based on source pixels
+  // at tile boundaries
+  int fp_src_pred;
+
   // use fast quantization process
   int quant_fp;
 
@@ -150,6 +159,8 @@ struct macroblock {
   uint8_t color_sensitivity[2];
 
   uint8_t sb_is_skin;
+
+  uint8_t skip_low_source_sad;
 
   // Used to save the status of whether a block has a low variance in
   // choose_partitioning. 0 for 64x64, 1~2 for 64x32, 3~4 for 32x64, 5~8 for

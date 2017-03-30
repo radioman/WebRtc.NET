@@ -113,6 +113,12 @@ struct ConnectionInfo {
   IceCandidatePairState state;
   // https://w3c.github.io/webrtc-stats/#dom-rtcicecandidatepairstats-priority
   uint64_t priority;
+  // https://w3c.github.io/webrtc-stats/#dom-rtcicecandidatepairstats-nominated
+  bool nominated;
+  // https://w3c.github.io/webrtc-stats/#dom-rtcicecandidatepairstats-totalroundtriptime
+  uint64_t total_round_trip_time_ms;
+  // https://w3c.github.io/webrtc-stats/#dom-rtcicecandidatepairstats-currentroundtriptime
+  rtc::Optional<uint32_t> current_round_trip_time_ms;
 };
 
 // Information about all the connections of a channel.
@@ -186,6 +192,11 @@ struct IceConfig {
   // TODO(honghaiz): Change the default to regular nomination.
   // Default nomination mode if the remote does not support renomination.
   NominationMode default_nomination_mode = NominationMode::SEMI_AGGRESSIVE;
+
+  // ICE checks (STUN pings) will not be sent at higher rate (lower interval)
+  // than this, no matter what other settings there are.
+  // Measure in milliseconds.
+  rtc::Optional<int> ice_check_min_interval;
 
   IceConfig() {}
   IceConfig(int receiving_timeout_ms,

@@ -31,6 +31,8 @@
 
 namespace webrtc {
 
+class RtcEventLog;
+
 class DelayBasedBwe {
  public:
   static const int64_t kStreamTimeOutMs = 2000;
@@ -44,14 +46,15 @@ class DelayBasedBwe {
     uint32_t target_bitrate_bps;
   };
 
-  explicit DelayBasedBwe(Clock* clock);
+  DelayBasedBwe(RtcEventLog* event_log, const Clock* clock);
   virtual ~DelayBasedBwe() {}
 
   Result IncomingPacketFeedbackVector(
-      const std::vector<PacketInfo>& packet_feedback_vector);
+      const std::vector<PacketFeedback>& packet_feedback_vector);
   void OnRttUpdate(int64_t avg_rtt_ms, int64_t max_rtt_ms);
   bool LatestEstimate(std::vector<uint32_t>* ssrcs,
                       uint32_t* bitrate_bps) const;
+  void SetStartBitrate(int start_bitrate_bps);
   void SetMinBitrate(int min_bitrate_bps);
   int64_t GetProbingIntervalMs() const;
 
@@ -78,7 +81,8 @@ class DelayBasedBwe {
     const bool in_experiment_;
   };
 
-  Result IncomingPacketInfo(const PacketInfo& info);
+  Result IncomingPacketFeedback(const PacketFeedback& packet_feedback);
+  Result OnLongFeedbackDelay(int64_t arrival_time_ms);
   // Updates the current remote rate estimate and returns true if a valid
   // estimate exists.
   bool UpdateEstimate(int64_t packet_arrival_time_ms,
@@ -89,7 +93,8 @@ class DelayBasedBwe {
   const bool in_median_slope_experiment_;
 
   rtc::ThreadChecker network_thread_;
-  Clock* const clock_;
+  RtcEventLog* const event_log_;
+  const Clock* const clock_;
   std::unique_ptr<InterArrival> inter_arrival_;
   std::unique_ptr<OveruseEstimator> kalman_estimator_;
   std::unique_ptr<TrendlineEstimator> trendline_estimator_;
@@ -107,6 +112,9 @@ class DelayBasedBwe {
   ProbingIntervalEstimator probing_interval_estimator_;
   size_t median_slope_window_size_;
   double median_slope_threshold_gain_;
+  int consecutive_delayed_feedbacks_;
+  uint32_t last_logged_bitrate_;
+  BandwidthUsage last_logged_state_;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(DelayBasedBwe);
 };

@@ -14,6 +14,7 @@
 #include <queue>
 
 #include "webrtc/base/basictypes.h"
+#include "webrtc/modules/include/module_common_types.h"
 #include "webrtc/typedefs.h"
 
 namespace webrtc {
@@ -38,14 +39,14 @@ class BitrateProber {
 
   // Create a cluster used to probe for |bitrate_bps| with |num_probes| number
   // of probes.
-  void CreateProbeCluster(int bitrate_bps);
+  void CreateProbeCluster(int bitrate_bps, int64_t now_ms);
 
   // Returns the number of milliseconds until the next probe should be sent to
   // get accurate probing.
   int TimeUntilNextProbe(int64_t now_ms);
 
-  // Which cluster that is currently being used for probing.
-  int CurrentClusterId() const;
+  // Information about the current probing cluster.
+  PacedPacketInfo CurrentCluster() const;
 
   // Returns the minimum number of bytes that the prober recommends for
   // the next probe.
@@ -74,20 +75,17 @@ class BitrateProber {
   // A probe cluster consists of a set of probes. Each probe in turn can be
   // divided into a number of packets to accommodate the MTU on the network.
   struct ProbeCluster {
-    int min_probes = 0;
-    int min_bytes = 0;
-    int bitrate_bps = 0;
-    int id = -1;
+    PacedPacketInfo pace_info;
 
     int sent_probes = 0;
     int sent_bytes = 0;
+    int64_t time_created_ms = -1;
     int64_t time_started_ms = -1;
-
     int retries = 0;
   };
 
   // Resets the state of the prober and clears any cluster/timing data tracked.
-  void ResetState();
+  void ResetState(int64_t now_ms);
 
   int64_t GetNextProbeTime(const ProbeCluster& cluster);
 

@@ -26,6 +26,7 @@ typedef std::map<std::string, std::string> CodecParameterMap;
 
 class FeedbackParam {
  public:
+  FeedbackParam() = default;
   FeedbackParam(const std::string& id, const std::string& param)
       : id_(id),
         param_(param) {
@@ -144,6 +145,28 @@ struct AudioCodec : public Codec {
   }
 };
 
+inline std::ostream& operator<<(std::ostream& os, const AudioCodec& ac) {
+  os << "{id: " << ac.id;
+  os << ", name: " << ac.name;
+  os << ", clockrate: " << ac.clockrate;
+  os << ", bitrate: " << ac.bitrate;
+  os << ", channels: " << ac.channels;
+  os << ", params: {";
+  const char* sep = "";
+  for (const auto& kv : ac.params) {
+    os << sep << kv.first << ": " << kv.second;
+    sep = ", ";
+  }
+  os << "}, feedback_params: {";
+  sep = "";
+  for (const FeedbackParam& fp : ac.feedback_params.params()) {
+    os << sep << fp.id() << ": " << fp.param();
+    sep = ", ";
+  }
+  os << "}}";
+  return os;
+}
+
 struct VideoCodec : public Codec {
   // Creates a codec with the given parameters.
   VideoCodec(int id, const std::string& name);
@@ -161,6 +184,8 @@ struct VideoCodec : public Codec {
   bool Matches(const VideoCodec& codec) const;
 
   std::string ToString() const;
+
+  webrtc::RtpCodecParameters ToCodecParameters() const override;
 
   VideoCodec& operator=(const VideoCodec& c);
   VideoCodec& operator=(VideoCodec&& c);

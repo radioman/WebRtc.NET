@@ -11,11 +11,15 @@
 #ifndef WEBRTC_API_MEDIASTREAMPROXY_H_
 #define WEBRTC_API_MEDIASTREAMPROXY_H_
 
+#include <string>
+
 #include "webrtc/api/mediastreaminterface.h"
 #include "webrtc/api/proxy.h"
 
 namespace webrtc {
 
+// TODO(deadbeef): Move this to .cc file and out of api/. What threads methods
+// are called on is an implementation detail.
 BEGIN_SIGNALING_PROXY_MAP(MediaStream)
   PROXY_SIGNALING_THREAD_DESTRUCTOR()
   PROXY_CONSTMETHOD0(std::string, label)

@@ -69,11 +69,8 @@ struct Cluster {
 class RemoteBitrateEstimatorAbsSendTime : public RemoteBitrateEstimator {
  public:
   RemoteBitrateEstimatorAbsSendTime(RemoteBitrateObserver* observer,
-                                    Clock* clock);
+                                    const Clock* clock);
   virtual ~RemoteBitrateEstimatorAbsSendTime() {}
-
-  void IncomingPacketFeedbackVector(
-      const std::vector<PacketInfo>& packet_feedback_vector) override;
 
   void IncomingPacket(int64_t arrival_time_ms,
                       size_t payload_size,
@@ -118,7 +115,7 @@ class RemoteBitrateEstimatorAbsSendTime : public RemoteBitrateEstimator {
   void TimeoutStreams(int64_t now_ms) EXCLUSIVE_LOCKS_REQUIRED(&crit_);
 
   rtc::ThreadChecker network_thread_;
-  Clock* const clock_;
+  const Clock* const clock_;
   RemoteBitrateObserver* const observer_;
   std::unique_ptr<InterArrival> inter_arrival_;
   std::unique_ptr<OveruseEstimator> estimator_;

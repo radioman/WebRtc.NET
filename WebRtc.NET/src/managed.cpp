@@ -40,7 +40,7 @@ namespace WebRtc
 			delegate void _OnRenderCallback(uint8_t * frame_buffer, uint32_t w, uint32_t h);
 			_OnRenderCallback ^ onRenderLocal;
 			_OnRenderCallback ^ onRenderRemote;
-			GCHandle ^ onRenderLocalHandle;			
+			GCHandle ^ onRenderLocalHandle;
 			GCHandle ^ onRenderRemoteHandle;
 
 			delegate void _OnErrorCallback();
@@ -374,7 +374,7 @@ namespace WebRtc
 				// free unmanaged data
 				if (cd != NULL)
 				{
-					delete cd;					
+					delete cd;
 				}
 				cd = NULL;
 			}

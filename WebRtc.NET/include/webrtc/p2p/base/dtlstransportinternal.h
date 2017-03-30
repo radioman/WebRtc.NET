@@ -16,9 +16,10 @@
 #include <vector>
 
 #include "webrtc/base/sslstreamadapter.h"
+#include "webrtc/base/stringencode.h"
 #include "webrtc/p2p/base/icetransportinternal.h"
 #include "webrtc/p2p/base/jseptransport.h"
-#include "webrtc/p2p/base/packettransportinterface.h"
+#include "webrtc/p2p/base/packettransportinternal.h"
 
 namespace cricket {
 
@@ -32,7 +33,7 @@ enum PacketFlags {
 // Once the public interface is supported,
 // (https://www.w3.org/TR/webrtc/#rtcdtlstransport-interface)
 // the DtlsTransportInterface will be split from this class.
-class DtlsTransportInternal : public rtc::PacketTransportInterface {
+class DtlsTransportInternal : public rtc::PacketTransportInternal {
  public:
   virtual ~DtlsTransportInternal() {}
 
@@ -97,7 +98,7 @@ class DtlsTransportInternal : public rtc::PacketTransportInterface {
 
   // Debugging description of this transport.
   std::string debug_name() const override {
-    return transport_name() + " " + std::to_string(component());
+    return transport_name() + " " + rtc::ToString(component());
   }
 
  protected:

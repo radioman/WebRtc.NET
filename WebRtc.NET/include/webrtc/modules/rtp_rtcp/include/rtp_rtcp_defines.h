@@ -244,46 +244,83 @@ class RtcpBandwidthObserver {
   virtual ~RtcpBandwidthObserver() {}
 };
 
-struct PacketInfo {
-  PacketInfo(int64_t arrival_time_ms, uint16_t sequence_number)
-      : PacketInfo(-1,
-                   arrival_time_ms,
-                   -1,
-                   sequence_number,
-                   0,
-                   kNotAProbe) {}
+struct PacketFeedback {
+  PacketFeedback(int64_t arrival_time_ms, uint16_t sequence_number)
+      : PacketFeedback(-1,
+                       arrival_time_ms,
+                       -1,
+                       sequence_number,
+                       0,
+                       0,
+                       0,
+                       PacedPacketInfo()) {}
 
-  PacketInfo(int64_t arrival_time_ms,
-             int64_t send_time_ms,
-             uint16_t sequence_number,
-             size_t payload_size,
-             int probe_cluster_id)
-      : PacketInfo(-1,
-                   arrival_time_ms,
-                   send_time_ms,
-                   sequence_number,
-                   payload_size,
-                   probe_cluster_id) {}
+  PacketFeedback(int64_t arrival_time_ms,
+                 int64_t send_time_ms,
+                 uint16_t sequence_number,
+                 size_t payload_size,
+                 const PacedPacketInfo& pacing_info)
+      : PacketFeedback(-1,
+                       arrival_time_ms,
+                       send_time_ms,
+                       sequence_number,
+                       payload_size,
+                       0,
+                       0,
+                       pacing_info) {}
 
-  PacketInfo(int64_t creation_time_ms,
-             int64_t arrival_time_ms,
-             int64_t send_time_ms,
-             uint16_t sequence_number,
-             size_t payload_size,
-             int probe_cluster_id)
+  PacketFeedback(int64_t creation_time_ms,
+                 uint16_t sequence_number,
+                 size_t payload_size,
+                 uint16_t local_net_id,
+                 uint16_t remote_net_id,
+                 const PacedPacketInfo& pacing_info)
+      : PacketFeedback(creation_time_ms,
+                       -1,
+                       -1,
+                       sequence_number,
+                       payload_size,
+                       local_net_id,
+                       remote_net_id,
+                       pacing_info) {}
+
+  PacketFeedback(int64_t creation_time_ms,
+                 int64_t arrival_time_ms,
+                 int64_t send_time_ms,
+                 uint16_t sequence_number,
+                 size_t payload_size,
+                 uint16_t local_net_id,
+                 uint16_t remote_net_id,
+                 const PacedPacketInfo& pacing_info)
       : creation_time_ms(creation_time_ms),
         arrival_time_ms(arrival_time_ms),
         send_time_ms(send_time_ms),
         sequence_number(sequence_number),
         payload_size(payload_size),
-        probe_cluster_id(probe_cluster_id) {}
+        local_net_id(local_net_id),
+        remote_net_id(remote_net_id),
+        pacing_info(pacing_info) {}
 
   static constexpr int kNotAProbe = -1;
+  static constexpr int64_t kNotReceived = -1;
+
+  // NOTE! The variable |creation_time_ms| is not used when testing equality.
+  //       This is due to |creation_time_ms| only being used by SendTimeHistory
+  //       for book-keeping, and is of no interest outside that class.
+  // TODO(philipel): Remove |creation_time_ms| from PacketFeedback when cleaning
+  //                 up SendTimeHistory.
+  bool operator==(const PacketFeedback& rhs) const {
+    return arrival_time_ms == rhs.arrival_time_ms &&
+           send_time_ms == rhs.send_time_ms &&
+           sequence_number == rhs.sequence_number &&
+           payload_size == rhs.payload_size && pacing_info == rhs.pacing_info;
+  }
 
   // Time corresponding to when this object was created.
   int64_t creation_time_ms;
   // Time corresponding to when the packet was received. Timestamped with the
-  // receiver's clock.
+  // receiver's clock. For unreceived packet, the sentinel value kNotReceived
+  // is used.
   int64_t arrival_time_ms;
   // Time corresponding to when the packet was sent, timestamped with the
   // sender's clock.
@@ -293,8 +330,11 @@ struct PacketInfo {
   uint16_t sequence_number;
   // Size of the packet excluding RTP headers.
   size_t payload_size;
-  // Which probing cluster this packets belongs to.
-  int probe_cluster_id;
+  // The network route ids that this packet is associated with.
+  uint16_t local_net_id;
+  uint16_t remote_net_id;
+  // Pacing information about this packet.
+  PacedPacketInfo pacing_info;
 };
 
 class TransportFeedbackObserver {
@@ -302,15 +342,14 @@ class TransportFeedbackObserver {
   TransportFeedbackObserver() {}
   virtual ~TransportFeedbackObserver() {}
 
-  // Note: Transport-wide sequence number as sequence number. Arrival time
-  // must be set to 0.
+  // Note: Transport-wide sequence number as sequence number.
   virtual void AddPacket(uint16_t sequence_number,
                          size_t length,
-                         int probe_cluster_id) = 0;
+                         const PacedPacketInfo& pacing_info) = 0;
 
   virtual void OnTransportFeedback(const rtcp::TransportFeedback& feedback) = 0;
 
-  virtual std::vector<PacketInfo> GetTransportFeedbackVector() const = 0;
+  virtual std::vector<PacketFeedback> GetTransportFeedbackVector() const = 0;
 };
 
 class RtcpRttStats {

@@ -74,6 +74,7 @@ class CallTest : public ::testing::Test {
                         size_t num_audio_streams,
                         size_t num_flexfec_streams,
                         Transport* send_transport);
+
   void CreateMatchingReceiveConfigs(Transport* rtcp_send_transport);
 
   void CreateFrameGeneratorCapturerWithDrift(Clock* drift_clock,
@@ -149,6 +150,7 @@ class CallTest : public ::testing::Test {
 
 class BaseTest : public RtpRtcpObserver {
  public:
+  BaseTest();
   explicit BaseTest(unsigned int timeout_ms);
   virtual ~BaseTest();
 
@@ -204,6 +206,7 @@ class SendTest : public BaseTest {
 
 class EndToEndTest : public BaseTest {
  public:
+  EndToEndTest();
   explicit EndToEndTest(unsigned int timeout_ms);
 
   bool ShouldCreateReceivers() const override;

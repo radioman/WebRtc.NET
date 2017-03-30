@@ -15,6 +15,8 @@
 #include "webrtc/modules/desktop_capture/desktop_geometry.h"
 #include "webrtc/typedefs.h"
 
+#define CURSOR_SUPPRESSED  0x00000002
+
 namespace webrtc {
 
 class DesktopCaptureOptions;

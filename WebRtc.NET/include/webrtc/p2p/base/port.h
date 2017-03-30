@@ -17,21 +17,23 @@
 #include <string>
 #include <vector>
 
-#include "webrtc/p2p/base/candidate.h"
-#include "webrtc/p2p/base/candidatepairinterface.h"
-#include "webrtc/p2p/base/jseptransport.h"
-#include "webrtc/p2p/base/packetsocketfactory.h"
-#include "webrtc/p2p/base/portinterface.h"
-#include "webrtc/p2p/base/stun.h"
-#include "webrtc/p2p/base/stunrequest.h"
 #include "webrtc/base/asyncpacketsocket.h"
 #include "webrtc/base/checks.h"
 #include "webrtc/base/network.h"
+#include "webrtc/base/optional.h"
 #include "webrtc/base/proxyinfo.h"
 #include "webrtc/base/ratetracker.h"
 #include "webrtc/base/sigslot.h"
 #include "webrtc/base/socketaddress.h"
 #include "webrtc/base/thread.h"
+#include "webrtc/p2p/base/candidate.h"
+#include "webrtc/p2p/base/candidatepairinterface.h"
+#include "webrtc/p2p/base/jseptransport.h"
+#include "webrtc/p2p/base/packetlossestimator.h"
+#include "webrtc/p2p/base/packetsocketfactory.h"
+#include "webrtc/p2p/base/portinterface.h"
+#include "webrtc/p2p/base/stun.h"
+#include "webrtc/p2p/base/stunrequest.h"
 
 namespace cricket {
 
@@ -72,7 +74,10 @@ static const int CONNECTION_WRITE_TIMEOUT = 15 * 1000;  // 15 seconds
 static const int CONNECTION_WRITE_CONNECT_TIMEOUT = 5 * 1000;  // 5 seconds
 
 // This is the length of time that we wait for a ping response to come back.
-static const int CONNECTION_RESPONSE_TIMEOUT = 5 * 1000;  // 5 seconds
+// There is no harm to keep this value high other than a small amount
+// of increased memory.  But in some networks (2G),
+// we observe up to 60s RTTs.
+static const int CONNECTION_RESPONSE_TIMEOUT = 60 * 1000;  // 60 seconds
 
 // The number of pings that must fail to respond before we become unwritable.
 static const uint32_t CONNECTION_WRITE_CONNECT_FAILURES = 5;
@@ -320,6 +325,8 @@ class Port : public PortInterface, public rtc::MessageHandler,
 
   void set_type(const std::string& type) { type_ = type; }
 
+  // Deprecated. Use the AddAddress() method below with "url" instead.
+  // TODO(zhihuang): Remove this after downstream applications stop using it.
   void AddAddress(const rtc::SocketAddress& address,
                   const rtc::SocketAddress& base_address,
                   const rtc::SocketAddress& related_address,
@@ -329,6 +336,18 @@ class Port : public PortInterface, public rtc::MessageHandler,
                   const std::string& type,
                   uint32_t type_preference,
                   uint32_t relay_preference,
+                  bool final);
+
+  void AddAddress(const rtc::SocketAddress& address,
+                  const rtc::SocketAddress& base_address,
+                  const rtc::SocketAddress& related_address,
+                  const std::string& protocol,
+                  const std::string& relay_protocol,
+                  const std::string& tcptype,
+                  const std::string& type,
+                  uint32_t type_preference,
+                  uint32_t relay_preference,
+                  const std::string& url,
                   bool final);
 
   // Adds the given connection to the map keyed by the remote candidate address.
@@ -514,7 +533,14 @@ class Connection : public CandidatePairInterface,
   void set_nomination(uint32_t value) { nomination_ = value; }
 
   uint32_t remote_nomination() const { return remote_nomination_; }
-  bool nominated() const { return remote_nomination_ > 0; }
+  // One or several pairs may be nominated based on if Regular or Aggressive
+  // Nomination is used. https://tools.ietf.org/html/rfc5245#section-8
+  // |nominated| is defined both for the controlling or controlled agent based
+  // on if a nomination has been pinged or acknowledged. The controlled agent
+  // gets its |remote_nomination_| set when pinged by the controlling agent with
+  // a nomination value. The controlling agent gets its |acked_nomination_| set
+  // when receiving a response to a nominating ping.
+  bool nominated() const { return acked_nomination_ || remote_nomination_; }
   // Public for unit tests.
   void set_remote_nomination(uint32_t remote_nomination) {
     remote_nomination_ = remote_nomination;
@@ -682,6 +708,10 @@ class Connection : public CandidatePairInterface,
   StunRequestManager requests_;
   int rtt_;
   int rtt_samples_ = 0;
+  // https://w3c.github.io/webrtc-stats/#dom-rtcicecandidatepairstats-totalroundtriptime
+  uint64_t total_round_trip_time_ms_ = 0;
+  // https://w3c.github.io/webrtc-stats/#dom-rtcicecandidatepairstats-currentroundtriptime
+  rtc::Optional<uint32_t> current_round_trip_time_ms_;
   int64_t last_ping_sent_;      // last time we sent a ping to the other side
   int64_t last_ping_received_;  // last time we received a ping from the other
                                 // side
@@ -689,6 +719,8 @@ class Connection : public CandidatePairInterface,
   int64_t last_ping_response_received_;
   int64_t receiving_unchanged_since_ = 0;
   std::vector<SentPing> pings_since_last_response_;
+
+  PacketLossEstimator packet_loss_estimator_;
 
   bool reported_;
   IceCandidatePairState state_;

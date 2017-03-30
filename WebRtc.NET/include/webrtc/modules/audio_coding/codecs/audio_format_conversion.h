@@ -11,8 +11,8 @@
 #ifndef WEBRTC_MODULES_AUDIO_CODING_CODECS_AUDIO_FORMAT_CONVERSION_H_
 #define WEBRTC_MODULES_AUDIO_CODING_CODECS_AUDIO_FORMAT_CONVERSION_H_
 
+#include "webrtc/api/audio_codecs/audio_format.h"
 #include "webrtc/common_types.h"
-#include "webrtc/modules/audio_coding/codecs/audio_format.h"
 
 namespace webrtc {
 

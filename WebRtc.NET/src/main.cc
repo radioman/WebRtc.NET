@@ -58,14 +58,16 @@
 //#pragma comment(lib,"jsoncpp.lib")
 
 // unknown
+#pragma comment(lib,"builtin_audio_decoder_factory_internal.lib")
 #pragma comment(lib,"builtin_audio_decoder_factory.lib")
 #pragma comment(lib,"field_trial_default.lib")
 #pragma comment(lib,"metrics_default.lib")
 #pragma comment(lib,"neteq.lib")
+#pragma comment(lib,"neteq_decoder_enum.lib")
 #pragma comment(lib,"opus.lib")
 #pragma comment(lib,"red.lib")
 #pragma comment(lib,"rent_a_codec.lib")
-#pragma comment(lib,"level_indicator.lib")
+//#pragma comment(lib,"level_indicator.lib")
 #pragma comment(lib,"cng.lib")
 #pragma comment(lib,"ana_config_proto.lib")
 #pragma comment(lib,"ana_debug_dump_proto.lib")
@@ -81,10 +83,12 @@
 #pragma comment(lib,"isac_common.lib")
 #pragma comment(lib,"isac_fix.lib")
 #pragma comment(lib,"isac_fix_c.lib")
+#pragma comment(lib,"isac_fix_common.lib")
 #pragma comment(lib,"pcm16b.lib")
 #pragma comment(lib,"pcm16b_c.lib")
 
 // etc
+#pragma comment(lib,"legacy_encoded_audio_frame.lib")
 #pragma comment(lib,"protobuf_lite.lib")
 #pragma comment(lib,"winsdk_samples.lib")
 #pragma comment(lib,"dl.lib")
@@ -112,10 +116,10 @@
 #pragma comment(lib,"audio.lib")
 #pragma comment(lib,"audio_coding.lib")
 #pragma comment(lib,"audio_conference_mixer.lib")
-#pragma comment(lib,"audio_format.lib")
+//#pragma comment(lib,"audio_format.lib")
 #pragma comment(lib,"audio_format_conversion.lib")
 #pragma comment(lib,"audio_network_adaptor.lib")
-#pragma comment(lib,"audio_decoder_interface.lib")
+//#pragma comment(lib,"audio_decoder_interface.lib")
 #pragma comment(lib,"audio_device.lib")
 #pragma comment(lib,"audio_encoder_interface.lib")
 #pragma comment(lib,"audio_processing.lib")
@@ -126,6 +130,10 @@
 #pragma comment(lib,"audio_frame_operations.lib")
 #pragma comment(lib,"audio_mixer_impl.lib")
 #pragma comment(lib,"audio_frame_manipulator.lib")
+#pragma comment(lib,"audio_codecs_api.lib")
+#pragma comment(lib,"audio_level.lib")
+#pragma comment(lib,"audio_format_conversion.lib")
+#pragma comment(lib,"audio_mixer_impl.lib")
 
 #pragma comment(lib,"video.lib")
 #pragma comment(lib,"video_capture_internal_impl.lib")
@@ -143,6 +151,7 @@
 #pragma comment(lib,"webrtc_opus_c.lib")
 #pragma comment(lib,"webrtc_vp9.lib")
 
+#pragma comment(lib,"libjingle_peerconnection_api.lib")
 #pragma comment(lib,"libjingle_peerconnection.lib")
 #pragma comment(lib,"system_wrappers.lib")
 #pragma comment(lib,"voice_engine.lib")
@@ -156,15 +165,17 @@
 #pragma comment(lib,"remote_bitrate_estimator.lib")
 #pragma comment(lib,"common_audio.lib")
 #pragma comment(lib,"common_audio_c.lib")
+#pragma comment(lib,"common_audio_cc.lib")
 #pragma comment(lib,"common_audio_sse2.lib")
 #pragma comment(lib,"common_video.lib")
 #pragma comment(lib,"congestion_controller.lib")
 #pragma comment(lib,"bitrate_controller.lib")
 
+//#pragma comment(lib,"boringssl_xp.lib") // disabled SRWLock
 #pragma comment(lib,"boringssl.lib")
 #pragma comment(lib,"boringssl_asm.lib")
 #pragma comment(lib,"usrsctp.lib")
-#pragma comment(lib,"libyuv.lib")
+#pragma comment(lib,"libyuv_internal.lib")
 #pragma comment(lib,"libjpeg.lib")
 #pragma comment(lib,"libsrtp.lib")
 #pragma comment(lib,"libstunprober.lib")
@@ -178,8 +189,8 @@
 #pragma comment(lib,"libvpx_intrinsics_ssse3.lib")
 #pragma comment(lib,"libvpx_yasm.lib")
 
-//#pragma comment(lib,"webrtc_vp8.lib")       // original
-#pragma comment(lib,"webrtc_vp8_no_impl.lib") // for hacking vp8_impl.cc
+#pragma comment(lib,"webrtc_vp8.lib")       // original
+//#pragma comment(lib,"webrtc_vp8_no_impl.lib") // for hacking vp8_impl.cc
 
 #include "stdafx.h"
 

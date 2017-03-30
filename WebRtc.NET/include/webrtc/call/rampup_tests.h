@@ -33,19 +33,23 @@ class RampUpTester : public test::EndToEndTest {
  public:
   RampUpTester(size_t num_video_streams,
                size_t num_audio_streams,
+               size_t num_flexfec_streams,
                unsigned int start_bitrate_bps,
+               int64_t min_run_time_ms,
                const std::string& extension_type,
                bool rtx,
-               bool red);
+               bool red,
+               bool report_perf_stats);
   ~RampUpTester() override;
 
   size_t GetNumVideoStreams() const override;
   size_t GetNumAudioStreams() const override;
+  size_t GetNumFlexfecStreams() const override;
 
   void PerformTest() override;
 
  protected:
-  virtual bool PollStats();
+  virtual void PollStats();
 
   void AccumulateStats(const VideoSendStream::StreamStats& stream,
                        size_t* total_packets_sent,
@@ -59,13 +63,15 @@ class RampUpTester : public test::EndToEndTest {
   void TriggerTestDone();
 
   webrtc::RtcEventLogNullImpl event_log_;
-  rtc::Event event_;
+  rtc::Event stop_event_;
   Clock* const clock_;
   FakeNetworkPipe::Config forward_transport_config_;
   const size_t num_video_streams_;
   const size_t num_audio_streams_;
+  const size_t num_flexfec_streams_;
   const bool rtx_;
   const bool red_;
+  const bool report_perf_stats_;
   Call* sender_call_;
   VideoSendStream* send_stream_;
   test::PacketTransport* send_transport_;
@@ -86,12 +92,14 @@ class RampUpTester : public test::EndToEndTest {
   void ModifyAudioConfigs(
       AudioSendStream::Config* send_config,
       std::vector<AudioReceiveStream::Config>* receive_configs) override;
+  void ModifyFlexfecConfigs(
+      std::vector<FlexfecReceiveStream::Config>* receive_configs) override;
   void OnCallsCreated(Call* sender_call, Call* receiver_call) override;
 
-  static bool BitrateStatsPollingThread(void* obj);
+  static void BitrateStatsPollingThread(void* obj);
 
   const int start_bitrate_bps_;
-  bool start_bitrate_verified_;
+  const int64_t min_run_time_ms_;
   int expected_bitrate_bps_;
   int64_t test_start_ms_;
   int64_t ramp_up_finished_ms_;
@@ -108,29 +116,43 @@ class RampUpDownUpTester : public RampUpTester {
  public:
   RampUpDownUpTester(size_t num_video_streams,
                      size_t num_audio_streams,
+                     size_t num_flexfec_streams,
                      unsigned int start_bitrate_bps,
                      const std::string& extension_type,
                      bool rtx,
-                     bool red);
+                     bool red,
+                     const std::vector<int>& loss_rates,
+                     bool report_perf_stats);
   ~RampUpDownUpTester() override;
 
  protected:
-  bool PollStats() override;
+  void PollStats() override;
 
  private:
-  enum TestStates { kFirstRampup, kLowRate, kSecondRampup };
+  enum TestStates {
+    kFirstRampup = 0,
+    kLowRate,
+    kSecondRampup,
+    kTestEnd,
+    kTransitionToNextState,
+  };
 
   Call::Config GetReceiverCallConfig() override;
 
   std::string GetModifierString() const;
   int GetExpectedHighBitrate() const;
   int GetHighLinkCapacity() const;
+  size_t GetFecBytes() const;
+  bool ExpectingFec() const;
   void EvolveTestState(int bitrate_bps, bool suspended);
 
+  const std::vector<int> link_rates_;
   TestStates test_state_;
+  TestStates next_state_;
   int64_t state_start_ms_;
   int64_t interval_start_ms_;
   int sent_bytes_;
+  std::vector<int> loss_rates_;
 };
 }  // namespace webrtc
 #endif  // WEBRTC_CALL_RAMPUP_TESTS_H_

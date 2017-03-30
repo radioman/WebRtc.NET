@@ -132,7 +132,7 @@ class StunUInt16ListAttribute;
 class StunMessage {
  public:
   StunMessage();
-  virtual ~StunMessage();
+  virtual ~StunMessage() = default;
 
   int type() const { return type_; }
   size_t length() const { return length_; }
@@ -158,10 +158,9 @@ class StunMessage {
   const StunErrorCodeAttribute* GetErrorCode() const;
   const StunUInt16ListAttribute* GetUnknownAttributes() const;
 
-  // Takes ownership of the specified attribute, verifies it is of the correct
-  // type, and adds it to the message. The return value indicates whether this
-  // was successful.
-  bool AddAttribute(StunAttribute* attr);
+  // Takes ownership of the specified attribute and adds it to the message.
+  // TODO(zstein): Take a unique_ptr instead of a raw pointer.
+  void AddAttribute(StunAttribute* attr);
 
   // Validates that a raw STUN message has a correct MESSAGE-INTEGRITY value.
   // This can't currently be done on a StunMessage, since it is affected by
@@ -201,7 +200,7 @@ class StunMessage {
   uint16_t type_;
   uint16_t length_;
   std::string transaction_id_;
-  std::vector<StunAttribute*>* attrs_;
+  std::vector<std::unique_ptr<StunAttribute>> attrs_;
 };
 
 // Base class for all STUN/TURN attributes.

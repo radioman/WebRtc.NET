@@ -47,16 +47,16 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\defaults.cc">
-      <Filter>Source Files\src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\conductor.cc">
+    <ClCompile Include="src\managed.cpp">
       <Filter>Source Files\src</Filter>
     </ClCompile>
     <ClCompile Include="src\main.cc">
       <Filter>Source Files\src</Filter>
     </ClCompile>
-    <ClCompile Include="src\managed.cpp">
+    <ClCompile Include="src\conductor.cc">
+      <Filter>Source Files\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\defaults.cc">
       <Filter>Source Files\src</Filter>
     </ClCompile>
     <ClCompile Include="src\TJpeg.cpp">
@@ -65,7 +65,7 @@
     <ClCompile Include="src\internals\yuvframegenerator.cc">
       <Filter>Source Files\src\internals</Filter>
     </ClCompile>
-    <ClCompile Include="src\internals\vp8_impl.cc">
+    <ClCompile Include="src\internals\task_queue_win.cc">
       <Filter>Source Files\src\internals</Filter>
     </ClCompile>
   </ItemGroup>

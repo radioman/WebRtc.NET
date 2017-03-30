@@ -46,10 +46,11 @@ class PacedSender : public Module, public RtpPacketSender {
                                   uint16_t sequence_number,
                                   int64_t capture_time_ms,
                                   bool retransmission,
-                                  int probe_cluster_id) = 0;
+                                  const PacedPacketInfo& cluster_info) = 0;
     // Called when it's a good time to send a padding data.
     // Returns the number of bytes sent.
-    virtual size_t TimeToSendPadding(size_t bytes, int probe_cluster_id) = 0;
+    virtual size_t TimeToSendPadding(size_t bytes,
+                                     const PacedPacketInfo& cluster_info) = 0;
 
    protected:
     virtual ~PacketSender() {}
@@ -67,9 +68,7 @@ class PacedSender : public Module, public RtpPacketSender {
   // overshoots from the encoder.
   static const float kDefaultPaceMultiplier;
 
-  static const size_t kMinProbePacketSize = 200;
-
-  PacedSender(Clock* clock, PacketSender* packet_sender);
+  PacedSender(const Clock* clock, PacketSender* packet_sender);
 
   virtual ~PacedSender();
 
@@ -140,6 +139,9 @@ class PacedSender : public Module, public RtpPacketSender {
   // Process any pending packets in the queue(s).
   void Process() override;
 
+  // Called when the prober is associated with a process thread.
+  void ProcessThreadAttached(ProcessThread* process_thread) override;
+
  private:
   // Updates the number of bytes that can be sent for the next time interval.
   void UpdateBudgetWithElapsedTime(int64_t delta_time_in_ms)
@@ -147,12 +149,13 @@ class PacedSender : public Module, public RtpPacketSender {
   void UpdateBudgetWithBytesSent(size_t bytes)
       EXCLUSIVE_LOCKS_REQUIRED(critsect_);
 
-  bool SendPacket(const paced_sender::Packet& packet, int probe_cluster_id)
+  bool SendPacket(const paced_sender::Packet& packet,
+                  const PacedPacketInfo& cluster_info)
       EXCLUSIVE_LOCKS_REQUIRED(critsect_);
-  size_t SendPadding(size_t padding_needed, int probe_cluster_id)
+  size_t SendPadding(size_t padding_needed, const PacedPacketInfo& cluster_info)
       EXCLUSIVE_LOCKS_REQUIRED(critsect_);
 
-  Clock* const clock_;
+  const Clock* const clock_;
   PacketSender* const packet_sender_;
   std::unique_ptr<AlrDetector> alr_detector_ GUARDED_BY(critsect_);
 
@@ -169,6 +172,7 @@ class PacedSender : public Module, public RtpPacketSender {
       GUARDED_BY(critsect_);
 
   std::unique_ptr<BitrateProber> prober_ GUARDED_BY(critsect_);
+  bool probing_send_failure_;
   // Actual configured bitrates (media_budget_ may temporarily be higher in
   // order to meet pace time constraint).
   uint32_t estimated_bitrate_bps_ GUARDED_BY(critsect_);
@@ -180,6 +184,7 @@ class PacedSender : public Module, public RtpPacketSender {
 
   std::unique_ptr<paced_sender::PacketQueue> packets_ GUARDED_BY(critsect_);
   uint64_t packet_counter_;
+  ProcessThread* process_thread_ = nullptr;
 };
 }  // namespace webrtc
 #endif  // WEBRTC_MODULES_PACING_PACED_SENDER_H_

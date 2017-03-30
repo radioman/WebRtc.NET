@@ -206,6 +206,8 @@ template <class Base> class RtpHelper : public Base {
       return "";
     return send_streams_[0].cname;
   }
+  const RtcpParameters& send_rtcp_parameters() { return send_rtcp_parameters_; }
+  const RtcpParameters& recv_rtcp_parameters() { return recv_rtcp_parameters_; }
 
   bool ready_to_send() const {
     return ready_to_send_;
@@ -246,6 +248,12 @@ template <class Base> class RtpHelper : public Base {
     send_extensions_ = extensions;
     return true;
   }
+  void set_send_rtcp_parameters(const RtcpParameters& params) {
+    send_rtcp_parameters_ = params;
+  }
+  void set_recv_rtcp_parameters(const RtcpParameters& params) {
+    recv_rtcp_parameters_ = params;
+  }
   virtual void OnPacketReceived(rtc::CopyOnWriteBuffer* packet,
                                 const rtc::PacketTime& packet_time) {
     rtp_packets_.push_back(std::string(packet->data<char>(), packet->size()));
@@ -278,6 +286,8 @@ template <class Base> class RtpHelper : public Base {
   std::list<std::string> rtcp_packets_;
   std::vector<StreamParams> send_streams_;
   std::vector<StreamParams> receive_streams_;
+  RtcpParameters send_rtcp_parameters_;
+  RtcpParameters recv_rtcp_parameters_;
   std::set<uint32_t> muted_streams_;
   std::map<uint32_t, webrtc::RtpParameters> rtp_send_parameters_;
   std::map<uint32_t, webrtc::RtpParameters> rtp_receive_parameters_;
@@ -304,7 +314,7 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
   };
   explicit FakeVoiceMediaChannel(FakeVoiceEngine* engine,
                                  const AudioOptions& options)
-      : engine_(engine), time_since_last_typing_(-1), max_bps_(-1) {
+      : engine_(engine), max_bps_(-1) {
     output_scalings_[0] = 1.0;  // For default channel.
     SetOptions(options);
   }
@@ -318,6 +328,7 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
   const AudioOptions& options() const { return options_; }
   int max_bps() const { return max_bps_; }
   virtual bool SetSendParameters(const AudioSendParameters& params) {
+    set_send_rtcp_parameters(params.rtcp);
     return (SetSendCodecs(params.codecs) &&
             SetSendRtpHeaderExtensions(params.extensions) &&
             SetMaxSendBandwidth(params.max_bandwidth_bps) &&
@@ -325,6 +336,7 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
   }
 
   virtual bool SetRecvParameters(const AudioRecvParameters& params) {
+    set_recv_rtcp_parameters(params.rtcp);
     return (SetRecvCodecs(params.codecs) &&
             SetRecvRtpHeaderExtensions(params.extensions));
   }
@@ -366,11 +378,6 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
 
   virtual bool GetActiveStreams(AudioInfo::StreamList* streams) { return true; }
   virtual int GetOutputLevel() { return 0; }
-  void set_time_since_last_typing(int ms) { time_since_last_typing_ = ms; }
-  virtual int GetTimeSinceLastTyping() { return time_since_last_typing_; }
-  virtual void SetTypingDetectionParameters(
-      int time_window, int cost_per_typing, int reporting_threshold,
-      int penalty_decay, int type_event_delay) {}
 
   virtual bool CanInsertDtmf() {
     for (std::vector<AudioCodec>::const_iterator it = send_codecs_.begin();
@@ -469,7 +476,7 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
     auto it = local_sinks_.find(ssrc);
     if (source) {
       if (it != local_sinks_.end()) {
-        RTC_DCHECK(it->second->source() == source);
+        RTC_CHECK(it->second->source() == source);
       } else {
         local_sinks_.insert(
             std::make_pair(ssrc, new VoiceChannelAudioSink(source)));
@@ -488,7 +495,6 @@ class FakeVoiceMediaChannel : public RtpHelper<VoiceMediaChannel> {
   std::vector<AudioCodec> send_codecs_;
   std::map<uint32_t, double> output_scalings_;
   std::vector<DtmfInfo> dtmf_info_queue_;
-  int time_since_last_typing_;
   AudioOptions options_;
   std::map<uint32_t, VoiceChannelAudioSink*> local_sinks_;
   std::unique_ptr<webrtc::AudioSinkInterface> sink_;
@@ -525,11 +531,13 @@ class FakeVideoMediaChannel : public RtpHelper<VideoMediaChannel> {
   }
   int max_bps() const { return max_bps_; }
   bool SetSendParameters(const VideoSendParameters& params) override {
+    set_send_rtcp_parameters(params.rtcp);
     return (SetSendCodecs(params.codecs) &&
             SetSendRtpHeaderExtensions(params.extensions) &&
             SetMaxSendBandwidth(params.max_bandwidth_bps));
   }
   bool SetRecvParameters(const VideoRecvParameters& params) override {
+    set_recv_rtcp_parameters(params.rtcp);
     return (SetRecvCodecs(params.codecs) &&
             SetRecvRtpHeaderExtensions(params.extensions));
   }
@@ -649,10 +657,12 @@ class FakeDataMediaChannel : public RtpHelper<DataMediaChannel> {
   int max_bps() const { return max_bps_; }
 
   virtual bool SetSendParameters(const DataSendParameters& params) {
+    set_send_rtcp_parameters(params.rtcp);
     return (SetSendCodecs(params.codecs) &&
             SetMaxSendBandwidth(params.max_bandwidth_bps));
   }
   virtual bool SetRecvParameters(const DataRecvParameters& params) {
+    set_recv_rtcp_parameters(params.rtcp);
     return SetRecvCodecs(params.codecs);
   }
   virtual bool SetSend(bool send) { return set_sending(send); }
@@ -911,20 +921,6 @@ class FakeMediaEngine :
   void set_fail_create_channel(bool fail) {
     voice_.set_fail_create_channel(fail);
     video_.set_fail_create_channel(fail);
-  }
-};
-
-// CompositeMediaEngine with FakeVoiceEngine to expose SetAudioCodecs to
-// establish a media connectionwith minimum set of audio codes required
-template <class VIDEO>
-class CompositeMediaEngineWithFakeVoiceEngine :
-    public CompositeMediaEngine<FakeVoiceEngine, VIDEO> {
- public:
-  CompositeMediaEngineWithFakeVoiceEngine() {}
-  virtual ~CompositeMediaEngineWithFakeVoiceEngine() {}
-
-  virtual void SetAudioCodecs(const std::vector<AudioCodec>& codecs) {
-    CompositeMediaEngine<FakeVoiceEngine, VIDEO>::voice_.SetCodecs(codecs);
   }
 };
 

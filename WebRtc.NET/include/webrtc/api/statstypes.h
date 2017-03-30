@@ -18,9 +18,9 @@
 #include <list>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "webrtc/base/basictypes.h"
-#include "webrtc/base/common.h"
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/base/refcount.h"
 #include "webrtc/base/scoped_ref_ptr.h"
@@ -235,7 +235,7 @@ class StatsReport {
     // Protected since users of the IdBase type will be using the Id typedef.
     virtual bool Equals(const IdBase& other) const;
 
-    IdBase(StatsType type);  // Only meant for derived classes.
+    explicit IdBase(StatsType type);  // Only meant for derived classes.
     const StatsType type_;
 
     static const char kSeparator = '_';
@@ -342,6 +342,7 @@ class StatsReport {
 
   // Ownership of |id| is passed to |this|.
   explicit StatsReport(const Id& id);
+  ~StatsReport();
 
   // Factory functions for various types of stats IDs.
   static Id NewBandwidthEstimationId();
@@ -414,7 +415,7 @@ class StatsCollection {
   StatsReport* FindOrAddNew(const StatsReport::Id& id);
   StatsReport* ReplaceOrAddNew(const StatsReport::Id& id);
 
-  // Looks for a report with the given |id|.  If one is not found, NULL
+  // Looks for a report with the given |id|.  If one is not found, null
   // will be returned.
   StatsReport* Find(const StatsReport::Id& id);
 

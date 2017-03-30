@@ -4,12 +4,11 @@
 #include <string.h>
 #include <sstream>
 
+#include "webrtc/base/checks.h"
 #include "webrtc/base/basictypes.h"
-#include "webrtc/base/common.h"
 
 namespace cricket
 {
-
 	// These values were figured out by trial and error. If you change any
 	// basic parameters e.g. unit-bar size or bars-x-offset, you may need to change
 	// background-width/background-height.
@@ -36,8 +35,8 @@ namespace cricket
 		v_data_ = new uint8_t[qsize];
 		if (enable_barcode)
 		{
-			ASSERT(width_ >= kBarcodeBackgroundWidth);
-			ASSERT(height_ >= kBarcodeBackgroundHeight);
+			RTC_DCHECK(width_ >= kBarcodeBackgroundWidth);
+			RTC_DCHECK(height_ >= kBarcodeBackgroundHeight);
 			barcode_start_x_ = 0;
 			barcode_start_y_ = height_ - kBarcodeBackgroundHeight;
 		}
@@ -73,7 +72,7 @@ namespace cricket
 
 		if (barcode_value >= 0)
 		{
-			ASSERT(barcode_start_x_ != -1);
+			RTC_DCHECK(barcode_start_x_ != -1);
 			DrawBarcode(barcode_value);
 		}
 
@@ -176,7 +175,7 @@ namespace cricket
 	void YuvFrameGenerator::GetBarcodeBounds(int* top, int* left,
 											 int* width, int* height)
 	{
-		ASSERT(barcode_start_x_ != -1);
+		RTC_DCHECK(barcode_start_x_ != -1);
 		*top = barcode_start_y_;
 		*left = barcode_start_x_;
 		*width = kBarcodeBackgroundWidth;

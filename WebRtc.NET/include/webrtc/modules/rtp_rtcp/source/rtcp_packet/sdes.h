@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "webrtc/base/basictypes.h"
-#include "webrtc/base/constructormagic.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet.h"
 
 namespace webrtc {
@@ -29,6 +28,7 @@ class Sdes : public RtcpPacket {
     std::string cname;
   };
   static constexpr uint8_t kPacketType = 202;
+  static constexpr size_t kMaxNumberOfChunks = 0x1f;
 
   Sdes();
   ~Sdes() override;
@@ -49,12 +49,8 @@ class Sdes : public RtcpPacket {
               RtcpPacket::PacketReadyCallback* callback) const override;
 
  private:
-  static const size_t kMaxNumberOfChunks = 0x1f;
-
   std::vector<Chunk> chunks_;
   size_t block_length_;
-
-  RTC_DISALLOW_COPY_AND_ASSIGN(Sdes);
 };
 }  // namespace rtcp
 }  // namespace webrtc
