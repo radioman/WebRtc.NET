@@ -31,15 +31,15 @@ namespace WebRtc.NET.Demo
 
             textBoxExtIP.Text = "192.168.0.100";
 
-            comboBoxVideo.DataSource = ManagedConductor.GetVideoDevices();
+            //comboBoxVideo.DataSource = WebRtcNative.GetVideoDevices();
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (encoderRemote != null)
-            {
-                encoderRemote.Dispose();
-            }
+            //if (encoderRemote != null)
+            //{
+            //    encoderRemote.Dispose();
+            //}
 
             if (webSocketServer != null)
             {
@@ -53,22 +53,20 @@ namespace WebRtc.NET.Demo
             checkBoxWebsocket.Checked = true;
         }
 
-        readonly TurboJpegEncoder encoderRemote = TurboJpegEncoder.CreateEncoder();
-
         byte[] bgrBuffremote;
         Bitmap remoteImg;
         public unsafe void OnRenderRemote(byte* yuv, uint w, uint h)
         {
             lock (pictureBoxRemote)
             {
-                if (0 == encoderRemote.EncodeI420toBGR24(yuv, w, h, ref bgrBuffremote, true))
-                {
-                    if (remoteImg == null)
-                    {
-                        var bufHandle = GCHandle.Alloc(bgrBuffremote, GCHandleType.Pinned);
-                        remoteImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, bufHandle.AddrOfPinnedObject());
-                    }
-                }
+                //if (0 == encoderRemote.EncodeI420toBGR24(yuv, w, h, ref bgrBuffremote, true))
+                //{
+                //    if (remoteImg == null)
+                //    {
+                //        var bufHandle = GCHandle.Alloc(bgrBuffremote, GCHandleType.Pinned);
+                //        remoteImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, bufHandle.AddrOfPinnedObject());
+                //    }
+                //}
             }
 
             try
@@ -97,21 +95,20 @@ namespace WebRtc.NET.Demo
             }
         });
 
-        readonly TurboJpegEncoder encoderLocal = TurboJpegEncoder.CreateEncoder();
         byte[] bgrBufflocal;
         Bitmap localImg;
         public unsafe void OnRenderLocal(byte* yuv, uint w, uint h)
         {
             lock (pictureBoxLocal)
             {
-                if (0 == encoderLocal.EncodeI420toBGR24(yuv, w, h, ref bgrBufflocal, true))
-                {
-                    if (remoteImg == null)
-                    {
-                        var bufHandle = GCHandle.Alloc(bgrBufflocal, GCHandleType.Pinned);
-                        localImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, bufHandle.AddrOfPinnedObject());
-                    }
-                }
+                //if (0 == encoderLocal.EncodeI420toBGR24(yuv, w, h, ref bgrBufflocal, true))
+                //{
+                //    if (remoteImg == null)
+                //    {
+                //        var bufHandle = GCHandle.Alloc(bgrBufflocal, GCHandleType.Pinned);
+                //        localImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, bufHandle.AddrOfPinnedObject());
+                //    }
+                //}
             }
 
             try
@@ -233,7 +230,7 @@ namespace WebRtc.NET.Demo
                     img = new Bitmap(screenWidth, screenHeight, screenWidth * 3, PixelFormat.Format24bppRgb, imgBufPtr);
                     g = Graphics.FromImage(img);
                 }
-                
+
                 {
                     // render
                     {
@@ -244,49 +241,49 @@ namespace WebRtc.NET.Demo
                             g.CopyFromScreen(Cursor.Position, new Point(), new Size(screenWidth, screenHeight));
                         }
 
-                        if (checkBoxInternalScreen.Checked)
-                        {
-                            #region -- native webrtc desktop capture --
+                        //if (checkBoxInternalScreen.Checked)
+                        //{
+                        //    #region -- native webrtc desktop capture --
 
-                            //set internals.h #define DESKTOP_CAPTURE 1
+                        //    //set internals.h #define DESKTOP_CAPTURE 1
 
-                            foreach (var s in webSocketServer.Streams)
-                            {
-                                s.Value.WebRtc.CaptureFrame();
-                                unsafe
-                                {
-                                    var rgba = s.Value.WebRtc.DesktopCapturerRGBAbuffer();
-                                    if (rgba != null)
-                                    {
-                                        var rgbaPtr = new IntPtr(rgba);
-                                        Bitmap captureImg = null;
+                        //    foreach (var s in webSocketServer.Streams)
+                        //    {
+                        //        s.Value.WebRtc.CaptureFrame();
+                        //        unsafe
+                        //        {
+                        //            var rgba = s.Value.WebRtc.DesktopCapturerRGBAbuffer();
+                        //            if (rgba != null)
+                        //            {
+                        //                var rgbaPtr = new IntPtr(rgba);
+                        //                Bitmap captureImg = null;
 
-                                        int x = -1, y = -1;
-                                        s.Value.WebRtc.DesktopCapturerSize(ref x, ref y);
+                        //                int x = -1, y = -1;
+                        //                s.Value.WebRtc.DesktopCapturerSize(ref x, ref y);
 
-                                        if (x != captureWidth || y != captureHeight 
-                                            || !imgCapture.TryGetValue(rgbaPtr, out captureImg))
-                                        {
-                                            if (captureImg != null)
-                                                captureImg.Dispose();
+                        //                if (x != captureWidth || y != captureHeight
+                        //                    || !imgCapture.TryGetValue(rgbaPtr, out captureImg))
+                        //                {
+                        //                    if (captureImg != null)
+                        //                        captureImg.Dispose();
 
-                                            imgCapture[rgbaPtr] = captureImg = new Bitmap(x, y, x * 4, PixelFormat.Format32bppRgb, rgbaPtr);
+                        //                    imgCapture[rgbaPtr] = captureImg = new Bitmap(x, y, x * 4, PixelFormat.Format32bppRgb, rgbaPtr);
 
-                                            captureWidth = x;
-                                            captureHeight = y;
-                                        }         
-                                        g.DrawImage(captureImg, 0, 0, new Rectangle(Cursor.Position, new Size(screenWidth, screenHeight)), GraphicsUnit.Pixel);
+                        //                    captureWidth = x;
+                        //                    captureHeight = y;
+                        //                }
+                        //                g.DrawImage(captureImg, 0, 0, new Rectangle(Cursor.Position, new Size(screenWidth, screenHeight)), GraphicsUnit.Pixel);
 
-                                        // if no editing is needed
-                                        //var yuv = s.Value.WebRtc.VideoCapturerI420Buffer();
-                                        //encoderRemote.EncodeI420((byte*)rgba, screenWidth, screenHeight, (int)TJPF.TJPF_BGRX, 0, true, yuv);
-                                    }
-                                }
-                                break;
-                            }
+                        //                // if no editing is needed
+                        //                //var yuv = s.Value.WebRtc.VideoCapturerI420Buffer();
+                        //                //encoderRemote.EncodeI420((byte*)rgba, screenWidth, screenHeight, (int)TJPF.TJPF_BGRX, 0, true, yuv);
+                        //            }
+                        //        }
+                        //        break;
+                        //    }
 
-                            #endregion
-                        }
+                        //    #endregion
+                        //}
 
                         var rc = RectangleF.FromLTRB(0, 0, img.Width, img.Height);
                         g.DrawString(string.Format("{0}", DateTime.Now.ToString("hh:mm:ss.fff")), fBig, Brushes.LimeGreen, rc, sfTopRight);
@@ -294,18 +291,7 @@ namespace WebRtc.NET.Demo
 
                     foreach (var s in webSocketServer.Streams)
                     {
-                        if (!barCodeScreen)
-                        {
-                            unsafe
-                            {
-                                var yuv = s.Value.WebRtc.VideoCapturerI420Buffer();
-                                if (yuv != null)
-                                {
-                                    encoderRemote.EncodeI420((byte*)imgBufPtr.ToPointer(), screenWidth, screenHeight, (int)TJPF.TJPF_BGR, 0, true, yuv);
-                                }
-                            }
-                        }
-                        s.Value.WebRtc.PushFrame();
+                        s.Value.WebRtc.PushFrame(!barCodeScreen ? imgBufPtr : IntPtr.Zero);
                     }
                 }
             }
@@ -335,7 +321,7 @@ namespace WebRtc.NET.Demo
 
                 Task.Factory.StartNew(delegate ()
                 {
-                    using (var mc = new ManagedConductor())
+                    using (var mc = new WebRtcNative())
                     {
                         var ok = mc.RunTurnServer("0.0.0.0:3478", textBoxExtIP.Text, "test", "auth.txt");
                         if (!ok)
@@ -349,11 +335,11 @@ namespace WebRtc.NET.Demo
                         {
                             using (turnCancel = new CancellationTokenSource())
                             {
-                                var stop = turnCancel.Token; 
+                                var stop = turnCancel.Token;
                                 while (!stop.IsCancellationRequested && mc.ProcessMessages(1000))
                                 {
                                     Debug.WriteLine(".");
-                                }                                
+                                }
 
                                 Task.Factory.StartNew(delegate ()
                                 {

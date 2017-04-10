@@ -102,12 +102,8 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\WebRtc.NET.Utils\WebRtc.NET.Utils.csproj">
+    <ProjectReference Include="..\WebRtc.NET.Utils\WebRtc.NET.csproj">
       <Project>{01062c91-04f7-486f-bc09-9c5b3ee468ab}</Project>
-      <Name>WebRtc.NET.Utils</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\WebRtc.NET\WebRtc.NET.vcxproj">
-      <Project>{a07e6cb4-0132-4eb1-9a38-c8c057884dc2}</Project>
       <Name>WebRtc.NET</Name>
     </ProjectReference>
   </ItemGroup>

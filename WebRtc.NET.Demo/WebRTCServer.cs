@@ -12,14 +12,14 @@ namespace WebRtc.NET.Demo
     {
         public class WebRtcSession
         {
-            public readonly ManagedConductor WebRtc;
+            public readonly WebRtcNative WebRtc;
             public readonly CancellationTokenSource Cancel;
 
             public WebRtcSession()
             {
-                WebRtc = new ManagedConductor();
+                WebRtc = new WebRtcNative();
                 Cancel = new CancellationTokenSource();
-            }            
+            }
         }
 
         public readonly ConcurrentDictionary<Guid, IWebSocketConnection> UserList = new ConcurrentDictionary<Guid, IWebSocketConnection>();
@@ -30,7 +30,7 @@ namespace WebRtc.NET.Demo
 
         public WebRTCServer(int port) : this("ws://0.0.0.0:" + port)
         {
-            
+
         }
 
         public WebRTCServer(string URL)
@@ -101,7 +101,7 @@ namespace WebRtc.NET.Demo
             }
         }
 
-        private int clientLimit = 5; 
+        private int clientLimit = 5;
         public int ClientLimit
         {
             get
@@ -140,7 +140,7 @@ namespace WebRtc.NET.Demo
         {
             Debug.WriteLine($"OnDisconnect: {context.ConnectionInfo.Id}, {context.ConnectionInfo.ClientIpAddress}");
             {
-                IWebSocketConnection ctx;                
+                IWebSocketConnection ctx;
                 UserList.TryRemove(context.ConnectionInfo.Id, out ctx);
 
                 WebRtcSession s;
@@ -158,14 +158,14 @@ namespace WebRtc.NET.Demo
         {
             Debug.WriteLine($"OnReceive {context.ConnectionInfo.Id}: {msg}");
 
-            if (!msg.Contains("command")) return; 
+            if (!msg.Contains("command")) return;
 
             if(UserList.ContainsKey(context.ConnectionInfo.Id))
             {
                 JsonData msgJson = JsonMapper.ToObject(msg);
                 string command = msgJson["command"].ToString();
 
-                switch (command) 
+                switch (command)
                 {
                     case offer:
                     {
@@ -177,7 +177,7 @@ namespace WebRtc.NET.Demo
                                 {
                                     var t = Task.Factory.StartNew(() =>
                                     {
-                                        ManagedConductor.InitializeSSL();
+                                        WebRtcNative.InitializeSSL();
 
                                         using (session.WebRtc)
                                         {
@@ -225,7 +225,7 @@ namespace WebRtc.NET.Demo
                                                 context.Close();
                                             }
                                         }
-                                        
+
                                     }, session.Cancel.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
                                     if (go.WaitOne(9999))
@@ -316,8 +316,8 @@ namespace WebRtc.NET.Demo
             }
         }
 
-        public ManagedConductor.OnCallbackRender OnRenderRemote;
-        public ManagedConductor.OnCallbackRender OnRenderLocal;
+        public WebRtcNative.OnCallbackRender OnRenderRemote;
+        public WebRtcNative.OnCallbackRender OnRenderLocal;
 
         public void Dispose()
         {
@@ -332,13 +332,13 @@ namespace WebRtc.NET.Demo
                 }
 
                 foreach (IWebSocketConnection i in UserList.Values)
-                {                    
+                {
                     i.Close();
                 }
 
                 server.Dispose();
                 UserList.Clear();
-                Streams.Clear();               
+                Streams.Clear();
             }
             catch { }
         }
