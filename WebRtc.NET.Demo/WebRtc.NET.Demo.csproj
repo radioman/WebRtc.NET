@@ -102,18 +102,18 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\WebRtc.NET.Utils\WebRtc.NET.csproj">
-      <Project>{01062c91-04f7-486f-bc09-9c5b3ee468ab}</Project>
-      <Name>WebRtc.NET</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="auth.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WebRtc.NET\WebRtc.NET.csproj">
+      <Project>{01062c91-04f7-486f-bc09-9c5b3ee468ab}</Project>
+      <Name>WebRtc.NET</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
