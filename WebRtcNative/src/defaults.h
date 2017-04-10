@@ -69,18 +69,18 @@ namespace Native
 			rendered_track_(track_to_render), con(&c), remote(remote)
 		{
 			rendered_track_->AddOrUpdateSink(this, rtc::VideoSinkWants());
+			bgr24 = nullptr;
 		}
-		virtual ~VideoRenderer()
-		{
-			if(rendered_track_.get())
-				rendered_track_->RemoveSink(this);
-		}
+		virtual ~VideoRenderer();
 
 		// VideoSinkInterface implementation
-		void OnFrame(const webrtc::VideoFrame& frame) override;
+		void OnFrame(const webrtc::VideoFrame & frame) override;
 
 	protected:
+		int DecodeYUV(const uint8_t * yuv, int & width, int & height);
 
+		void * jpeg;
+		uint8_t * bgr24;
 		bool remote;
 		Conductor * con;
 		rtc::scoped_refptr<webrtc::VideoTrackInterface> rendered_track_;

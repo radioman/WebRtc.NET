@@ -20,7 +20,7 @@ namespace Native
 	typedef void(__stdcall *OnSuccessCallbackNative)(const char * type, const char * sdp);
 	typedef void(__stdcall *OnFailureCallbackNative)(const char * error);
 	typedef void(__stdcall *OnIceCandidateCallbackNative)(const char * sdp_mid, int sdp_mline_index, const char * sdp);
-	typedef void(__stdcall *OnRenderCallbackNative)(uint8_t * frame_buffer, uint32_t w, uint32_t h);
+	typedef void(__stdcall *OnRenderCallbackNative)(uint8_t * BGR24, uint32_t w, uint32_t h);
 	typedef void(__stdcall *OnDataMessageCallbackNative)(const char * msg);
 	typedef void(__stdcall *OnDataBinaryMessageCallbackNative)(const uint8_t * msg, uint32_t size);
 
@@ -216,7 +216,6 @@ namespace Native
 		std::unique_ptr<cricket::StunServer> stunServer;
 
 		void * jpegc;
-		void * jpeg;
 
 	public:
 		int caputureFps;

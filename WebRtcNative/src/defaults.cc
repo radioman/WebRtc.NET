@@ -3,7 +3,7 @@
 #include "internals.h"
 #include "conductor.h"
 
-
+#include "turbojpeg/turbojpeg.h"
 #include "webrtc/modules/desktop_capture/desktop_capture_options.h"
 
 namespace Native
@@ -165,18 +165,55 @@ namespace Native
 #endif
 
 	// VideoSinkInterface implementation
-	void VideoRenderer::OnFrame(const webrtc::VideoFrame& frame)
+	void VideoRenderer::OnFrame(const webrtc::VideoFrame & frame)
 	{
 		if (remote && con->onRenderRemote)
 		{
 			auto b = frame.video_frame_buffer();
-			con->onRenderRemote((uint8_t*)b->DataY(), b->width(), b->height());
+			int width = b->width();
+			int height = b->height();
+
+			if (0 == DecodeYUV(b->DataY(), width, height))
+			{
+				con->onRenderRemote(bgr24, width, height);
+			}
 		}
 		else if (con->onRenderLocal)
 		{
 			auto b = frame.video_frame_buffer();
-			con->onRenderLocal((uint8_t*)b->DataY(), b->width(), b->height());
+			int width = b->width();
+			int height = b->height();
+
+			if (0 == DecodeYUV(b->DataY(), width, height))
+			{
+				con->onRenderLocal(bgr24, width, height);
+			}
 		}
+	}
+
+	inline int VideoRenderer::DecodeYUV(const uint8_t * yuv, int & width, int & height)
+	{
+		if (jpeg == nullptr)
+			jpeg = tjInitDecompress();
+
+	    const int pad = 4;
+		int pitch = TJPAD(tjPixelSize[TJPF_BGR] * width);
+
+		if (bgr24 == nullptr)
+			bgr24 = new uint8_t[pitch * height];
+
+		return tjDecodeYUV(jpeg, yuv, pad, TJSAMP_420, bgr24, width, pitch, height, TJPF_BGR, true ? TJFLAG_FASTDCT : TJFLAG_ACCURATEDCT);
+	}
+
+	VideoRenderer::~VideoRenderer()
+	{
+		if (rendered_track_.get())
+			rendered_track_->RemoveSink(this);
+
+		if (jpeg != nullptr)
+			tjDestroy(jpeg);
+
+		delete[] bgr24;
 	}
 
 	// AudioTrackSinkInterface implementation

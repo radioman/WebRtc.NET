@@ -274,18 +274,17 @@ namespace WebRtc.NET.Demo
                                             Trace.WriteLine($"OnDataBinaryMessage: {dmsg.Length}");
                                         };
 
-                                        unsafe
+                                        Form.ResetRemote();
+                                        session.WebRtc.OnRenderRemote += delegate (IntPtr BGR24, uint w, uint h)
                                         {
-                                            session.WebRtc.OnRenderRemote += delegate (byte* frame_buffer, uint w, uint h)
-                                            {
-                                                OnRenderRemote(frame_buffer, w, h);
-                                            };
+                                            OnRenderRemote(BGR24, w, h);
+                                        };
 
-                                            session.WebRtc.OnRenderLocal += delegate (byte* frame_buffer, uint w, uint h)
-                                            {
-                                                OnRenderLocal(frame_buffer, w, h);
-                                            };
-                                        }
+                                        Form.ResetLocal();
+                                        session.WebRtc.OnRenderLocal += delegate (IntPtr BGR24, uint w, uint h)
+                                        {
+                                            OnRenderLocal(BGR24, w, h);
+                                        };
 
                                         var d = msgJson["desc"];
                                         var s = d["sdp"].ToString();

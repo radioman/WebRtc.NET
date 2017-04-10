@@ -136,9 +136,9 @@ namespace WebRtc.NET
         [SuppressUnmanagedCodeSecurity]
         [DllImport(dll)]
         static extern void PushFrame(IntPtr p, IntPtr BGR);
-        public void PushFrame(IntPtr BGR)
+        public void PushFrame(IntPtr BGR24)
         {
-            PushFrame(p, BGR);
+            PushFrame(p, BGR24);
         }
 
         #endregion
@@ -207,7 +207,7 @@ namespace WebRtc.NET
         public delegate void OnCallbackDataBinaryMessage(byte[] msg);
         public event OnCallbackDataBinaryMessage OnDataBinaryMessage;
 
-        public unsafe delegate void OnCallbackRender(byte* frame_buffer, UInt32 w, UInt32 h);
+        public unsafe delegate void OnCallbackRender(IntPtr BGR24, UInt32 w, UInt32 h);
         public event OnCallbackRender OnRenderLocal;
         public event OnCallbackRender OnRenderRemote;
 
@@ -220,12 +220,10 @@ namespace WebRtc.NET
 
             #region -- events --
 
-            unsafe
-            {
-                _onRenderLocal = new _OnRenderCallback(_OnRenderLocal);
-                _onRenderRemote = new _OnRenderCallback(_OnRenderRemote);
-            }
+            _onRenderLocal = new _OnRenderCallback(_OnRenderLocal);
             onRenderLocal(p, Marshal.GetFunctionPointerForDelegate(_onRenderLocal));
+
+            _onRenderRemote = new _OnRenderCallback(_OnRenderRemote);
             onRenderRemote(p, Marshal.GetFunctionPointerForDelegate(_onRenderRemote));
 
             _onError = new _OnErrorCallback(_OnError);
@@ -256,7 +254,7 @@ namespace WebRtc.NET
 
         #region -- events --
 
-        unsafe delegate void _OnRenderCallback(byte* frame_buffer, UInt32 w, UInt32 h);
+        delegate void _OnRenderCallback(IntPtr BGR24, UInt32 w, UInt32 h);
         _OnRenderCallback _onRenderLocal;
         _OnRenderCallback _onRenderRemote;
 
@@ -278,14 +276,14 @@ namespace WebRtc.NET
         delegate void _OnIceCandidateCallback(String sdp_mid, Int32 sdp_mline_index, String sdp);
         _OnIceCandidateCallback _onIceCandidate;
 
-        unsafe void _OnRenderLocal(byte* frame_buffer, UInt32 w, UInt32 h)
+        void _OnRenderLocal(IntPtr BGR24, UInt32 w, UInt32 h)
         {
-            OnRenderLocal(frame_buffer, w, h);
+            OnRenderLocal(BGR24, w, h);
         }
 
-        unsafe void _OnRenderRemote(byte* frame_buffer, UInt32 w, UInt32 h)
+        void _OnRenderRemote(IntPtr BGR24, UInt32 w, UInt32 h)
         {
-            OnRenderRemote(frame_buffer, w, h);
+            OnRenderRemote(BGR24, w, h);
         }
 
         void _OnError()

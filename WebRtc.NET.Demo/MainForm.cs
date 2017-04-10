@@ -53,20 +53,25 @@ namespace WebRtc.NET.Demo
             checkBoxWebsocket.Checked = true;
         }
 
-        byte[] bgrBuffremote;
-        Bitmap remoteImg;
-        public unsafe void OnRenderRemote(byte* yuv, uint w, uint h)
+        internal void ResetRemote()
         {
-            lock (pictureBoxRemote)
+            pictureBoxRemote.Image = null;
+            if (remoteImg != null)
             {
-                //if (0 == encoderRemote.EncodeI420toBGR24(yuv, w, h, ref bgrBuffremote, true))
-                //{
-                //    if (remoteImg == null)
-                //    {
-                //        var bufHandle = GCHandle.Alloc(bgrBuffremote, GCHandleType.Pinned);
-                //        remoteImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, bufHandle.AddrOfPinnedObject());
-                //    }
-                //}
+                remoteImg.Dispose();
+                remoteImg = null;
+            }
+        }
+
+        Bitmap remoteImg;
+        public void OnRenderRemote(IntPtr BGR24, uint w, uint h)
+        {
+            if (remoteImg == null)
+            {
+                lock (pictureBoxRemote)
+                {
+                    remoteImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, BGR24);
+                }
             }
 
             try
@@ -95,20 +100,25 @@ namespace WebRtc.NET.Demo
             }
         });
 
-        byte[] bgrBufflocal;
-        Bitmap localImg;
-        public unsafe void OnRenderLocal(byte* yuv, uint w, uint h)
+        internal void ResetLocal()
         {
-            lock (pictureBoxLocal)
+            pictureBoxLocal.Image = null;
+            if (localImg != null)
             {
-                //if (0 == encoderLocal.EncodeI420toBGR24(yuv, w, h, ref bgrBufflocal, true))
-                //{
-                //    if (remoteImg == null)
-                //    {
-                //        var bufHandle = GCHandle.Alloc(bgrBufflocal, GCHandleType.Pinned);
-                //        localImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, bufHandle.AddrOfPinnedObject());
-                //    }
-                //}
+                localImg.Dispose();
+                localImg = null;
+            }
+        }
+
+        Bitmap localImg;
+        public void OnRenderLocal(IntPtr BGR24, uint w, uint h)
+        {
+            if (localImg == null)
+            {
+                lock (pictureBoxLocal)
+                {
+                    localImg = new Bitmap((int)w, (int)h, (int)w * 3, PixelFormat.Format24bppRgb, BGR24);
+                }
             }
 
             try
@@ -183,7 +193,6 @@ namespace WebRtc.NET.Demo
                 {
                     webSocketServer = new WebRTCServer((int)numericWebSocket.Value);
                     webSocketServer.Form = this;
-                    unsafe
                     {
                         webSocketServer.OnRenderRemote = OnRenderRemote;
                         webSocketServer.OnRenderLocal = OnRenderLocal;

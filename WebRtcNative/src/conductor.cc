@@ -285,14 +285,13 @@ namespace Native
 		capturer_internal = nullptr;
 		capturer = nullptr;
 
-		jpegc = tjInitCompress();
-		jpeg = tjInitDecompress();
+		jpegc = nullptr;
 	}
 
 	Conductor::~Conductor()
 	{
-		tjDestroy(jpeg);
-		tjDestroy(jpegc);
+		if (jpegc != nullptr)
+			tjDestroy(jpegc);
 
 		DeletePeerConnection();
 		RTC_DCHECK(peer_connection_ == nullptr);
@@ -534,11 +533,15 @@ namespace Native
 
 				if (BGR != nullptr)
 				{
-					int pad = 4;
-					int pxFormat = TJPF_BGR;
+					const int pad = 4;
+					const int pxFormat = TJPF_BGR;
 					int pitch = TJPAD(tjPixelSize[pxFormat] * width_);
 
-					r = tjEncodeYUV3(jpegc, BGR, width_, pitch, height_, pxFormat, yuv, pad, TJSAMP_420, true ? TJFLAG_FASTDCT : TJFLAG_ACCURATEDCT);
+					if (jpegc == nullptr)
+						jpegc = tjInitCompress();
+
+					if (jpegc)
+						r = tjEncodeYUV3(jpegc, BGR, width_, pitch, height_, pxFormat, yuv, pad, TJSAMP_420, true ? TJFLAG_FASTDCT : TJFLAG_ACCURATEDCT);
 				}
 
 				if (r != 0)
