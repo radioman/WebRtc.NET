@@ -36,9 +36,9 @@ namespace Native
 
 		bool InitializePeerConnection();
 		void CreateOffer();
-		void OnOfferReply(std::string type, std::string sdp);
-		void OnOfferRequest(std::string sdp);
-		bool AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::string sdp);
+		void OnOfferReply(const std::string & type, const std::string & sdp);
+		void OnOfferRequest(const std::string & sdp);
+		bool AddIceCandidate(const std::string & sdp_mid, int sdp_mlineindex, const std::string & sdp);
 
 		bool ProcessMessages(int delay)
 		{
@@ -46,10 +46,10 @@ namespace Native
 		}
 
 		static std::vector<std::string> GetVideoDevices();
-		bool OpenVideoCaptureDevice(std::string & name);
-		void AddServerConfig(std::string uri, std::string username, std::string password);
+		bool OpenVideoCaptureDevice(const std::string & name);
+		void AddServerConfig(const std::string & uri, const std::string & username, const std::string & password);
 
-		uint8_t * VideoCapturerI420Buffer()
+		inline uint8_t * VideoCapturerI420Buffer()
 		{
 			if (capturer)
 			{

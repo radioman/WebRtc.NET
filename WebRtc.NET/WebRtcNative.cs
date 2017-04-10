@@ -127,14 +127,6 @@ namespace WebRtc.NET
 
         [SuppressUnmanagedCodeSecurity]
         [DllImport(dll)]
-        unsafe static extern byte* VideoCapturerI420Buffer(IntPtr p);
-        public unsafe byte* VideoCapturerI420Buffer()
-        {
-            return VideoCapturerI420Buffer(p);
-        }
-
-        [SuppressUnmanagedCodeSecurity]
-        [DllImport(dll)]
         static extern void PushFrame(IntPtr p, IntPtr BGR);
         public void PushFrame(IntPtr BGR24)
         {

@@ -105,9 +105,9 @@ extern "C"
 		return cd->ProcessMessages(delay);
 	}
 
-	__declspec(dllexport) bool WINAPI OpenVideoCaptureDevice(Native::Conductor * cd, char * name)
+	__declspec(dllexport) bool WINAPI OpenVideoCaptureDevice(Native::Conductor * cd, const char * name)
 	{
-		return cd->OpenVideoCaptureDevice(std::string(name));
+		return cd->OpenVideoCaptureDevice(name);
 	}
 
 	//__declspec(dllexport) static System::Collections::Generic::List<String^> ^ GetVideoDevices()
@@ -125,32 +125,32 @@ extern "C"
 	//	return ret;
 	//}
 
-	__declspec(dllexport) void WINAPI OnOfferReply(Native::Conductor * cd, char * type, char * sdp)
+	__declspec(dllexport) void WINAPI OnOfferReply(Native::Conductor * cd, const char * type, const char * sdp)
 	{
 		cd->OnOfferReply(type, sdp);
 	}
 
-	__declspec(dllexport) void WINAPI OnOfferRequest(Native::Conductor * cd, char * sdp)
+	__declspec(dllexport) void WINAPI OnOfferRequest(Native::Conductor * cd, const char * sdp)
 	{
 		cd->OnOfferRequest(sdp);
 	}
 
-	__declspec(dllexport) bool WINAPI AddIceCandidate(Native::Conductor * cd, char * sdp_mid, int sdp_mlineindex, char * sdp)
+	__declspec(dllexport) bool WINAPI AddIceCandidate(Native::Conductor * cd, const char * sdp_mid, int sdp_mlineindex, const char * sdp)
 	{
 		return cd->AddIceCandidate(sdp_mid, sdp_mlineindex, sdp);
 	}
 
-	__declspec(dllexport) void WINAPI AddServerConfig(Native::Conductor * cd, char * uri, char * username, char * password)
+	__declspec(dllexport) void WINAPI AddServerConfig(Native::Conductor * cd, const char * uri, const char * username, const char * password)
 	{
 		cd->AddServerConfig(uri, username, password);
 	}
 
-	__declspec(dllexport) void WINAPI CreateDataChannel(Native::Conductor * cd, char * label)
+	__declspec(dllexport) void WINAPI CreateDataChannel(Native::Conductor * cd, const char * label)
 	{
 		cd->CreateDataChannel(label);
 	}
 
-	__declspec(dllexport) void WINAPI DataChannelSendText(Native::Conductor * cd, char * text)
+	__declspec(dllexport) void WINAPI DataChannelSendText(Native::Conductor * cd, const char * text)
 	{
 		cd->DataChannelSendText(text);
 	}
@@ -172,11 +172,6 @@ extern "C"
 		cd->height_ = height;
 		cd->caputureFps = caputureFps;
 		cd->barcodeEnabled = barcodeEnabled;
-	}
-
-	__declspec(dllexport) uint8_t * WINAPI VideoCapturerI420Buffer(Native::Conductor * cd)
-	{
-		return cd->VideoCapturerI420Buffer();
 	}
 
 	__declspec(dllexport) void WINAPI PushFrame(Native::Conductor * cd, uint8_t * BGR)
@@ -215,14 +210,14 @@ extern "C"
 #endif
 	}
 
-	__declspec(dllexport) bool WINAPI RunStunServer(Native::Conductor * cd, char * bindIp)
+	__declspec(dllexport) bool WINAPI RunStunServer(Native::Conductor * cd, const char * bindIp)
 	{
 		return cd->RunStunServer(bindIp);
 	}
 
 	// File is stored as lines of <username>=<HA1>.
 	// Generate HA1 via "echo -n "<username>:<realm>:<password>" | md5sum"
-	__declspec(dllexport) bool WINAPI RunTurnServer(Native::Conductor * cd, char * bindIp, char * ip, char * realm, char * authFile)
+	__declspec(dllexport) bool WINAPI RunTurnServer(Native::Conductor * cd, const char * bindIp, const char * ip, const char * realm, const char * authFile)
 	{
 		return cd->RunTurnServer(bindIp, ip, realm, authFile);
 	}
@@ -404,7 +399,7 @@ namespace Native
 		return peer_connection_ != nullptr;
 	}
 
-	void Conductor::AddServerConfig(std::string uri, std::string username, std::string password)
+	void Conductor::AddServerConfig(const std::string & uri, const std::string & username, const std::string & password)
 	{
 		webrtc::PeerConnectionInterface::IceServer server;
 		server.uri = uri;
@@ -422,7 +417,7 @@ namespace Native
 		peer_connection_->CreateOffer(this, nullptr);
 	}
 
-	void Conductor::OnOfferReply(std::string type, std::string sdp)
+	void Conductor::OnOfferReply(const std::string & type, const std::string & sdp)
 	{
 		if (!peer_connection_)
 			return;
@@ -437,7 +432,7 @@ namespace Native
 		peer_connection_->SetRemoteDescription(this, session_description);
 	}
 
-	void Conductor::OnOfferRequest(std::string sdp)
+	void Conductor::OnOfferRequest(const std::string & sdp)
 	{
 		if (!peer_connection_)
 			return;
@@ -460,7 +455,7 @@ namespace Native
 		peer_connection_->CreateAnswer(this, o);
 	}
 
-	bool Conductor::AddIceCandidate(std::string sdp_mid, int sdp_mlineindex, std::string sdp)
+	bool Conductor::AddIceCandidate(const std::string & sdp_mid, int sdp_mlineindex, const std::string & sdp)
 	{
 		webrtc::SdpParseError error;
 		webrtc::IceCandidateInterface * candidate = webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error);
@@ -507,7 +502,7 @@ namespace Native
 		return device_names;
 	}
 
-	bool Conductor::OpenVideoCaptureDevice(std::string & name)
+	bool Conductor::OpenVideoCaptureDevice(const std::string & name)
 	{
 		if (!capturer_internal)
 		{
@@ -667,7 +662,7 @@ namespace Native
 		}
 	}
 
-	void Conductor::OnFailure(const std::string& error)
+	void Conductor::OnFailure(const std::string & error)
 	{
 		LOG(LERROR) << error;
 
