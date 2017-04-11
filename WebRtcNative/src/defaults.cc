@@ -106,7 +106,7 @@ namespace Native
 		return true;
 	}
 
-	void YuvFramesCapturer2::PushFrame()
+	void YuvFramesCapturer2::PushFrame(bool testScreen)
 	{
 		int64_t camera_time_us = rtc::TimeMicros();
 		int64_t system_time_us = camera_time_us;
@@ -130,7 +130,7 @@ namespace Native
 					   &crop_y,
 					   &translated_camera_time_us))
 		{
-			if (con->barcodeEnabled)
+			if (testScreen)
 			{
 				if (frame_generator_ == nullptr)
 				{

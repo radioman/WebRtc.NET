@@ -119,10 +119,10 @@ namespace WebRtc.NET
         }
 
         [DllImport(dll)]
-        static extern void SetVideoCapturer(IntPtr p, int width, int height, int caputureFps, bool barcodeEnabled);
-        public void SetVideoCapturer(int width, int height, int caputureFps, bool barcodeEnabled)
+        static extern void SetVideoCapturer(IntPtr p, int width, int height, int caputureFps);
+        public void SetVideoCapturer(int width, int height, int caputureFps)
         {
-            SetVideoCapturer(p, width, height, caputureFps, barcodeEnabled);
+            SetVideoCapturer(p, width, height, caputureFps);
         }
 
         [SuppressUnmanagedCodeSecurity]

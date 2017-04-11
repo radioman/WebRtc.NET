@@ -166,12 +166,11 @@ extern "C"
 		cd->audioEnabled = enable;
 	}
 
-	__declspec(dllexport) void WINAPI SetVideoCapturer(Native::Conductor * cd, int width, int height, int caputureFps, bool barcodeEnabled)
+	__declspec(dllexport) void WINAPI SetVideoCapturer(Native::Conductor * cd, int width, int height, int caputureFps)
 	{
 		cd->width_ = width;
 		cd->height_ = height;
 		cd->caputureFps = caputureFps;
-		cd->barcodeEnabled = barcodeEnabled;
 	}
 
 	__declspec(dllexport) void WINAPI PushFrame(Native::Conductor * cd, uint8_t * BGR)
@@ -271,8 +270,6 @@ namespace Native
 	    height_ = 360;
 		caputureFps = 5;
 		audioEnabled = false;
-
-		barcodeEnabled = false;
 
 		turnServer = nullptr;
 		data_channel = nullptr;
@@ -524,8 +521,6 @@ namespace Native
 			uint8_t * yuv = VideoCapturerI420Buffer();
 			if (yuv != nullptr)
 			{
-				int r = 0;
-
 				if (BGR != nullptr)
 				{
 					const int pad = 4;
@@ -535,17 +530,23 @@ namespace Native
 					if (jpegc == nullptr)
 						jpegc = tjInitCompress();
 
+					int r = 0;
+
 					if (jpegc)
 						r = tjEncodeYUV3(jpegc, BGR, width_, pitch, height_, pxFormat, yuv, pad, TJSAMP_420, true ? TJFLAG_FASTDCT : TJFLAG_ACCURATEDCT);
-				}
 
-				if (r != 0)
-				{
-					//Debug::WriteLine(String::Format("tjEncodeYUV3, LastJpegError: {0}", LastJpegError));
+					if (r == 0)
+					{
+						capturer->PushFrame(false);
+					}
+					else
+					{
+						LOG(LS_ERROR) << tjGetErrorStr();
+					}
 				}
 				else
 				{
-					capturer->PushFrame();
+					capturer->PushFrame(true);
 				}
 			}
 		}

@@ -217,7 +217,6 @@ namespace WebRtc.NET.Demo
         public const int screenWidth = 640;
         public const int screenHeight = 360;
         public const int captureFps = 5;
-        public const bool barCodeScreen = false;
 
         readonly byte[] imgBuf = new byte[screenWidth * 3 * screenHeight];
         IntPtr imgBufPtr = IntPtr.Zero;
@@ -242,6 +241,7 @@ namespace WebRtc.NET.Demo
 
                 {
                     // render
+                    if(!checkBoxTest.Checked)
                     {
                         g.Clear(Color.DarkBlue);
 
@@ -300,7 +300,7 @@ namespace WebRtc.NET.Demo
 
                     foreach (var s in webSocketServer.Streams)
                     {
-                        s.Value.WebRtc.PushFrame(!barCodeScreen ? imgBufPtr : IntPtr.Zero);
+                        s.Value.WebRtc.PushFrame(!checkBoxTest.Checked ? imgBufPtr : IntPtr.Zero);
                     }
                 }
             }

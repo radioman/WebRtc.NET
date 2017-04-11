@@ -200,8 +200,7 @@ namespace WebRtc.NET.Demo
                                             {
                                                 session.WebRtc.SetVideoCapturer(MainForm.screenWidth,
                                                                                 MainForm.screenHeight,
-                                                                                MainForm.captureFps,
-                                                                                MainForm.barCodeScreen);
+                                                                                MainForm.captureFps);
                                             }
 
                                             var ok = session.WebRtc.InitializePeerConnection();

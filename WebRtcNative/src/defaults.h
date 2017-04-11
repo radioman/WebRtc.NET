@@ -32,7 +32,7 @@ namespace Native
 			return false;
 		}
 
-		void PushFrame();
+		void PushFrame(bool testScreen);
 
 #if DESKTOP_CAPTURE
 		void CaptureFrame();

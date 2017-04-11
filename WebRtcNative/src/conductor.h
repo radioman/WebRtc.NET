@@ -220,7 +220,6 @@ namespace Native
 	public:
 		int caputureFps;
 		bool audioEnabled;
-		bool barcodeEnabled;
 
 		int width_;
 		int height_;
