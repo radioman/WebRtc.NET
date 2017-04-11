@@ -40,12 +40,9 @@
 #pragma comment(lib,"turbojpeg-static.lib")
 #pragma comment(lib,"webrtc-all.lib")
 
-#include "stdafx.h"
+#include "internals.h"
 
 #if DESKTOP_CAPTURE
-#pragma comment(lib,"desktop_capture.lib")
-#pragma comment(lib,"desktop_capture_differ_sse2.lib")
-#pragma comment(lib,"primitives.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"d3d11.lib")
 #endif

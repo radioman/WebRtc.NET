@@ -241,7 +241,7 @@ namespace WebRtc.NET.Demo
 
                 {
                     // render
-                    if(!checkBoxTest.Checked)
+                    if (!checkBoxTest.Checked)
                     {
                         g.Clear(Color.DarkBlue);
 
@@ -250,49 +250,45 @@ namespace WebRtc.NET.Demo
                             g.CopyFromScreen(Cursor.Position, new Point(), new Size(screenWidth, screenHeight));
                         }
 
-                        //if (checkBoxInternalScreen.Checked)
-                        //{
-                        //    #region -- native webrtc desktop capture --
+                        if (checkBoxInternalScreen.Checked)
+                        {
+                            #region -- native webrtc desktop capture --
 
-                        //    //set internals.h #define DESKTOP_CAPTURE 1
+                            //set internals.h #define DESKTOP_CAPTURE 1
 
-                        //    foreach (var s in webSocketServer.Streams)
-                        //    {
-                        //        s.Value.WebRtc.CaptureFrame();
-                        //        unsafe
-                        //        {
-                        //            var rgba = s.Value.WebRtc.DesktopCapturerRGBAbuffer();
-                        //            if (rgba != null)
-                        //            {
-                        //                var rgbaPtr = new IntPtr(rgba);
-                        //                Bitmap captureImg = null;
+                            foreach (var s in webSocketServer.Streams)
+                            {
+                                // if no editing is needed & size match
+                                //s.Value.WebRtc.CaptureFrameAndPush();
+                                //return;
 
-                        //                int x = -1, y = -1;
-                        //                s.Value.WebRtc.DesktopCapturerSize(ref x, ref y);
+                                //if (false)
+                                {
+                                    int x = -1, y = -1;
+                                    var rgbaPtr = s.Value.WebRtc.CaptureFrameBGRX(ref x, ref y);
+                                    if (rgbaPtr != IntPtr.Zero)
+                                    {
+                                        Bitmap captureImg = null;
 
-                        //                if (x != captureWidth || y != captureHeight
-                        //                    || !imgCapture.TryGetValue(rgbaPtr, out captureImg))
-                        //                {
-                        //                    if (captureImg != null)
-                        //                        captureImg.Dispose();
+                                        if (x != captureWidth || y != captureHeight
+                                            || !imgCapture.TryGetValue(rgbaPtr, out captureImg))
+                                        {
+                                            if (captureImg != null)
+                                                captureImg.Dispose();
 
-                        //                    imgCapture[rgbaPtr] = captureImg = new Bitmap(x, y, x * 4, PixelFormat.Format32bppRgb, rgbaPtr);
+                                            imgCapture[rgbaPtr] = captureImg = new Bitmap(x, y, x * 4, PixelFormat.Format32bppRgb, rgbaPtr);
 
-                        //                    captureWidth = x;
-                        //                    captureHeight = y;
-                        //                }
-                        //                g.DrawImage(captureImg, 0, 0, new Rectangle(Cursor.Position, new Size(screenWidth, screenHeight)), GraphicsUnit.Pixel);
+                                            captureWidth = x;
+                                            captureHeight = y;
+                                        }
+                                        g.DrawImage(captureImg, 0, 0, new Rectangle(Cursor.Position, new Size(screenWidth, screenHeight)), GraphicsUnit.Pixel);
+                                    }
+                                }
+                                break;
+                            }
 
-                        //                // if no editing is needed
-                        //                //var yuv = s.Value.WebRtc.VideoCapturerI420Buffer();
-                        //                //encoderRemote.EncodeI420((byte*)rgba, screenWidth, screenHeight, (int)TJPF.TJPF_BGRX, 0, true, yuv);
-                        //            }
-                        //        }
-                        //        break;
-                        //    }
-
-                        //    #endregion
-                        //}
+                            #endregion
+                        }
 
                         var rc = RectangleF.FromLTRB(0, 0, img.Width, img.Height);
                         g.DrawString(string.Format("{0}", DateTime.Now.ToString("hh:mm:ss.fff")), fBig, Brushes.LimeGreen, rc, sfTopRight);

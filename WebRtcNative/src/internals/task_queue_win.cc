@@ -8,7 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "stdafx.h"
 
 #include "webrtc/base/task_queue.h"
 

@@ -1,6 +1,5 @@
 
 #include "defaults.h"
-#include "internals.h"
 #include "conductor.h"
 
 #include "turbojpeg/turbojpeg.h"

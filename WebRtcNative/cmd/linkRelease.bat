@@ -1,5 +1,5 @@
 z:
-cd Z:\Coding\WebRtc.NET\WebRtc.NET\lib
+cd Z:\Coding\WebRtc.NET\WebRtcNative\lib
 
 call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat" 
 

@@ -173,39 +173,36 @@ extern "C"
 		cd->caputureFps = caputureFps;
 	}
 
-	__declspec(dllexport) void WINAPI PushFrame(Native::Conductor * cd, uint8_t * BGR)
+	__declspec(dllexport) void WINAPI PushFrame(Native::Conductor * cd, uint8_t * img, int type)
 	{
-		cd->PushFrame(BGR);
+		cd->PushFrame(img, type); // default: TJPF_BGR
 	}
 
-	__declspec(dllexport) uint8_t * WINAPI DesktopCapturerRGBAbuffer(Native::Conductor * cd)
-	{
-#if DESKTOP_CAPTURE
-		return cd->DesktopCapturerRGBAbuffer();
-#else
-		return nullptr;
-		//throw gcnew System::NotImplementedException("set internals.h #define DESKTOP_CAPTURE 1");
-#endif
-	}
-
-	__declspec(dllexport) void WINAPI DesktopCapturerSize(Native::Conductor * cd, int & w, int & h)
+	__declspec(dllexport) uint8_t * WINAPI CaptureFrameBGRX(Native::Conductor * cd, int & w, int & h)
 	{
 #if DESKTOP_CAPTURE
 		int wn = 0, hn = 0;
-		cd->DesktopCapturerSize(wn, hn);
-		w = wn;
-		h = hn;
+		auto b = cd->CaptureFrameBGRX(wn, hn);
+		if (b != nullptr)
+		{
+			w = wn;
+			h = hn;
+		}
+		return b;
 #else
-		//throw System::NotImplementedException("set internals.h #define DESKTOP_CAPTURE 1");
+		return nullptr;
 #endif
 	}
 
-	__declspec(dllexport) void WINAPI CaptureFrame(Native::Conductor * cd)
+	__declspec(dllexport) void WINAPI CaptureFrameAndPush(Native::Conductor * cd)
 	{
 #if DESKTOP_CAPTURE
-		cd->CaptureFrame();
-#else
-		//throw gcnew System::NotImplementedException("set internals.h #define DESKTOP_CAPTURE 1");
+		int wn = 0, hn = 0;
+		auto b = cd->CaptureFrameBGRX(wn, hn);
+		if (b != nullptr && wn == cd->width_ && hn == cd->height_)
+		{
+			cd->PushFrame(b, TJPF_BGRX);
+		}
 #endif
 	}
 
@@ -514,17 +511,16 @@ namespace Native
 		return false;
 	}
 
-	void Conductor::PushFrame(uint8_t * BGR)
+	void Conductor::PushFrame(uint8_t * img, int pxFormat)
 	{
 		if (capturer)
 		{
-			uint8_t * yuv = VideoCapturerI420Buffer();
+			auto yuv = (uint8_t*)capturer->video_buffer->DataY();
 			if (yuv != nullptr)
 			{
-				if (BGR != nullptr)
+				if (img != nullptr)
 				{
 					const int pad = 4;
-					const int pxFormat = TJPF_BGR;
 					int pitch = TJPAD(tjPixelSize[pxFormat] * width_);
 
 					if (jpegc == nullptr)
@@ -533,7 +529,7 @@ namespace Native
 					int r = 0;
 
 					if (jpegc)
-						r = tjEncodeYUV3(jpegc, BGR, width_, pitch, height_, pxFormat, yuv, pad, TJSAMP_420, true ? TJFLAG_FASTDCT : TJFLAG_ACCURATEDCT);
+						r = tjEncodeYUV3(jpegc, img, width_, pitch, height_, pxFormat, yuv, pad, TJSAMP_420, true ? TJFLAG_FASTDCT : TJFLAG_ACCURATEDCT);
 
 					if (r == 0)
 					{

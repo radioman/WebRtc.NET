@@ -3,10 +3,10 @@
 #define WEBRTC_NET_CONDUCTOR_H_
 #pragma once
 
+#include "internals.h"
+
 #include "webrtc/api/mediastreaminterface.h"
 #include "webrtc/api/peerconnectioninterface.h"
-
-#include "internals.h"
 
 namespace cricket
 {
@@ -45,48 +45,28 @@ namespace Native
 			return rtc::Thread::Current()->ProcessMessages(delay);
 		}
 
+		inline void PushFrame(uint8_t * img, int pxFormat);
+
 		static std::vector<std::string> GetVideoDevices();
 		bool OpenVideoCaptureDevice(const std::string & name);
 		void AddServerConfig(const std::string & uri, const std::string & username, const std::string & password);
 
-		inline uint8_t * VideoCapturerI420Buffer()
-		{
-			if (capturer)
-			{
-				return (uint8_t*)capturer->video_buffer->DataY();
-			}
-			return nullptr;
-		}
-
-		void PushFrame(uint8_t * BGR);
-
-
 #if DESKTOP_CAPTURE
-		void DesktopCapturerSize(int & w, int & h)
-		{
-			if (capturer && capturer->desktop_frame)
-			{
-				webrtc::DesktopSize s = capturer->desktop_frame->size();
-				w = s.width();
-				h = s.height();
-			}
-		}
-
-		uint8_t * DesktopCapturerRGBAbuffer()
-		{
-			if (capturer && capturer->desktop_frame)
-			{
-				return capturer->desktop_frame->data();
-			}
-			return nullptr;
-		}
-
-		void CaptureFrame()
+		inline uint8_t * CaptureFrameBGRX(int & w, int & h)
 		{
 			if (capturer)
 			{
 				capturer->CaptureFrame();
+
+				if (capturer->desktop_frame)
+				{
+					webrtc::DesktopSize s = capturer->desktop_frame->size();
+					w = s.width();
+					h = s.height();
+					return capturer->desktop_frame->data();
+				}
 			}
+			return nullptr;
 		}
 #endif
 		void CreateDataChannel(const std::string & label);

@@ -3,12 +3,12 @@
 #define WEBRTC_NET_DEFAULTS_H_
 #pragma once
 
+#include "internals.h"
+
 #include "webrtc/media/base/videocapturer.h"
 #include "webrtc/media/base/yuvframegenerator.h"
 #include "webrtc/api/mediastreaminterface.h"
 #include "webrtc/modules/desktop_capture/desktop_capturer.h"
-
-#include "internals.h"
 
 namespace Native
 {
