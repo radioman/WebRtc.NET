@@ -68,7 +68,7 @@ namespace WebRtc.NET
 
         [DllImport(dll)]
         static extern void CreateOffer(IntPtr p);
-        void CreateOffer()
+        public void CreateOffer()
         {
             CreateOffer(p);
         }
@@ -100,12 +100,24 @@ namespace WebRtc.NET
 
         [DllImport(dll)]
         static extern void CreateDataChannel(IntPtr p, string label);
+        public void CreateDataChannel(string label)
+        {
+            CreateDataChannel(p, label);
+        }
 
         [DllImport(dll)]
         static extern void DataChannelSendText(IntPtr p, string text);
+        public void DataChannelSendText(string text)
+        {
+            DataChannelSendText(p, text);
+        }
 
         [DllImport(dll)]
-        unsafe static extern void DataChannelSendData(IntPtr p, byte* array_data, int length);
+        static extern void DataChannelSendData(IntPtr p, byte [] data, int length);
+        public void DataChannelSendData(byte [] data, int length)
+        {
+            DataChannelSendData(p, data, length);
+        }
 
         #endregion
 
