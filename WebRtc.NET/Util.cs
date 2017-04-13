@@ -1,15 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Windows.Forms;
 using System.Diagnostics;
-using System.Threading;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
 using System.IO;
-using System.Security;
 
 namespace WebRtc.NET
 {
@@ -36,7 +27,7 @@ namespace WebRtc.NET
 
                     using (UnmanagedMemoryStream ms = new UnmanagedMemoryStream(pData, lDataLen))
                     {
-                        ms.CopyTo(f);
+                        //ms.CopyTo(f);
                     }
                 }
             }

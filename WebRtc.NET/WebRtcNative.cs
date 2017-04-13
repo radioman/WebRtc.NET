@@ -224,7 +224,7 @@ namespace WebRtc.NET
         public delegate void OnCallbackIceCandidate(String sdp_mid, Int32 sdp_mline_index, String sdp);
         public event OnCallbackIceCandidate OnIceCandidate;
 
-        public event Action OnError;
+        public event Action<string> OnError;
 
         public delegate void OnCallbackError(String error);
         public event OnCallbackError OnFailure;
@@ -318,7 +318,7 @@ namespace WebRtc.NET
         {
             Debug.WriteLine("OnError");
 
-            OnError();
+            OnError("webrtc error");
         }
 
         void _OnSuccess(String type, String sdp)

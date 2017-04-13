@@ -262,9 +262,9 @@ namespace WebRtc.NET.Demo
                                             Trace.WriteLine($"OnFailure: {error}");
                                         };
 
-                                        session.WebRtc.OnError += delegate
+                                        session.WebRtc.OnError += delegate(string error)
                                         {
-                                            Trace.WriteLine("OnError");
+                                            Trace.WriteLine($"OnError: {error}");
                                         };
 
                                         session.WebRtc.OnDataMessage += delegate(string dmsg)
