@@ -131,6 +131,14 @@ namespace WebRtc.NET
         }
 
         [DllImport(dll)]
+        [return: MarshalAs(UnmanagedType.SafeArray)]
+        static extern string[] GetVideoDevices();
+        public static string[] VideoDevices()
+        {
+            return GetVideoDevices();
+        }
+
+        [DllImport(dll)]
         static extern void SetVideoCapturer(IntPtr p, int width, int height, int caputureFps);
         public void SetVideoCapturer(int width, int height, int caputureFps)
         {

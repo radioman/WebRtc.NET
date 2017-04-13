@@ -23,6 +23,7 @@
 //#define L_LITTLE_ENDIAN
 //#include "leptonica/allheaders.h"
 #include "turbojpeg/turbojpeg.h"
+#include "atlsafe.h"
 
 extern "C"
 {
@@ -110,20 +111,20 @@ extern "C"
 		return cd->OpenVideoCaptureDevice(name);
 	}
 
-	//__declspec(dllexport) static System::Collections::Generic::List<String^> ^ GetVideoDevices()
-	//{
-	//	System::Collections::Generic::List<String^> ^ ret = nullptr;
-	//	std::vector<std::string> devices = Native::Conductor::GetVideoDevices();
-	//	for (const auto & d : devices)
-	//	{
-	//		if (ret == nullptr)
-	//		{
-	//			ret = gcnew System::Collections::Generic::List<String^>();
-	//		}
-	//		ret->Add(marshal_as<String^>(d));
-	//	}
-	//	return ret;
-	//}
+	__declspec(dllexport) LPSAFEARRAY GetVideoDevices()
+	{
+		auto device_names = Native::Conductor::GetVideoDevices();
+
+		CComSafeArray<BSTR> a(device_names.size()); // cool ATL helper that requires atlsafe.h
+
+		int i = 0;
+		for (auto it = device_names.begin(); it != device_names.end(); ++it, ++i)
+		{
+			// note: you could also use std::wstring instead and avoid A2W conversion
+			a.SetAt(i, A2BSTR_EX((*it).c_str()), FALSE);
+		}
+		return a.Detach();
+	}
 
 	__declspec(dllexport) void WINAPI OnOfferReply(Native::Conductor * cd, const char * type, const char * sdp)
 	{
@@ -501,7 +502,7 @@ namespace Native
 		if (!capturer_internal)
 		{
 			cricket::WebRtcVideoDeviceCapturerFactory factory;
-			capturer_internal = factory.Create(cricket::Device(name, 0)).get();
+			capturer_internal = factory.Create(cricket::Device(name, 0));
 			if (capturer_internal)
 			{
 				LOG(LS_ERROR) << "Capturer != NULL!";
@@ -553,17 +554,10 @@ namespace Native
 		if (active_streams_.find(kStreamLabel) != active_streams_.end())
 			return;  // Already added.
 
-		cricket::VideoCapturer * vc = nullptr;
-		if (capturer_internal)
-		{
-			vc = capturer_internal;
-		}
-		else
-		{
-			vc = capturer = new Native::YuvFramesCapturer2(*this);
-		}
-
-		auto v = pc_factory_->CreateVideoSource(vc);
+		auto v = pc_factory_->CreateVideoSource(capturer_internal ?
+												std::move(capturer_internal) :
+												std::unique_ptr<cricket::VideoCapturer>(
+													capturer = new Native::YuvFramesCapturer2(*this)));
 		auto video_track = pc_factory_->CreateVideoTrack(kVideoLabel, v);
 		if (onRenderLocal)
 		{

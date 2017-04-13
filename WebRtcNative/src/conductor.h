@@ -186,7 +186,7 @@ namespace Native
 		std::vector<webrtc::PeerConnectionInterface::IceServer> serverConfigs;
 
 		YuvFramesCapturer2 * capturer;
-		cricket::VideoCapturer * capturer_internal;
+		std::unique_ptr<cricket::VideoCapturer> capturer_internal;
 
 		std::unique_ptr<VideoRenderer> local_video;
 		std::unique_ptr<VideoRenderer> remote_video;

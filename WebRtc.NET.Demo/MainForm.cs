@@ -31,16 +31,11 @@ namespace WebRtc.NET.Demo
 
             textBoxExtIP.Text = "192.168.0.100";
 
-            //comboBoxVideo.DataSource = WebRtcNative.GetVideoDevices();
+            comboBoxVideo.DataSource = WebRtcNative.VideoDevices();
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            //if (encoderRemote != null)
-            //{
-            //    encoderRemote.Dispose();
-            //}
-
             if (webSocketServer != null)
             {
                 webSocketServer.Dispose();

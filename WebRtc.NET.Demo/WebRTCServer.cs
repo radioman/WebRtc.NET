@@ -194,6 +194,10 @@ namespace WebRtc.NET.Demo
                                                 {
                                                     var vok = session.WebRtc.OpenVideoCaptureDevice(Form.videoDevice);
                                                     Trace.WriteLine($"OpenVideoCaptureDevice: {vok}, {Form.videoDevice}");
+                                                    if (!vok)
+                                                    {
+                                                        return;
+                                                    }
                                                 }
                                             }
                                             else
@@ -220,7 +224,7 @@ namespace WebRtc.NET.Demo
                                             }
                                             else
                                             {
-                                                Debug.WriteLine("InitializePeerConnection failed");
+                                                Trace.WriteLine("InitializePeerConnection failed");
                                                 context.Close();
                                             }
                                         }
