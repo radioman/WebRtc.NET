@@ -38,7 +38,7 @@ namespace WebRtc.NET.Demo
             server = new WebSocketServer(URL);
             server.Start(socket =>
             {
-                socket.OnOpen = () =>
+                 socket.OnOpen = () =>
                 {
                     try
                     {
