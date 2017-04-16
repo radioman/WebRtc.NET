@@ -111,7 +111,7 @@ extern "C"
 		return cd->OpenVideoCaptureDevice(name);
 	}
 
-	__declspec(dllexport) LPSAFEARRAY GetVideoDevices()
+	__declspec(dllexport) LPSAFEARRAY WINAPI GetVideoDevices()
 	{
 		auto device_names = Native::Conductor::GetVideoDevices();
 
