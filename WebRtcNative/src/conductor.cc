@@ -736,8 +736,7 @@ namespace Native
 			return false;
 		}
 
-		rtc::Thread * main = rtc::Thread::Current();
-
+		rtc::Thread * main = rtc::ThreadManager::Instance()->WrapCurrentThread();
 		rtc::AsyncUDPSocket* server_socket = rtc::AsyncUDPSocket::Create(main->socketserver(), server_addr);
 		if (!server_socket)
 		{
@@ -769,7 +768,7 @@ namespace Native
 			return false;
 		}
 
-		rtc::Thread* main = rtc::Thread::Current();
+		rtc::Thread * main = rtc::ThreadManager::Instance()->WrapCurrentThread();
 		rtc::AsyncUDPSocket * int_socket = rtc::AsyncUDPSocket::Create(main->socketserver(), int_addr);
 		if (!int_socket)
 		{

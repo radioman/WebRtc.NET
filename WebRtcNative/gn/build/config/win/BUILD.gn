@@ -55,6 +55,9 @@ config("compiler") {
 
     # Work around crbug.com/526851, bug in VS 2015 RTM compiler.
     "/Zc:sizedDealloc-",
+    
+    # thread-safe statics disabled
+    "/Zc:threadSafeInit-",
   ]
 
   # Building with Clang on Windows is a work in progress and very
