@@ -55,6 +55,8 @@ class FakeAudioSendStream final : public webrtc::AudioSendStream {
 
  private:
   // webrtc::AudioSendStream implementation.
+  void Reconfigure(const webrtc::AudioSendStream::Config& config) override;
+
   void Start() override { sending_ = true; }
   void Stop() override { sending_ = false; }
 
@@ -97,6 +99,9 @@ class FakeAudioReceiveStream final : public webrtc::AudioReceiveStream {
   int GetOutputLevel() const override { return 0; }
   void SetSink(std::unique_ptr<webrtc::AudioSinkInterface> sink) override;
   void SetGain(float gain) override;
+  std::vector<webrtc::RtpSource> GetSources() const override {
+    return std::vector<webrtc::RtpSource>();
+  }
 
   int id_ = -1;
   webrtc::AudioReceiveStream::Config config_;

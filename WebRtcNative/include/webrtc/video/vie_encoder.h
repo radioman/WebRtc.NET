@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "webrtc/api/video/video_rotation.h"
+#include "webrtc/api/video_codecs/video_encoder.h"
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/event.h"
 #include "webrtc/base/sequenced_task_checker.h"
@@ -31,7 +32,6 @@
 #include "webrtc/system_wrappers/include/atomic32.h"
 #include "webrtc/typedefs.h"
 #include "webrtc/video/overuse_frame_detector.h"
-#include "webrtc/video_encoder.h"
 #include "webrtc/video_send_stream.h"
 
 namespace webrtc {
@@ -109,8 +109,6 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
 
   // virtual to test EncoderStateFeedback with mocks.
   virtual void OnReceivedIntraFrameRequest(size_t stream_index);
-  virtual void OnReceivedSLI(uint8_t picture_id);
-  virtual void OnReceivedRPSI(uint64_t picture_id);
 
   void OnBitrateUpdated(uint32_t bitrate_bps,
                         uint8_t fraction_lost,
@@ -218,10 +216,6 @@ class ViEEncoder : public rtc::VideoSinkInterface<VideoFrame>,
   bool nack_enabled_ ACCESS_ON(&encoder_queue_);
   uint32_t last_observed_bitrate_bps_ ACCESS_ON(&encoder_queue_);
   bool encoder_paused_and_dropped_frame_ ACCESS_ON(&encoder_queue_);
-  bool has_received_sli_ ACCESS_ON(&encoder_queue_);
-  uint8_t picture_id_sli_ ACCESS_ON(&encoder_queue_);
-  bool has_received_rpsi_ ACCESS_ON(&encoder_queue_);
-  uint64_t picture_id_rpsi_ ACCESS_ON(&encoder_queue_);
   Clock* const clock_;
   // Counters used for deciding if the video resolution is currently
   // restricted, and if so, why, on a per degradation preference basis.

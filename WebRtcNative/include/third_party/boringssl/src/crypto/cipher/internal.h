@@ -60,6 +60,10 @@
 #include <openssl/base.h>
 
 #include <openssl/aead.h>
+#include <openssl/aes.h>
+
+#include "../internal.h"
+#include "../fipsmodule/modes/internal.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -110,9 +114,9 @@ struct evp_aead_st {
  * If the function returns one, it runs in time independent of the contents of
  * |in|. It is also guaranteed that |*out_len| >= |mac_size|, satisfying
  * |EVP_tls_cbc_copy_mac|'s precondition. */
-int EVP_tls_cbc_remove_padding(unsigned *out_padding_ok, unsigned *out_len,
-                               const uint8_t *in, unsigned in_len,
-                               unsigned block_size, unsigned mac_size);
+int EVP_tls_cbc_remove_padding(crypto_word_t *out_padding_ok, size_t *out_len,
+                               const uint8_t *in, size_t in_len,
+                               size_t block_size, size_t mac_size);
 
 /* EVP_tls_cbc_copy_mac copies |md_size| bytes from the end of the first
  * |in_len| bytes of |in| to |out| in constant time (independent of the concrete
@@ -122,9 +126,8 @@ int EVP_tls_cbc_remove_padding(unsigned *out_padding_ok, unsigned *out_len,
  * On entry:
  *   orig_len >= in_len >= md_size
  *   md_size <= EVP_MAX_MD_SIZE */
-void EVP_tls_cbc_copy_mac(uint8_t *out, unsigned md_size,
-                          const uint8_t *in, unsigned in_len,
-                          unsigned orig_len);
+void EVP_tls_cbc_copy_mac(uint8_t *out, size_t md_size, const uint8_t *in,
+                          size_t in_len, size_t orig_len);
 
 /* EVP_tls_cbc_record_digest_supported returns 1 iff |md| is a hash function
  * which EVP_tls_cbc_digest_record supports. */
@@ -154,6 +157,16 @@ int EVP_tls_cbc_digest_record(const EVP_MD *md, uint8_t *md_out,
                               size_t data_plus_mac_plus_padding_size,
                               const uint8_t *mac_secret,
                               unsigned mac_secret_length);
+
+/* aes_ctr_set_key initialises |*aes_key| using |key_bytes| bytes from |key|,
+ * where |key_bytes| must either be 16, 24 or 32. If not NULL, |*out_block| is
+ * set to a function that encrypts single blocks. If not NULL, |*gcm_ctx| is
+ * initialised to do GHASH with the given key. It returns a function for
+ * optimised CTR-mode, or NULL if CTR-mode should be built using
+ * |*out_block|. */
+ctr128_f aes_ctr_set_key(AES_KEY *aes_key, GCM128_CONTEXT *gcm_ctx,
+                         block128_f *out_block, const uint8_t *key,
+                         size_t key_bytes);
 
 #if defined(__cplusplus)
 } /* extern C */

@@ -9,3 +9,7 @@ pause
 
 xcopy /s D:\webrtc-checkout\src\third_party\jsoncpp\*.h Z:\Coding\WebRtc.NET\WebRtc.NET\include\third_party\jsoncpp\
 pause
+
+xcopy /s D:\webrtc-checkout\src\third_party\boringssl\*.h Z:\Coding\WebRtc.NET\WebRtc.NET\include\third_party\boringssl\
+
+pause

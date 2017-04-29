@@ -267,8 +267,9 @@ typedef struct VP9EncoderConfig {
   int render_height;
   VP9E_TEMPORAL_LAYERING_MODE temporal_layering_mode;
 
-  int new_mt;
-  unsigned int ethread_bit_match;
+  int row_mt;
+  unsigned int row_mt_bit_exact;
+  unsigned int motion_vector_unit_test;
 } VP9EncoderConfig;
 
 static INLINE int is_lossless_requested(const VP9EncoderConfig *cfg) {
@@ -284,6 +285,9 @@ typedef struct TileDataEnc {
   int ex_search_count;
   FIRSTPASS_DATA fp_data;
   VP9RowMTSync row_mt_sync;
+
+  // Used for adaptive_rd_thresh with row multithreading
+  int *row_base_thresh_freq_fact;
 #if CONFIG_MULTITHREAD
   pthread_mutex_t *search_count_mutex;
   pthread_mutex_t *enc_row_mt_mutex;
@@ -651,7 +655,7 @@ typedef struct VP9_COMP {
 #endif
 
   int resize_pending;
-  int resize_state;
+  RESIZE_STATE resize_state;
   int external_resize;
   int resize_scale_num;
   int resize_scale_den;
@@ -691,7 +695,7 @@ typedef struct VP9_COMP {
   void (*row_mt_sync_read_ptr)(VP9RowMTSync *const, int, int);
   void (*row_mt_sync_write_ptr)(VP9RowMTSync *const, int, int, const int);
   ARNRFilterData arnr_filter_data;
-  int new_mt;
+  int row_mt;
 
   // Previous Partition Info
   BLOCK_SIZE *prev_partition;
@@ -705,7 +709,11 @@ typedef struct VP9_COMP {
   uint8_t *copied_frame_cnt;
   uint8_t max_copied_frame;
 
-  uint8_t *content_state_sb;
+  // For each superblock: keeps track of the last time (in frame distance) the
+  // the superblock did not have low source sad.
+  uint8_t *content_state_sb_fd;
+
+  int compute_source_sad_onepass;
 
   LevelConstraint level_constraint;
 } VP9_COMP;
@@ -835,12 +843,14 @@ void vp9_set_high_precision_mv(VP9_COMP *cpi, int allow_high_precision_mv);
 YV12_BUFFER_CONFIG *vp9_svc_twostage_scale(VP9_COMMON *cm,
                                            YV12_BUFFER_CONFIG *unscaled,
                                            YV12_BUFFER_CONFIG *scaled,
-                                           YV12_BUFFER_CONFIG *scaled_temp);
+                                           YV12_BUFFER_CONFIG *scaled_temp,
+                                           int phase_scaler, int phase_scaler2);
 
 YV12_BUFFER_CONFIG *vp9_scale_if_required(VP9_COMMON *cm,
                                           YV12_BUFFER_CONFIG *unscaled,
                                           YV12_BUFFER_CONFIG *scaled,
-                                          int use_normative_scaler);
+                                          int use_normative_scaler,
+                                          int phase_scaler);
 
 void vp9_apply_encoding_flags(VP9_COMP *cpi, vpx_enc_frame_flags_t flags);
 
@@ -909,7 +919,7 @@ VP9_LEVEL vp9_get_level(const Vp9LevelSpec *const level_spec);
 
 void vp9_new_framerate(VP9_COMP *cpi, double framerate);
 
-void vp9_set_new_mt(VP9_COMP *cpi);
+void vp9_set_row_mt(VP9_COMP *cpi);
 
 #define LAYER_IDS_TO_IDX(sl, tl, num_tl) ((sl) * (num_tl) + (tl))
 

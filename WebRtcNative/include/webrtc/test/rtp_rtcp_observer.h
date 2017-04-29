@@ -94,8 +94,9 @@ class PacketTransport : public test::DirectTransport {
   PacketTransport(Call* send_call,
                   RtpRtcpObserver* observer,
                   TransportType transport_type,
+                  const std::map<uint8_t, MediaType>& payload_type_map,
                   const FakeNetworkPipe::Config& configuration)
-      : test::DirectTransport(configuration, send_call),
+      : test::DirectTransport(configuration, send_call, payload_type_map),
         observer_(observer),
         transport_type_(transport_type) {}
 

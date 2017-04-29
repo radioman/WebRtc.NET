@@ -96,16 +96,14 @@ OPENSSL_EXPORT void RSA_get0_key(const RSA *rsa, const BIGNUM **out_n,
                                  const BIGNUM **out_e, const BIGNUM **out_d);
 
 /* RSA_get0_factors sets |*out_p| and |*out_q|, if non-NULL, to |rsa|'s prime
- * factors. If |rsa| is a public key, they will be set to NULL. If |rsa| is a
- * multi-prime key, only the first two prime factors will be reported. */
+ * factors. If |rsa| is a public key, they will be set to NULL. */
 OPENSSL_EXPORT void RSA_get0_factors(const RSA *rsa, const BIGNUM **out_p,
                                      const BIGNUM **out_q);
 
 /* RSA_get0_crt_params sets |*out_dmp1|, |*out_dmq1|, and |*out_iqmp|, if
  * non-NULL, to |rsa|'s CRT parameters. These are d (mod p-1), d (mod q-1) and
  * q^-1 (mod p), respectively. If |rsa| is a public key, each parameter will be
- * set to NULL. If |rsa| is a multi-prime key, only the CRT parameters for the
- * first two primes will be reported. */
+ * set to NULL. */
 OPENSSL_EXPORT void RSA_get0_crt_params(const RSA *rsa, const BIGNUM **out_dmp1,
                                         const BIGNUM **out_dmq1,
                                         const BIGNUM **out_iqmp);
@@ -123,12 +121,6 @@ OPENSSL_EXPORT void RSA_get0_crt_params(const RSA *rsa, const BIGNUM **out_dmp1,
  * It returns one on success or zero on error. */
 OPENSSL_EXPORT int RSA_generate_key_ex(RSA *rsa, int bits, BIGNUM *e,
                                        BN_GENCB *cb);
-
-/* RSA_generate_multi_prime_key acts like |RSA_generate_key_ex| but can
- * generate an RSA private key with more than two primes. */
-OPENSSL_EXPORT int RSA_generate_multi_prime_key(RSA *rsa, int bits,
-                                                int num_primes, BIGNUM *e,
-                                                BN_GENCB *cb);
 
 
 /* Encryption / Decryption */
@@ -292,10 +284,6 @@ OPENSSL_EXPORT unsigned RSA_size(const RSA *rsa);
  * material. Otherwise it returns zero. */
 OPENSSL_EXPORT int RSA_is_opaque(const RSA *rsa);
 
-/* RSA_supports_digest returns one if |rsa| supports signing digests
- * of type |md|. Otherwise it returns zero. */
-OPENSSL_EXPORT int RSA_supports_digest(const RSA *rsa, const EVP_MD *md);
-
 /* RSAPublicKey_dup allocates a fresh |RSA| and copies the public key from
  * |rsa| into it. It returns the fresh |RSA| object, or NULL on error. */
 OPENSSL_EXPORT RSA *RSAPublicKey_dup(const RSA *rsa);
@@ -304,10 +292,14 @@ OPENSSL_EXPORT RSA *RSAPublicKey_dup(const RSA *rsa);
  * |rsa| into it. It returns the fresh |RSA| object, or NULL on error. */
 OPENSSL_EXPORT RSA *RSAPrivateKey_dup(const RSA *rsa);
 
-/* RSA_check_key performs basic validatity tests on |rsa|. It returns one if
+/* RSA_check_key performs basic validity tests on |rsa|. It returns one if
  * they pass and zero otherwise. Opaque keys and public keys always pass. If it
  * returns zero then a more detailed error is available on the error queue. */
 OPENSSL_EXPORT int RSA_check_key(const RSA *rsa);
+
+/* RSA_check_fips performs public key validity tests on |key|. It returns one
+ * if they pass and zero otherwise. Opaque keys always fail. */
+OPENSSL_EXPORT int RSA_check_fips(RSA *key);
 
 /* RSA_recover_crt_params uses |rsa->n|, |rsa->d| and |rsa->e| in order to
  * calculate the two primes used and thus the precomputed, CRT values. These
@@ -354,8 +346,8 @@ OPENSSL_EXPORT int RSA_padding_add_PKCS1_PSS_mgf1(RSA *rsa, uint8_t *EM,
  *
  * It returns one on success or zero on error. */
 OPENSSL_EXPORT int RSA_padding_add_PKCS1_OAEP_mgf1(
-    uint8_t *to, unsigned to_len, const uint8_t *from, unsigned from_len,
-    const uint8_t *param, unsigned param_len, const EVP_MD *md,
+    uint8_t *to, size_t to_len, const uint8_t *from, size_t from_len,
+    const uint8_t *param, size_t param_len, const EVP_MD *md,
     const EVP_MD *mgf1md);
 
 /* RSA_add_pkcs1_prefix builds a version of |msg| prefixed with the DigestInfo
@@ -519,11 +511,11 @@ OPENSSL_EXPORT int RSA_verify_PKCS1_PSS(RSA *rsa, const uint8_t *mHash,
 /* RSA_padding_add_PKCS1_OAEP acts like |RSA_padding_add_PKCS1_OAEP_mgf1| but
  * the |md| and |mgf1md| parameters of the latter are implicitly set to NULL,
  * which means SHA-1. */
-OPENSSL_EXPORT int RSA_padding_add_PKCS1_OAEP(uint8_t *to, unsigned to_len,
+OPENSSL_EXPORT int RSA_padding_add_PKCS1_OAEP(uint8_t *to, size_t to_len,
                                               const uint8_t *from,
-                                              unsigned from_len,
+                                              size_t from_len,
                                               const uint8_t *param,
-                                              unsigned param_len);
+                                              size_t param_len);
 
 
 struct rsa_meth_st {
@@ -584,11 +576,11 @@ struct rsa_meth_st {
 
   int (*keygen)(RSA *rsa, int bits, BIGNUM *e, BN_GENCB *cb);
 
+  /* Ignored. Set this to NULL. */
   int (*multi_prime_keygen)(RSA *rsa, int bits, int num_primes, BIGNUM *e,
                             BN_GENCB *cb);
 
-  /* supports_digest returns one if |rsa| supports digests of type
-   * |md|. If null, it is assumed that all digests are supported. */
+  /* supports_digest is deprecated and ignored. Set it to NULL. */
   int (*supports_digest)(const RSA *rsa, const EVP_MD *md);
 };
 
@@ -608,8 +600,6 @@ struct rsa_st {
   BIGNUM *dmp1;
   BIGNUM *dmq1;
   BIGNUM *iqmp;
-
-  STACK_OF(RSA_additional_prime) *additional_primes;
 
   /* be careful using this if the RSA structure is shared */
   CRYPTO_EX_DATA ex_data;
@@ -697,5 +687,6 @@ BORINGSSL_MAKE_DELETER(RSA, RSA_free)
 #define RSA_R_UNKNOWN_PADDING_TYPE 143
 #define RSA_R_VALUE_MISSING 144
 #define RSA_R_WRONG_SIGNATURE_LENGTH 145
+#define RSA_R_PUBLIC_KEY_VALIDATION_FAILED 146
 
 #endif  /* OPENSSL_HEADER_RSA_H */

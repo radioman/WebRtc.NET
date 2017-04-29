@@ -17,11 +17,9 @@
 
 #include "webrtc/base/checks.h"
 #include "webrtc/base/constructormagic.h"
-#include "webrtc/base/rate_statistics.h"
 #include "webrtc/base/thread_checker.h"
 #include "webrtc/modules/congestion_controller/median_slope_estimator.h"
 #include "webrtc/modules/congestion_controller/probe_bitrate_estimator.h"
-#include "webrtc/modules/congestion_controller/probing_interval_estimator.h"
 #include "webrtc/modules/congestion_controller/trendline_estimator.h"
 #include "webrtc/modules/remote_bitrate_estimator/aimd_rate_control.h"
 #include "webrtc/modules/remote_bitrate_estimator/include/remote_bitrate_estimator.h"
@@ -56,7 +54,7 @@ class DelayBasedBwe {
                       uint32_t* bitrate_bps) const;
   void SetStartBitrate(int start_bitrate_bps);
   void SetMinBitrate(int min_bitrate_bps);
-  int64_t GetProbingIntervalMs() const;
+  int64_t GetExpectedBwePeriodMs() const;
 
  private:
   // Computes a bayesian estimate of the throughput given acks containing
@@ -77,31 +75,26 @@ class DelayBasedBwe {
     int64_t prev_time_ms_;
     float bitrate_estimate_;
     float bitrate_estimate_var_;
-    RateStatistics old_estimator_;
-    const bool in_experiment_;
   };
 
-  Result IncomingPacketFeedback(const PacketFeedback& packet_feedback);
+  void IncomingPacketFeedback(const PacketFeedback& packet_feedback);
   Result OnLongFeedbackDelay(int64_t arrival_time_ms);
+
+  Result MaybeUpdateEstimate(bool overusing);
   // Updates the current remote rate estimate and returns true if a valid
   // estimate exists.
-  bool UpdateEstimate(int64_t packet_arrival_time_ms,
-                      int64_t now_ms,
+  bool UpdateEstimate(int64_t now_ms,
                       rtc::Optional<uint32_t> acked_bitrate_bps,
+                      bool overusing,
                       uint32_t* target_bitrate_bps);
-  const bool in_trendline_experiment_;
-  const bool in_median_slope_experiment_;
 
   rtc::ThreadChecker network_thread_;
   RtcEventLog* const event_log_;
   const Clock* const clock_;
   std::unique_ptr<InterArrival> inter_arrival_;
-  std::unique_ptr<OveruseEstimator> kalman_estimator_;
   std::unique_ptr<TrendlineEstimator> trendline_estimator_;
-  std::unique_ptr<MedianSlopeEstimator> median_slope_estimator_;
   OveruseDetector detector_;
   BitrateEstimator receiver_incoming_bitrate_;
-  int64_t last_update_ms_;
   int64_t last_seen_packet_ms_;
   bool uma_recorded_;
   AimdRateControl rate_control_;
@@ -109,9 +102,6 @@ class DelayBasedBwe {
   size_t trendline_window_size_;
   double trendline_smoothing_coeff_;
   double trendline_threshold_gain_;
-  ProbingIntervalEstimator probing_interval_estimator_;
-  size_t median_slope_window_size_;
-  double median_slope_threshold_gain_;
   int consecutive_delayed_feedbacks_;
   uint32_t last_logged_bitrate_;
   BandwidthUsage last_logged_state_;

@@ -15,6 +15,7 @@
 #include <list>
 #include <vector>
 
+#include "webrtc/base/deprecation.h"
 #include "webrtc/common_types.h"
 #include "webrtc/modules/include/module_common_types.h"
 #include "webrtc/system_wrappers/include/clock.h"
@@ -75,7 +76,10 @@ enum RTPExtensionType {
   kRtpExtensionVideoRotation,
   kRtpExtensionTransportSequenceNumber,
   kRtpExtensionPlayoutDelay,
-  kRtpExtensionNumberOfExtensions,
+  kRtpExtensionVideoContentType,
+  kRtpExtensionRtpStreamId,
+  kRtpExtensionRepairedRtpStreamId,
+  kRtpExtensionNumberOfExtensions  // Must be the last entity in the enum.
 };
 
 enum RTCPAppSubTypes { kAppSubtypeBwe = 0x00 };
@@ -95,8 +99,6 @@ enum RTCPPacketType : uint32_t {
   kRtcpSrReq = 0x0400,
   kRtcpXrVoipMetric = 0x0800,
   kRtcpApp = 0x1000,
-  kRtcpSli = 0x4000,
-  kRtcpRpsi = 0x8000,
   kRtcpRemb = 0x10000,
   kRtcpTransmissionTimeOffset = 0x20000,
   kRtcpXrReceiverReferenceTime = 0x40000,
@@ -222,11 +224,11 @@ class RtcpIntraFrameObserver {
  public:
   virtual void OnReceivedIntraFrameRequest(uint32_t ssrc) = 0;
 
-  virtual void OnReceivedSLI(uint32_t ssrc,
-                             uint8_t picture_id) = 0;
+  RTC_DEPRECATED virtual void OnReceivedSLI(uint32_t ssrc,
+                             uint8_t picture_id) {}
 
-  virtual void OnReceivedRPSI(uint32_t ssrc,
-                              uint64_t picture_id) = 0;
+  RTC_DEPRECATED virtual void OnReceivedRPSI(uint32_t ssrc,
+                              uint64_t picture_id) {}
 
   virtual ~RtcpIntraFrameObserver() {}
 };
@@ -343,13 +345,23 @@ class TransportFeedbackObserver {
   virtual ~TransportFeedbackObserver() {}
 
   // Note: Transport-wide sequence number as sequence number.
-  virtual void AddPacket(uint16_t sequence_number,
+  virtual void AddPacket(uint32_t ssrc,
+                         uint16_t sequence_number,
                          size_t length,
                          const PacedPacketInfo& pacing_info) = 0;
 
   virtual void OnTransportFeedback(const rtcp::TransportFeedback& feedback) = 0;
 
   virtual std::vector<PacketFeedback> GetTransportFeedbackVector() const = 0;
+};
+
+class PacketFeedbackObserver {
+ public:
+  virtual ~PacketFeedbackObserver() = default;
+
+  virtual void OnPacketAdded(uint32_t ssrc, uint16_t seq_num) = 0;
+  virtual void OnPacketFeedbackVector(
+      const std::vector<PacketFeedback>& packet_feedback_vector) = 0;
 };
 
 class RtcpRttStats {

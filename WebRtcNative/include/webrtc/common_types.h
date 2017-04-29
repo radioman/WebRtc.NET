@@ -18,7 +18,9 @@
 #include <string>
 #include <vector>
 
+#include "webrtc/api/video/video_content_type.h"
 #include "webrtc/api/video/video_rotation.h"
+#include "webrtc/base/array_view.h"
 #include "webrtc/base/checks.h"
 #include "webrtc/base/optional.h"
 #include "webrtc/typedefs.h"
@@ -414,27 +416,28 @@ struct AudioDecodingCallStats {
 // Video specific types
 // ==================================================================
 
-// Raw video types
-enum RawVideoType {
-  kVideoI420 = 0,
-  kVideoYV12 = 1,
-  kVideoYUY2 = 2,
-  kVideoUYVY = 3,
-  kVideoIYUV = 4,
-  kVideoARGB = 5,
-  kVideoRGB24 = 6,
-  kVideoRGB565 = 7,
-  kVideoARGB4444 = 8,
-  kVideoARGB1555 = 9,
-  kVideoMJPEG = 10,
-  kVideoNV12 = 11,
-  kVideoNV21 = 12,
-  kVideoBGRA = 13,
-  kVideoUnknown = 99
+// TODO(nisse): Delete, and switch to fourcc values everywhere?
+// Supported video types.
+enum class VideoType {
+  kUnknown,
+  kI420,
+  kIYUV,
+  kRGB24,
+  kABGR,
+  kARGB,
+  kARGB4444,
+  kRGB565,
+  kARGB1555,
+  kYUY2,
+  kYV12,
+  kUYVY,
+  kMJPEG,
+  kNV21,
+  kNV12,
+  kBGRA,
 };
 
 // Video codec
-enum { kConfigParameterSize = 128 };
 enum { kPayloadNameSize = 32 };
 enum { kMaxSimulcastStreams = 4 };
 enum { kMaxSpatialLayers = 5 };
@@ -695,6 +698,42 @@ struct PlayoutDelay {
   int max_ms;
 };
 
+// Class to represent RtpStreamId which is a string.
+// Unlike std::string, it can be copied with memcpy and cleared with memset.
+// Empty value represent unset RtpStreamId.
+class StreamId {
+ public:
+  // Stream id is limited to 16 bytes because it is the maximum length
+  // that can be encoded with one-byte header extensions.
+  static constexpr size_t kMaxSize = 16;
+
+  StreamId() { value_[0] = 0; }
+  explicit StreamId(rtc::ArrayView<const char> value) {
+    Set(value.data(), value.size());
+  }
+  StreamId(const StreamId&) = default;
+  StreamId& operator=(const StreamId&) = default;
+
+  bool empty() const { return value_[0] == 0; }
+  const char* data() const { return value_; }
+  size_t size() const { return strnlen(value_, kMaxSize); }
+
+  void Set(rtc::ArrayView<const uint8_t> value) {
+    Set(reinterpret_cast<const char*>(value.data()), value.size());
+  }
+  void Set(const char* data, size_t size);
+
+  friend bool operator==(const StreamId& lhs, const StreamId& rhs) {
+    return strncmp(lhs.value_, rhs.value_, kMaxSize) == 0;
+  }
+  friend bool operator!=(const StreamId& lhs, const StreamId& rhs) {
+    return !(lhs == rhs);
+  }
+
+ private:
+  char value_[kMaxSize];
+};
+
 struct RTPHeaderExtension {
   RTPHeaderExtension();
 
@@ -717,7 +756,18 @@ struct RTPHeaderExtension {
   bool hasVideoRotation;
   VideoRotation videoRotation;
 
+  // TODO(ilnik): Refactor this and one above to be rtc::Optional() and remove
+  // a corresponding bool flag.
+  bool hasVideoContentType;
+  VideoContentType videoContentType;
+
   PlayoutDelay playout_delay = {-1, -1};
+
+  // For identification of a stream when ssrc is not signaled. See
+  // https://tools.ietf.org/html/draft-ietf-avtext-rid-09
+  // TODO(danilchap): Update url from draft to release version.
+  StreamId stream_id;
+  StreamId repaired_stream_id;
 };
 
 struct RTPHeader {

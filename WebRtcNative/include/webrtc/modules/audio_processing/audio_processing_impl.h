@@ -13,13 +13,13 @@
 
 #include <list>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "webrtc/base/criticalsection.h"
 #include "webrtc/base/function_view.h"
 #include "webrtc/base/gtest_prod_util.h"
 #include "webrtc/base/ignore_wundef.h"
+#include "webrtc/base/protobuf_utils.h"
 #include "webrtc/base/swap_queue.h"
 #include "webrtc/base/thread_annotations.h"
 #include "webrtc/modules/audio_processing/audio_buffer.h"
@@ -29,7 +29,7 @@
 #include "webrtc/system_wrappers/include/file_wrapper.h"
 
 #ifdef WEBRTC_AUDIOPROC_DEBUG_DUMP
-// Files generated at build-time by the protobuf compiler.
+// *.pb.h files are generated at build-time by the protobuf compiler.
 RTC_PUSH_IGNORING_WUNDEF()
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/modules/audio_processing/debug.pb.h"
@@ -134,9 +134,9 @@ class AudioProcessingImpl : public AudioProcessing {
   NoiseSuppression* noise_suppression() const override;
   VoiceDetection* voice_detection() const override;
 
-  // TODO(peah): Remove these two methods once the new API allows that.
+  // TODO(peah): Remove MutateConfig once the new API allows that.
   void MutateConfig(rtc::FunctionView<void(AudioProcessing::Config*)> mutator);
-  AudioProcessing::Config GetConfig() const;
+  AudioProcessing::Config GetConfig() const override;
 
  protected:
   // Overridden in a mock.
@@ -200,10 +200,10 @@ class AudioProcessingImpl : public AudioProcessing {
     ApmDebugDumpThreadState();
     ~ApmDebugDumpThreadState();
     std::unique_ptr<audioproc::Event> event_msg;  // Protobuf message.
-    std::string event_str;  // Memory for protobuf serialization.
+    ProtoString event_str;  // Memory for protobuf serialization.
 
     // Serialized string of last saved APM configuration.
-    std::string last_serialized_config;
+    ProtoString last_serialized_config;
   };
 
   struct ApmDebugDumpState {
@@ -366,6 +366,8 @@ class AudioProcessingImpl : public AudioProcessing {
     // tracked by the capture_audio_.
     StreamConfig capture_processing_format;
     int split_rate;
+    int previous_agc_level;
+    bool echo_path_gain_change;
   } capture_ GUARDED_BY(crit_capture_);
 
   struct ApmCaptureNonLockedState {

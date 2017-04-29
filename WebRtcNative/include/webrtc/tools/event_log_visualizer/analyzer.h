@@ -20,6 +20,7 @@
 
 #include "webrtc/base/function_view.h"
 #include "webrtc/logging/rtc_event_log/rtc_event_log_parser.h"
+#include "webrtc/modules/audio_coding/audio_network_adaptor/include/audio_network_adaptor.h"
 #include "webrtc/modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "webrtc/modules/rtp_rtcp/source/rtcp_packet.h"
 #include "webrtc/tools/event_log_visualizer/plot_base.h"
@@ -55,7 +56,7 @@ struct LossBasedBweUpdate {
 
 struct AudioNetworkAdaptationEvent {
   uint64_t timestamp;
-  AudioNetworkAdaptor::EncoderRuntimeConfig config;
+  AudioEncoderRuntimeConfig config;
 };
 
 class EventLogAnalyzer {
@@ -166,6 +167,13 @@ class EventLogAnalyzer {
   std::vector<LossBasedBweUpdate> bwe_loss_updates_;
 
   std::vector<AudioNetworkAdaptationEvent> audio_network_adaptation_events_;
+
+  std::vector<ParsedRtcEventLog::BweProbeClusterCreatedEvent>
+      bwe_probe_cluster_created_events_;
+
+  std::vector<ParsedRtcEventLog::BweProbeResultEvent> bwe_probe_result_events_;
+
+  std::vector<ParsedRtcEventLog::BweDelayBasedUpdate> bwe_delay_updates_;
 
   // Window and step size used for calculating moving averages, e.g. bitrate.
   // The generated data points will be |step_| microseconds apart.

@@ -4,7 +4,7 @@
 
 #include "webrtc/base/checks.h"
 #include "webrtc/api/test/fakeconstraints.h"
-#include "webrtc/video_encoder.h"
+#include "webrtc/api/video_codecs/video_encoder.h"
 #include "webrtc/modules/video_coding/codecs/vp8/simulcast_encoder_adapter.h"
 #include "webrtc/modules/video_coding/codecs/vp8/include/vp8.h"
 #include "webrtc/modules/video_capture/video_capture_factory.h"
@@ -322,10 +322,9 @@ namespace Native
 			peer_connection_ = nullptr;
 		}
 
-		pc_factory_ = nullptr;
-
-		if (data_channel)
+		if (data_channel.get())
 		{
+			data_channel->Close();
 			data_channel->UnregisterObserver();
 			data_channel = nullptr;
 		}
@@ -333,6 +332,7 @@ namespace Native
 
 		capturer_internal = nullptr;
 		capturer = nullptr;
+		pc_factory_ = nullptr;
 	}
 
 	bool Conductor::InitializePeerConnection()

@@ -27,6 +27,7 @@ struct TestConfig {
   bool fallback_scsv = false;
   std::string digest_prefs;
   std::vector<int> signing_prefs;
+  std::vector<int> verify_prefs;
   std::string key_file;
   std::string cert_file;
   std::string expected_server_name;
@@ -52,8 +53,12 @@ struct TestConfig {
   std::string host_name;
   std::string advertise_alpn;
   std::string expected_alpn;
+  std::string expected_resume_alpn;
+  bool expect_no_alpn = false;
+  bool expect_no_resume_alpn = false;
   std::string expected_advertised_alpn;
   std::string select_alpn;
+  std::string select_resume_alpn;
   bool decline_alpn = false;
   bool expect_session_miss = false;
   bool expect_extended_master_secret = false;
@@ -84,9 +89,12 @@ struct TestConfig {
   bool expect_ticket_renewal = false;
   bool expect_no_session = false;
   bool expect_early_data_info = false;
+  bool expect_accept_early_data = false;
+  bool expect_reject_early_data = false;
   bool use_ticket_callback = false;
   bool renew_ticket = false;
   bool enable_early_data = false;
+  bool enable_resume_early_data = false;
   bool enable_client_custom_extension = false;
   bool enable_server_custom_extension = false;
   bool custom_extension_skip = false;
@@ -105,7 +113,6 @@ struct TestConfig {
   int expect_peer_signature_algorithm = 0;
   bool p384_only = false;
   bool enable_all_curves = false;
-  bool use_sparse_dh_prime = false;
   int expect_curve_id = 0;
   int expect_resume_curve_id = 0;
   bool use_old_client_cert_callback = false;
@@ -134,6 +141,10 @@ struct TestConfig {
   bool expect_session_id = false;
   bool expect_no_session_id = false;
   int expect_ticket_age_skew = 0;
+  bool no_op_extra_handshake = false;
+  bool handshake_twice = false;
+  bool allow_unknown_alpn_protos = false;
+  bool enable_ed25519 = false;
 };
 
 bool ParseConfig(int argc, char **argv, TestConfig *out_config);

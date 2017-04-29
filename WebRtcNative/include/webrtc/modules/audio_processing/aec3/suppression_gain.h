@@ -12,36 +12,12 @@
 #define WEBRTC_MODULES_AUDIO_PROCESSING_AEC3_SUPPRESSION_GAIN_H_
 
 #include <array>
+#include <vector>
 
 #include "webrtc/base/constructormagic.h"
 #include "webrtc/modules/audio_processing/aec3/aec3_common.h"
-#include "webrtc/modules/audio_processing/aec3/fft_buffer.h"
 
 namespace webrtc {
-namespace aec3 {
-#if defined(WEBRTC_ARCH_X86_FAMILY)
-
-void ComputeGains_SSE2(
-    const std::array<float, kFftLengthBy2Plus1>& nearend_power,
-    const std::array<float, kFftLengthBy2Plus1>& residual_echo_power,
-    const std::array<float, kFftLengthBy2Plus1>& comfort_noise_power,
-    float strong_nearend_margin,
-    std::array<float, kFftLengthBy2 - 1>* previous_gain_squared,
-    std::array<float, kFftLengthBy2 - 1>* previous_masker,
-    std::array<float, kFftLengthBy2Plus1>* gain);
-
-#endif
-
-void ComputeGains(
-    const std::array<float, kFftLengthBy2Plus1>& nearend_power,
-    const std::array<float, kFftLengthBy2Plus1>& residual_echo_power,
-    const std::array<float, kFftLengthBy2Plus1>& comfort_noise_power,
-    float strong_nearend_margin,
-    std::array<float, kFftLengthBy2 - 1>* previous_gain_squared,
-    std::array<float, kFftLengthBy2 - 1>* previous_masker,
-    std::array<float, kFftLengthBy2Plus1>* gain);
-
-}  // namespace aec3
 
 class SuppressionGain {
  public:
@@ -49,8 +25,12 @@ class SuppressionGain {
   void GetGain(const std::array<float, kFftLengthBy2Plus1>& nearend_power,
                const std::array<float, kFftLengthBy2Plus1>& residual_echo_power,
                const std::array<float, kFftLengthBy2Plus1>& comfort_noise_power,
-               float strong_nearend_margin,
-               std::array<float, kFftLengthBy2Plus1>* gain);
+               bool saturated_echo,
+               const std::vector<std::vector<float>>& render,
+               size_t num_capture_bands,
+               bool force_zero_gain,
+               float* high_bands_gain,
+               std::array<float, kFftLengthBy2Plus1>* low_band_gain);
 
  private:
   const Aec3Optimization optimization_;

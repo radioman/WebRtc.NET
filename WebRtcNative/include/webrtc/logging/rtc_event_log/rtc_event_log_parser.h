@@ -35,6 +35,27 @@ class ParsedRtcEventLog {
   friend class RtcEventLogTestHelper;
 
  public:
+  struct BweProbeClusterCreatedEvent {
+    uint64_t timestamp;
+    uint32_t id;
+    uint64_t bitrate_bps;
+    uint32_t min_packets;
+    uint32_t min_bytes;
+  };
+
+  struct BweProbeResultEvent {
+    uint64_t timestamp;
+    uint32_t id;
+    rtc::Optional<uint64_t> bitrate_bps;
+    rtc::Optional<ProbeFailureReason> failure_reason;
+  };
+
+  struct BweDelayBasedUpdate {
+    uint64_t timestamp;
+    int32_t bitrate_bps;
+    BandwidthUsage detector_state;
+  };
+
   enum EventType {
     UNKNOWN_EVENT = 0,
     LOG_START = 1,
@@ -131,16 +152,18 @@ class ParsedRtcEventLog {
   // and stores the values in the corresponding output parameters. Each output
   // parameter can be set to nullptr if that
   // value isn't needed.
-  void GetDelayBasedBweUpdate(size_t index,
-                              int32_t* bitrate_bps,
-                              BandwidthUsage* detector_state) const;
+  BweDelayBasedUpdate GetDelayBasedBweUpdate(size_t index) const;
 
   // Reads a audio network adaptation event to a (non-NULL)
-  // AudioNetworkAdaptor::EncoderRuntimeConfig struct. Only the fields that are
+  // AudioEncoderRuntimeConfig struct. Only the fields that are
   // stored in the protobuf will be written.
-  void GetAudioNetworkAdaptation(
-      size_t index,
-      AudioNetworkAdaptor::EncoderRuntimeConfig* config) const;
+  void GetAudioNetworkAdaptation(size_t index,
+                                 AudioEncoderRuntimeConfig* config) const;
+
+  ParsedRtcEventLog::BweProbeClusterCreatedEvent GetBweProbeClusterCreated(
+      size_t index) const;
+
+  ParsedRtcEventLog::BweProbeResultEvent GetBweProbeResult(size_t index) const;
 
  private:
   std::vector<rtclog::Event> events_;

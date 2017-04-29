@@ -28,7 +28,8 @@ unsigned int vpx_avg_8x8_sse2(const uint8_t *, int p);
 RTCD_EXTERN unsigned int (*vpx_avg_8x8)(const uint8_t *, int p);
 
 void vpx_comp_avg_pred_c(uint8_t *comp_pred, const uint8_t *pred, int width, int height, const uint8_t *ref, int ref_stride);
-#define vpx_comp_avg_pred vpx_comp_avg_pred_c
+void vpx_comp_avg_pred_sse2(uint8_t *comp_pred, const uint8_t *pred, int width, int height, const uint8_t *ref, int ref_stride);
+RTCD_EXTERN void (*vpx_comp_avg_pred)(uint8_t *comp_pred, const uint8_t *pred, int width, int height, const uint8_t *ref, int ref_stride);
 
 void vpx_convolve8_c(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h);
 void vpx_convolve8_sse2(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h);
@@ -127,18 +128,6 @@ void vpx_d207_predictor_8x8_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *a
 void vpx_d207_predictor_8x8_ssse3(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 RTCD_EXTERN void (*vpx_d207_predictor_8x8)(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 
-void vpx_d207e_predictor_16x16_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
-#define vpx_d207e_predictor_16x16 vpx_d207e_predictor_16x16_c
-
-void vpx_d207e_predictor_32x32_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
-#define vpx_d207e_predictor_32x32 vpx_d207e_predictor_32x32_c
-
-void vpx_d207e_predictor_4x4_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
-#define vpx_d207e_predictor_4x4 vpx_d207e_predictor_4x4_c
-
-void vpx_d207e_predictor_8x8_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
-#define vpx_d207e_predictor_8x8 vpx_d207e_predictor_8x8_c
-
 void vpx_d45_predictor_16x16_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 void vpx_d45_predictor_16x16_ssse3(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 RTCD_EXTERN void (*vpx_d45_predictor_16x16)(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
@@ -155,17 +144,8 @@ void vpx_d45_predictor_8x8_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *ab
 void vpx_d45_predictor_8x8_sse2(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 RTCD_EXTERN void (*vpx_d45_predictor_8x8)(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 
-void vpx_d45e_predictor_16x16_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
-#define vpx_d45e_predictor_16x16 vpx_d45e_predictor_16x16_c
-
-void vpx_d45e_predictor_32x32_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
-#define vpx_d45e_predictor_32x32 vpx_d45e_predictor_32x32_c
-
 void vpx_d45e_predictor_4x4_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 #define vpx_d45e_predictor_4x4 vpx_d45e_predictor_4x4_c
-
-void vpx_d45e_predictor_8x8_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
-#define vpx_d45e_predictor_8x8 vpx_d45e_predictor_8x8_c
 
 void vpx_d63_predictor_16x16_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 void vpx_d63_predictor_16x16_ssse3(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
@@ -183,20 +163,8 @@ void vpx_d63_predictor_8x8_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *ab
 void vpx_d63_predictor_8x8_ssse3(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 RTCD_EXTERN void (*vpx_d63_predictor_8x8)(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 
-void vpx_d63e_predictor_16x16_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
-#define vpx_d63e_predictor_16x16 vpx_d63e_predictor_16x16_c
-
-void vpx_d63e_predictor_32x32_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
-#define vpx_d63e_predictor_32x32 vpx_d63e_predictor_32x32_c
-
 void vpx_d63e_predictor_4x4_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 #define vpx_d63e_predictor_4x4 vpx_d63e_predictor_4x4_c
-
-void vpx_d63e_predictor_8x8_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
-#define vpx_d63e_predictor_8x8 vpx_d63e_predictor_8x8_c
-
-void vpx_d63f_predictor_4x4_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
-#define vpx_d63f_predictor_4x4 vpx_d63f_predictor_4x4_c
 
 void vpx_dc_128_predictor_16x16_c(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
 void vpx_dc_128_predictor_16x16_sse2(uint8_t *dst, ptrdiff_t y_stride, const uint8_t *above, const uint8_t *left);
@@ -877,10 +845,12 @@ void vpx_highbd_convolve8_vert_c(const uint8_t *src, ptrdiff_t src_stride, uint8
 
 void vpx_highbd_convolve_avg_c(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bps);
 void vpx_highbd_convolve_avg_sse2(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bps);
+void vpx_highbd_convolve_avg_avx2(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bps);
 RTCD_EXTERN void (*vpx_highbd_convolve_avg)(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bps);
 
 void vpx_highbd_convolve_copy_c(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bps);
 void vpx_highbd_convolve_copy_sse2(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bps);
+void vpx_highbd_convolve_copy_avx2(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bps);
 RTCD_EXTERN void (*vpx_highbd_convolve_copy)(const uint8_t *src, ptrdiff_t src_stride, uint8_t *dst, ptrdiff_t dst_stride, const int16_t *filter_x, int x_step_q4, const int16_t *filter_y, int y_step_q4, int w, int h, int bps);
 
 void vpx_highbd_d117_predictor_16x16_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
@@ -931,18 +901,6 @@ void vpx_highbd_d207_predictor_4x4_c(uint16_t *dst, ptrdiff_t y_stride, const ui
 void vpx_highbd_d207_predictor_8x8_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
 #define vpx_highbd_d207_predictor_8x8 vpx_highbd_d207_predictor_8x8_c
 
-void vpx_highbd_d207e_predictor_16x16_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
-#define vpx_highbd_d207e_predictor_16x16 vpx_highbd_d207e_predictor_16x16_c
-
-void vpx_highbd_d207e_predictor_32x32_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
-#define vpx_highbd_d207e_predictor_32x32 vpx_highbd_d207e_predictor_32x32_c
-
-void vpx_highbd_d207e_predictor_4x4_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
-#define vpx_highbd_d207e_predictor_4x4 vpx_highbd_d207e_predictor_4x4_c
-
-void vpx_highbd_d207e_predictor_8x8_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
-#define vpx_highbd_d207e_predictor_8x8 vpx_highbd_d207e_predictor_8x8_c
-
 void vpx_highbd_d45_predictor_16x16_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
 #define vpx_highbd_d45_predictor_16x16 vpx_highbd_d45_predictor_16x16_c
 
@@ -955,18 +913,6 @@ void vpx_highbd_d45_predictor_4x4_c(uint16_t *dst, ptrdiff_t y_stride, const uin
 void vpx_highbd_d45_predictor_8x8_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
 #define vpx_highbd_d45_predictor_8x8 vpx_highbd_d45_predictor_8x8_c
 
-void vpx_highbd_d45e_predictor_16x16_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
-#define vpx_highbd_d45e_predictor_16x16 vpx_highbd_d45e_predictor_16x16_c
-
-void vpx_highbd_d45e_predictor_32x32_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
-#define vpx_highbd_d45e_predictor_32x32 vpx_highbd_d45e_predictor_32x32_c
-
-void vpx_highbd_d45e_predictor_4x4_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
-#define vpx_highbd_d45e_predictor_4x4 vpx_highbd_d45e_predictor_4x4_c
-
-void vpx_highbd_d45e_predictor_8x8_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
-#define vpx_highbd_d45e_predictor_8x8 vpx_highbd_d45e_predictor_8x8_c
-
 void vpx_highbd_d63_predictor_16x16_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
 #define vpx_highbd_d63_predictor_16x16 vpx_highbd_d63_predictor_16x16_c
 
@@ -978,18 +924,6 @@ void vpx_highbd_d63_predictor_4x4_c(uint16_t *dst, ptrdiff_t y_stride, const uin
 
 void vpx_highbd_d63_predictor_8x8_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
 #define vpx_highbd_d63_predictor_8x8 vpx_highbd_d63_predictor_8x8_c
-
-void vpx_highbd_d63e_predictor_16x16_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
-#define vpx_highbd_d63e_predictor_16x16 vpx_highbd_d63e_predictor_16x16_c
-
-void vpx_highbd_d63e_predictor_32x32_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
-#define vpx_highbd_d63e_predictor_32x32 vpx_highbd_d63e_predictor_32x32_c
-
-void vpx_highbd_d63e_predictor_4x4_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
-#define vpx_highbd_d63e_predictor_4x4 vpx_highbd_d63e_predictor_4x4_c
-
-void vpx_highbd_d63e_predictor_8x8_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
-#define vpx_highbd_d63e_predictor_8x8 vpx_highbd_d63e_predictor_8x8_c
 
 void vpx_highbd_dc_128_predictor_16x16_c(uint16_t *dst, ptrdiff_t y_stride, const uint16_t *above, const uint16_t *left, int bd);
 #define vpx_highbd_dc_128_predictor_16x16 vpx_highbd_dc_128_predictor_16x16_c
@@ -1101,6 +1035,9 @@ RTCD_EXTERN void (*vpx_highbd_idct16x16_38_add)(const tran_low_t *input, uint8_t
 
 void vpx_highbd_idct32x32_1024_add_c(const tran_low_t *input, uint8_t *dest, int stride, int bd);
 #define vpx_highbd_idct32x32_1024_add vpx_highbd_idct32x32_1024_add_c
+
+void vpx_highbd_idct32x32_135_add_c(const tran_low_t *input, uint8_t *dest, int stride, int bd);
+#define vpx_highbd_idct32x32_135_add vpx_highbd_idct32x32_135_add_c
 
 void vpx_highbd_idct32x32_1_add_c(const tran_low_t *input, uint8_t *dest, int stride, int bd);
 void vpx_highbd_idct32x32_1_add_sse2(const tran_low_t *input, uint8_t *dest, int stride, int bd);
@@ -2096,6 +2033,8 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_SSE2) vpx_avg_4x4 = vpx_avg_4x4_sse2;
     vpx_avg_8x8 = vpx_avg_8x8_c;
     if (flags & HAS_SSE2) vpx_avg_8x8 = vpx_avg_8x8_sse2;
+    vpx_comp_avg_pred = vpx_comp_avg_pred_c;
+    if (flags & HAS_SSE2) vpx_comp_avg_pred = vpx_comp_avg_pred_sse2;
     vpx_convolve8 = vpx_convolve8_c;
     if (flags & HAS_SSE2) vpx_convolve8 = vpx_convolve8_sse2;
     if (flags & HAS_SSSE3) vpx_convolve8 = vpx_convolve8_ssse3;
@@ -2428,8 +2367,10 @@ static void setup_rtcd_internal(void)
     if (flags & HAS_SSE2) vpx_highbd_8_variance8x8 = vpx_highbd_8_variance8x8_sse2;
     vpx_highbd_convolve_avg = vpx_highbd_convolve_avg_c;
     if (flags & HAS_SSE2) vpx_highbd_convolve_avg = vpx_highbd_convolve_avg_sse2;
+    if (flags & HAS_AVX2) vpx_highbd_convolve_avg = vpx_highbd_convolve_avg_avx2;
     vpx_highbd_convolve_copy = vpx_highbd_convolve_copy_c;
     if (flags & HAS_SSE2) vpx_highbd_convolve_copy = vpx_highbd_convolve_copy_sse2;
+    if (flags & HAS_AVX2) vpx_highbd_convolve_copy = vpx_highbd_convolve_copy_avx2;
     vpx_highbd_dc_predictor_16x16 = vpx_highbd_dc_predictor_16x16_c;
     if (flags & HAS_SSE2) vpx_highbd_dc_predictor_16x16 = vpx_highbd_dc_predictor_16x16_sse2;
     vpx_highbd_dc_predictor_32x32 = vpx_highbd_dc_predictor_32x32_c;

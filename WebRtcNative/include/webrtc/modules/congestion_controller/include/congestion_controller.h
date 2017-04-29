@@ -51,11 +51,11 @@ class CongestionController : public CallStatsObserver,
 
   CongestionController(const Clock* clock,
                        Observer* observer,
-                       RemoteBitrateObserver* remote_bitrate_observer,
+                       RemoteBitrateObserver* /* remote_bitrate_observer */,
                        RtcEventLog* event_log,
                        PacketRouter* packet_router)
       : send_side_cc_(clock, observer, event_log, packet_router),
-        receive_side_cc_(clock, remote_bitrate_observer, packet_router) {}
+        receive_side_cc_(clock, packet_router) {}
   CongestionController(const Clock* clock,
                        Observer* observer,
                        RemoteBitrateObserver* remote_bitrate_observer,
@@ -63,7 +63,7 @@ class CongestionController : public CallStatsObserver,
                        PacketRouter* packet_router,
                        std::unique_ptr<PacedSender> pacer)
       : send_side_cc_(clock, observer, event_log, std::move(pacer)),
-        receive_side_cc_(clock, remote_bitrate_observer, packet_router) {}
+        receive_side_cc_(clock, packet_router) {}
 
   virtual ~CongestionController() {}
 
@@ -88,8 +88,11 @@ class CongestionController : public CallStatsObserver,
       bool send_side_bwe);
   virtual int64_t GetPacerQueuingDelayMs() const;
   // TODO(nisse): Delete this accessor function. The pacer should be
-  // internal to the congestion controller.
+  // internal to the congestion controller. Currently needed by Call,
+  // to register the pacer module on the right thread.
   virtual PacedSender* pacer() { return send_side_cc_.pacer(); }
+  // TODO(nisse): Delete this method, as soon as downstream projects
+  // are updated.
   virtual TransportFeedbackObserver* GetTransportFeedbackObserver() {
     return this;
   }
@@ -119,7 +122,8 @@ class CongestionController : public CallStatsObserver,
   void Process() override;
 
   // Implements TransportFeedbackObserver.
-  void AddPacket(uint16_t sequence_number,
+  void AddPacket(uint32_t ssrc,
+                 uint16_t sequence_number,
                  size_t length,
                  const PacedPacketInfo& pacing_info) override;
   void OnTransportFeedback(const rtcp::TransportFeedback& feedback) override;
