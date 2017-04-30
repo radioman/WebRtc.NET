@@ -7,7 +7,11 @@ namespace WebRtc.NET
 {
     public class WebRtcNative : IDisposable
     {
-        const string dll = "WebRtcNative";
+#if WIN64
+        const string dll = "WebRtcNative-x64";
+#else
+        const string dll = "WebRtcNative-x86";
+#endif
 
         #region -- Constructs --
 
@@ -113,8 +117,8 @@ namespace WebRtc.NET
         }
 
         [DllImport(dll)]
-        static extern void DataChannelSendData(IntPtr p, byte [] data, int length);
-        public void DataChannelSendData(byte [] data, int length)
+        static extern void DataChannelSendData(IntPtr p, byte[] data, int length);
+        public void DataChannelSendData(byte[] data, int length)
         {
             DataChannelSendData(p, data, length);
         }
