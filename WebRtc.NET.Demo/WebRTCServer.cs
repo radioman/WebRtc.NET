@@ -12,14 +12,14 @@ namespace WebRtc.NET.Demo
     {
         public class WebRtcSession
         {
-            public readonly ManagedConductor WebRtc;
+            public readonly WebRtcNative WebRtc;
             public readonly CancellationTokenSource Cancel;
 
             public WebRtcSession()
             {
-                WebRtc = new ManagedConductor();
+                WebRtc = new WebRtcNative();
                 Cancel = new CancellationTokenSource();
-            }            
+            }
         }
 
         public readonly ConcurrentDictionary<Guid, IWebSocketConnection> UserList = new ConcurrentDictionary<Guid, IWebSocketConnection>();
@@ -30,7 +30,7 @@ namespace WebRtc.NET.Demo
 
         public WebRTCServer(int port) : this("ws://0.0.0.0:" + port)
         {
-            
+
         }
 
         public WebRTCServer(string URL)
@@ -38,7 +38,7 @@ namespace WebRtc.NET.Demo
             server = new WebSocketServer(URL);
             server.Start(socket =>
             {
-                socket.OnOpen = () =>
+                 socket.OnOpen = () =>
                 {
                     try
                     {
@@ -101,7 +101,7 @@ namespace WebRtc.NET.Demo
             }
         }
 
-        private int clientLimit = 5; 
+        private int clientLimit = 5;
         public int ClientLimit
         {
             get
@@ -140,7 +140,7 @@ namespace WebRtc.NET.Demo
         {
             Debug.WriteLine($"OnDisconnect: {context.ConnectionInfo.Id}, {context.ConnectionInfo.ClientIpAddress}");
             {
-                IWebSocketConnection ctx;                
+                IWebSocketConnection ctx;
                 UserList.TryRemove(context.ConnectionInfo.Id, out ctx);
 
                 WebRtcSession s;
@@ -158,14 +158,14 @@ namespace WebRtc.NET.Demo
         {
             Debug.WriteLine($"OnReceive {context.ConnectionInfo.Id}: {msg}");
 
-            if (!msg.Contains("command")) return; 
+            if (!msg.Contains("command")) return;
 
             if(UserList.ContainsKey(context.ConnectionInfo.Id))
             {
                 JsonData msgJson = JsonMapper.ToObject(msg);
                 string command = msgJson["command"].ToString();
 
-                switch (command) 
+                switch (command)
                 {
                     case offer:
                     {
@@ -177,7 +177,7 @@ namespace WebRtc.NET.Demo
                                 {
                                     var t = Task.Factory.StartNew(() =>
                                     {
-                                        ManagedConductor.InitializeSSL();
+                                        WebRtcNative.InitializeSSL();
 
                                         using (session.WebRtc)
                                         {
@@ -194,14 +194,17 @@ namespace WebRtc.NET.Demo
                                                 {
                                                     var vok = session.WebRtc.OpenVideoCaptureDevice(Form.videoDevice);
                                                     Trace.WriteLine($"OpenVideoCaptureDevice: {vok}, {Form.videoDevice}");
+                                                    if (!vok)
+                                                    {
+                                                        return;
+                                                    }
                                                 }
                                             }
                                             else
                                             {
                                                 session.WebRtc.SetVideoCapturer(MainForm.screenWidth,
                                                                                 MainForm.screenHeight,
-                                                                                MainForm.captureFps,
-                                                                                MainForm.barCodeScreen);
+                                                                                MainForm.captureFps);
                                             }
 
                                             var ok = session.WebRtc.InitializePeerConnection();
@@ -221,11 +224,11 @@ namespace WebRtc.NET.Demo
                                             }
                                             else
                                             {
-                                                Debug.WriteLine("InitializePeerConnection failed");
+                                                Trace.WriteLine("InitializePeerConnection failed");
                                                 context.Close();
                                             }
                                         }
-                                        
+
                                     }, session.Cancel.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
                                     if (go.WaitOne(9999))
@@ -259,9 +262,9 @@ namespace WebRtc.NET.Demo
                                             Trace.WriteLine($"OnFailure: {error}");
                                         };
 
-                                        session.WebRtc.OnError += delegate
+                                        session.WebRtc.OnError += delegate(string error)
                                         {
-                                            Trace.WriteLine("OnError");
+                                            Trace.WriteLine($"OnError: {error}");
                                         };
 
                                         session.WebRtc.OnDataMessage += delegate(string dmsg)
@@ -274,18 +277,17 @@ namespace WebRtc.NET.Demo
                                             Trace.WriteLine($"OnDataBinaryMessage: {dmsg.Length}");
                                         };
 
-                                        unsafe
+                                        Form.ResetRemote();
+                                        session.WebRtc.OnRenderRemote += delegate (IntPtr BGR24, uint w, uint h)
                                         {
-                                            session.WebRtc.OnRenderRemote += delegate (byte* frame_buffer, uint w, uint h)
-                                            {
-                                                OnRenderRemote(frame_buffer, w, h);
-                                            };
+                                            OnRenderRemote(BGR24, w, h);
+                                        };
 
-                                            session.WebRtc.OnRenderLocal += delegate (byte* frame_buffer, uint w, uint h)
-                                            {
-                                                OnRenderLocal(frame_buffer, w, h);
-                                            };
-                                        }
+                                        Form.ResetLocal();
+                                        session.WebRtc.OnRenderLocal += delegate (IntPtr BGR24, uint w, uint h)
+                                        {
+                                            OnRenderLocal(BGR24, w, h);
+                                        };
 
                                         var d = msgJson["desc"];
                                         var s = d["sdp"].ToString();
@@ -316,8 +318,8 @@ namespace WebRtc.NET.Demo
             }
         }
 
-        public ManagedConductor.OnCallbackRender OnRenderRemote;
-        public ManagedConductor.OnCallbackRender OnRenderLocal;
+        public WebRtcNative.OnCallbackRender OnRenderRemote;
+        public WebRtcNative.OnCallbackRender OnRenderLocal;
 
         public void Dispose()
         {
@@ -332,13 +334,13 @@ namespace WebRtc.NET.Demo
                 }
 
                 foreach (IWebSocketConnection i in UserList.Values)
-                {                    
+                {
                     i.Close();
                 }
 
                 server.Dispose();
                 UserList.Clear();
-                Streams.Clear();               
+                Streams.Clear();
             }
             catch { }
         }

@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="src\conductor.cc" />
+    <ClCompile Include="src\defaults.cc" />
+    <ClCompile Include="src\main.cc" />
+    <ClCompile Include="src\internals\yuvframegenerator.cc">
+      <Filter>internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\internals\thread_win.c">
+      <Filter>internal</Filter>
+    </ClCompile>
+    <ClCompile Include="src\internals\vp8_impl.cc">
+      <Filter>internal</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="internals.h" />
+    <ClInclude Include="src\conductor.h" />
+    <ClInclude Include="src\defaults.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="internal">
+      <UniqueIdentifier>{972f3b3a-9d2d-481e-956d-7393afa7e059}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

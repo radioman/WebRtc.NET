@@ -34,7 +34,9 @@
             this.tabPage3 = new System.Windows.Forms.TabPage();
             this.pictureBoxLocal = new System.Windows.Forms.PictureBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.checkBoxTest = new System.Windows.Forms.CheckBox();
             this.groupBox5 = new System.Windows.Forms.GroupBox();
+            this.checkBoxInternalScreen = new System.Windows.Forms.CheckBox();
             this.checkBoxScreen = new System.Windows.Forms.CheckBox();
             this.comboBoxVideo = new System.Windows.Forms.ComboBox();
             this.checkBoxVirtualCam = new System.Windows.Forms.CheckBox();
@@ -46,7 +48,6 @@
             this.numericMaxClients = new System.Windows.Forms.NumericUpDown();
             this.checkBoxWebsocket = new System.Windows.Forms.CheckBox();
             this.numericWebSocket = new System.Windows.Forms.NumericUpDown();
-            this.checkBoxInternalScreen = new System.Windows.Forms.CheckBox();
             this.tabControl1.SuspendLayout();
             this.tabPage2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxRemote)).BeginInit();
@@ -101,7 +102,7 @@
             this.tabPage3.Location = new System.Drawing.Point(4, 22);
             this.tabPage3.Name = "tabPage3";
             this.tabPage3.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage3.Size = new System.Drawing.Size(535, 316);
+            this.tabPage3.Size = new System.Drawing.Size(618, 373);
             this.tabPage3.TabIndex = 2;
             this.tabPage3.Text = "LocalVideo";
             this.tabPage3.UseVisualStyleBackColor = true;
@@ -112,7 +113,7 @@
             this.pictureBoxLocal.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pictureBoxLocal.Location = new System.Drawing.Point(3, 3);
             this.pictureBoxLocal.Name = "pictureBoxLocal";
-            this.pictureBoxLocal.Size = new System.Drawing.Size(529, 310);
+            this.pictureBoxLocal.Size = new System.Drawing.Size(612, 367);
             this.pictureBoxLocal.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBoxLocal.TabIndex = 3;
             this.pictureBoxLocal.TabStop = false;
@@ -131,8 +132,20 @@
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Control";
             // 
+            // checkBoxTest
+            // 
+            this.checkBoxTest.AutoSize = true;
+            this.checkBoxTest.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(186)));
+            this.checkBoxTest.Location = new System.Drawing.Point(232, 48);
+            this.checkBoxTest.Name = "checkBoxTest";
+            this.checkBoxTest.Size = new System.Drawing.Size(43, 17);
+            this.checkBoxTest.TabIndex = 24;
+            this.checkBoxTest.Text = "test";
+            this.checkBoxTest.UseVisualStyleBackColor = true;
+            // 
             // groupBox5
             // 
+            this.groupBox5.Controls.Add(this.checkBoxTest);
             this.groupBox5.Controls.Add(this.checkBoxInternalScreen);
             this.groupBox5.Controls.Add(this.checkBoxScreen);
             this.groupBox5.Controls.Add(this.comboBoxVideo);
@@ -143,6 +156,17 @@
             this.groupBox5.TabIndex = 22;
             this.groupBox5.TabStop = false;
             this.groupBox5.Text = "Video capture";
+            // 
+            // checkBoxInternalScreen
+            // 
+            this.checkBoxInternalScreen.AutoSize = true;
+            this.checkBoxInternalScreen.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(186)));
+            this.checkBoxInternalScreen.Location = new System.Drawing.Point(162, 47);
+            this.checkBoxInternalScreen.Name = "checkBoxInternalScreen";
+            this.checkBoxInternalScreen.Size = new System.Drawing.Size(60, 17);
+            this.checkBoxInternalScreen.TabIndex = 23;
+            this.checkBoxInternalScreen.Text = "internal";
+            this.checkBoxInternalScreen.UseVisualStyleBackColor = true;
             // 
             // checkBoxScreen
             // 
@@ -279,17 +303,6 @@
             0,
             0});
             // 
-            // checkBoxInternalScreen
-            // 
-            this.checkBoxInternalScreen.AutoSize = true;
-            this.checkBoxInternalScreen.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(186)));
-            this.checkBoxInternalScreen.Location = new System.Drawing.Point(162, 47);
-            this.checkBoxInternalScreen.Name = "checkBoxInternalScreen";
-            this.checkBoxInternalScreen.Size = new System.Drawing.Size(95, 17);
-            this.checkBoxInternalScreen.TabIndex = 23;
-            this.checkBoxInternalScreen.Text = "InternalScreen";
-            this.checkBoxInternalScreen.UseVisualStyleBackColor = true;
-            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -338,5 +351,6 @@
         internal System.Windows.Forms.CheckBox checkBoxVirtualCam;
         internal System.Windows.Forms.CheckBox checkBoxScreen;
         internal System.Windows.Forms.CheckBox checkBoxInternalScreen;
+        internal System.Windows.Forms.CheckBox checkBoxTest;
     }
 }
