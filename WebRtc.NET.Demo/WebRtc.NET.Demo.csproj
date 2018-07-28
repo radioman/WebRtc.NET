@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{EBD5BC94-F7B0-418F-86AB-0827D7559D8E}</ProjectGuid>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>WebRtc.NET.Demo</RootNamespace>
     <AssemblyName>WebRtc.NET.Demo</AssemblyName>
@@ -56,9 +56,9 @@
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Fleck, Version=0.13.0.52, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Fleck.0.13.0.52\lib\net40\Fleck.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Fleck, Version=0.14.0.59, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Fleck.dll</HintPath>
     </Reference>
     <Reference Include="LitJson, Version=0.7.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\LitJson.0.7.0\lib\LitJson.dll</HintPath>
@@ -102,22 +102,18 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\WebRtc.NET.Utils\WebRtc.NET.Utils.csproj">
-      <Project>{01062c91-04f7-486f-bc09-9c5b3ee468ab}</Project>
-      <Name>WebRtc.NET.Utils</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\WebRtc.NET\WebRtc.NET.vcxproj">
-      <Project>{a07e6cb4-0132-4eb1-9a38-c8c057884dc2}</Project>
-      <Name>WebRtc.NET</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="auth.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WebRtc.NET\WebRtc.NET.csproj">
+      <Project>{01062c91-04f7-486f-bc09-9c5b3ee468ab}</Project>
+      <Name>WebRtc.NET</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

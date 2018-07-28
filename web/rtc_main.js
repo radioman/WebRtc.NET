@@ -30,14 +30,14 @@ var servers = {
 };
 
 var offerOptions = {
-    offerToReceiveAudio: 1,
-    offerToReceiveVideo: 1,
+    offerToReceiveAudio: 0,
+    offerToReceiveVideo: 0,
     voiceActivityDetection: false,
     iceRestart: true
 };
 
 var vgaConstraints = {
-    video: true,
+    video: false,
     //audio: true
 };
 
