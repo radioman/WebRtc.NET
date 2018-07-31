@@ -14,3 +14,5 @@ obj
 /ipch
 /WebRtcNative/lib/x64/Release/libwebrtc_full.lib
 /WebRtcNative/lib/x86/Release/libwebrtc_full.lib
+/WebRtcNative/lib/x64/Debug/libwebrtc_full.lib
+/WebRtcNative/lib/x86/Debug/libwebrtc_full.lib

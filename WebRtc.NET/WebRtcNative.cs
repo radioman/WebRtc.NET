@@ -20,11 +20,18 @@ namespace WebRtc.NET
             }
 
             var file = Path.Combine(dir, dll) + ".dll";
-            if (!File.Exists(file))
+
+            bool fileExists = File.Exists(file);
+
+//#if DEBUG
+//            fileExists = false;
+//#endif
+
+            if (!fileExists)
             {
                 File.WriteAllBytes(file, IntPtr.Size == 8 ? GetFile("WebRtc.NET.x64.WebRtcNative-x64.dll") : GetFile("WebRtc.NET.x86.WebRtcNative-x86.dll"));
 #if DEBUG
-                File.WriteAllBytes(Path.Combine(dir, dll) + ".pdb", IntPtr.Size == 8 ? GetFile("WebRtc.NET.x64.WebRtcNative.pdb") : GetFile("WebRtc.NET.x86.WebRtcNative.pdb"));
+                File.WriteAllBytes(Path.Combine(dir, dll) + ".pdb", IntPtr.Size == 8 ? GetFile("WebRtc.NET.x64.WebRtcNative-x64.pdb") : GetFile("WebRtc.NET.x86.WebRtcNative-x86.pdb"));
 #endif
             }
 

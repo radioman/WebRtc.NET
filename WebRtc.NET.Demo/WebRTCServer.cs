@@ -184,6 +184,7 @@ namespace WebRtc.NET.Demo
                                             session.WebRtc.AddServerConfig("stun:stun.l.google.com:19302", string.Empty, string.Empty);
                                             session.WebRtc.AddServerConfig("stun:stun.anyfirewall.com:3478", string.Empty, string.Empty);
                                             session.WebRtc.AddServerConfig("stun:stun.stunprotocol.org:3478", string.Empty, string.Empty);
+                                            session.WebRtc.OnSuccessOffer += WebRtc_OnSuccessOffer;
                                             //session.WebRtc.AddServerConfig("turn:192.168.0.100:3478", "test", "test");
 
                                             //session.WebRtc.SetAudio(MainForm.audio);
@@ -213,7 +214,8 @@ namespace WebRtc.NET.Demo
                                                 go.Set();
 
                                                 // javascript side makes the offer in this demo
-                                                //session.WebRtc.CreateDataChannel("msgDataChannel");
+                                                session.WebRtc.CreateDataChannel("msgDataChannel");
+                                                session.WebRtc.CreateOffer();
 
                                                 while (!session.Cancel.Token.IsCancellationRequested &&
                                                        session.WebRtc.ProcessMessages(1000))
@@ -292,7 +294,7 @@ namespace WebRtc.NET.Demo
                                         var d = msgJson["desc"];
                                         var s = d["sdp"].ToString();
 
-                                        session.WebRtc.OnOfferRequest(s);
+                                        //session.WebRtc.OnOfferRequest(s);
                                     }
                                 }
                             }
@@ -316,6 +318,11 @@ namespace WebRtc.NET.Demo
                     break;
                 }
             }
+        }
+
+        private void WebRtc_OnSuccessOffer(string sdp)
+        {
+            int x = 0;
         }
 
         public WebRtcNative.OnCallbackRender OnRenderRemote;

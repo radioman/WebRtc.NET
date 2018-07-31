@@ -317,7 +317,7 @@ namespace Native
 		RTC_DCHECK(peer_connection_ == nullptr);
 
 		webrtc::PeerConnectionInterface::RTCConfiguration config;
-		config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
+		config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyEnabled;
 		config.disable_ipv6 = true;
 		config.enable_dtls_srtp = absl::optional<bool>(dtls);
 		config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;

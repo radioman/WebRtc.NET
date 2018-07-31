@@ -76,7 +76,7 @@
     <IntDir>$(Configuration)\obj\</IntDir>
     <IncludePath>C:\Users\mark\Source\Repos\WebRtc.NET\WebRtcNative\include\webrtc;C:\Users\mark\Source\Repos\WebRtc.NET\WebRtcNative\include\webrtc\third_party\abseil-cpp;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Users\mark\Source\Repos\WebRtc.NET\WebRtcNative\lib\x86\Debug;$(LibraryPath)</LibraryPath>
-    <TargetName>$(ProjectName)-$(Platform)</TargetName>
+    <TargetName>$(ProjectName)-x86</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
