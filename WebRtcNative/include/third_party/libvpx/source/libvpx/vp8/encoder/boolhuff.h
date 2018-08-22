@@ -9,12 +9,12 @@
  */
 
 /****************************************************************************
-*
-*   Module Title :     boolhuff.h
-*
-*   Description  :     Bool Coder header file.
-*
-****************************************************************************/
+ *
+ *   Module Title :     boolhuff.h
+ *
+ *   Description  :     Bool Coder header file.
+ *
+ ****************************************************************************/
 #ifndef VP8_ENCODER_BOOLHUFF_H_
 #define VP8_ENCODER_BOOLHUFF_H_
 
@@ -61,7 +61,7 @@ static void vp8_encode_bool(BOOL_CODER *br, int bit, int probability) {
   int count = br->count;
   unsigned int range = br->range;
   unsigned int lowvalue = br->lowvalue;
-  register int shift;
+  int shift;
 
 #ifdef VP8_ENTROPY_STATS
 #if defined(SECTIONBITS_OUTPUT)

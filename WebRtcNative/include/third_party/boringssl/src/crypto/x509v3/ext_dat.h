@@ -56,6 +56,10 @@
 
 /* This file contains a table of "standard" extensions */
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 extern const X509V3_EXT_METHOD v3_bcons, v3_nscert, v3_key_usage, v3_ext_ku;
 extern const X509V3_EXT_METHOD v3_pkey_usage_period, v3_sxnet, v3_info,
     v3_sinfo;
@@ -103,19 +107,17 @@ static const X509V3_EXT_METHOD *const standard_exts[] = {
     &v3_ext_ku,
     &v3_delta_crl,
     &v3_crl_reason,
-#ifndef OPENSSL_NO_OCSP
     &v3_crl_invdate,
-#endif
     &v3_sxnet,
     &v3_info,
 #ifndef OPENSSL_NO_OCSP
     &v3_ocsp_nonce,
     &v3_ocsp_crlid,
     &v3_ocsp_accresp,
-    &v3_ocsp_nocheck,
     &v3_ocsp_acutoff,
     &v3_ocsp_serviceloc,
 #endif
+    &v3_ocsp_nocheck,
     &v3_sinfo,
     &v3_policy_constraints,
 #ifndef OPENSSL_NO_OCSP
@@ -133,3 +135,7 @@ static const X509V3_EXT_METHOD *const standard_exts[] = {
 /* Number of standard extensions */
 
 #define STANDARD_EXTENSION_COUNT (sizeof(standard_exts)/sizeof(X509V3_EXT_METHOD *))
+
+#if defined(__cplusplus)
+} /* extern C */
+#endif

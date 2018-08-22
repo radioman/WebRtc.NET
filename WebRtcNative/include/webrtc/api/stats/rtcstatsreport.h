@@ -8,17 +8,18 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_API_STATS_RTCSTATSREPORT_H_
-#define WEBRTC_API_STATS_RTCSTATSREPORT_H_
+#ifndef API_STATS_RTCSTATSREPORT_H_
+#define API_STATS_RTCSTATSREPORT_H_
 
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "webrtc/api/stats/rtcstats.h"
-#include "webrtc/base/refcount.h"
-#include "webrtc/base/scoped_ref_ptr.h"
+#include "api/stats/rtcstats.h"
+#include "rtc_base/refcount.h"
+#include "rtc_base/refcountedobject.h"
+#include "rtc_base/scoped_ref_ptr.h"
 
 namespace webrtc {
 
@@ -56,12 +57,16 @@ class RTCStatsReport : public rtc::RefCountInterface {
 
   explicit RTCStatsReport(int64_t timestamp_us);
   RTCStatsReport(const RTCStatsReport& other) = delete;
+  rtc::scoped_refptr<RTCStatsReport> Copy() const;
 
   int64_t timestamp_us() const { return timestamp_us_; }
   void AddStats(std::unique_ptr<const RTCStats> stats);
   const RTCStats* Get(const std::string& id) const;
   size_t size() const { return stats_.size(); }
 
+  // Removes the stats object from the report, returning ownership of it or null
+  // if there is no object with |id|.
+  std::unique_ptr<const RTCStats> Take(const std::string& id);
   // Takes ownership of all the stats in |victim|, leaving it empty.
   void TakeMembersFrom(rtc::scoped_refptr<RTCStatsReport> victim);
 
@@ -71,7 +76,7 @@ class RTCStatsReport : public rtc::RefCountInterface {
 
   // Gets the subset of stats that are of type |T|, where |T| is any class
   // descending from |RTCStats|.
-  template<typename T>
+  template <typename T>
   std::vector<const T*> GetStatsOfType() const {
     std::vector<const T*> stats_of_type;
     for (const RTCStats& stats : *this) {
@@ -81,9 +86,9 @@ class RTCStatsReport : public rtc::RefCountInterface {
     return stats_of_type;
   }
 
-  // Creates a human readable string representation of the report, listing all
-  // of its stats objects.
-  std::string ToString() const;
+  // Creates a JSON readable string representation of the report,
+  // listing all of its stats objects.
+  std::string ToJson() const;
 
   friend class rtc::RefCountedObject<RTCStatsReport>;
 
@@ -96,4 +101,4 @@ class RTCStatsReport : public rtc::RefCountInterface {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_API_STATS_RTCSTATSREPORT_H_
+#endif  // API_STATS_RTCSTATSREPORT_H_

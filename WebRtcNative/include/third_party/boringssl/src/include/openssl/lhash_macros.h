@@ -16,7 +16,7 @@
 #error "Don't include this file directly. Include lhash.h"
 #endif
 
-/* ASN1_OBJECT */
+// ASN1_OBJECT
 #define lh_ASN1_OBJECT_new(hash, comp)                                       \
   ((LHASH_OF(ASN1_OBJECT) *)lh_new(                                          \
       CHECKED_CAST(lhash_hash_func, uint32_t(*)(const ASN1_OBJECT *), hash), \
@@ -34,6 +34,12 @@
   ((ASN1_OBJECT *)lh_retrieve(                             \
       CHECKED_CAST(_LHASH *, LHASH_OF(ASN1_OBJECT) *, lh), \
       CHECKED_CAST(void *, ASN1_OBJECT *, data)))
+
+#define lh_ASN1_OBJECT_retrieve_key(lh, key, key_hash, cmp_key)           \
+  ((ASN1_OBJECT *)lh_retrieve_key(                                        \
+      CHECKED_CAST(_LHASH *, LHASH_OF(ASN1_OBJECT) *, lh), key, key_hash, \
+      CHECKED_CAST(int (*)(const void *, const void *),                   \
+                   int (*)(const void *, const ASN1_OBJECT *), cmp_key)))
 
 #define lh_ASN1_OBJECT_insert(lh, old_data, data)                \
   lh_insert(CHECKED_CAST(_LHASH *, LHASH_OF(ASN1_OBJECT) *, lh), \
@@ -56,7 +62,7 @@
                arg);
 
 
-/* CONF_VALUE */
+// CONF_VALUE
 #define lh_CONF_VALUE_new(hash, comp)                                       \
   ((LHASH_OF(CONF_VALUE) *)lh_new(                                          \
       CHECKED_CAST(lhash_hash_func, uint32_t(*)(const CONF_VALUE *), hash), \
@@ -73,6 +79,12 @@
   ((CONF_VALUE *)lh_retrieve(                             \
       CHECKED_CAST(_LHASH *, LHASH_OF(CONF_VALUE) *, lh), \
       CHECKED_CAST(void *, CONF_VALUE *, data)))
+
+#define lh_CONF_VALUE_retrieve_key(lh, key, key_hash, cmp_key)           \
+  ((CONF_VALUE *)lh_retrieve_key(                                        \
+      CHECKED_CAST(_LHASH *, LHASH_OF(CONF_VALUE) *, lh), key, key_hash, \
+      CHECKED_CAST(int (*)(const void *, const void *),                  \
+                   int (*)(const void *, const CONF_VALUE *), cmp_key)))
 
 #define lh_CONF_VALUE_insert(lh, old_data, data)                \
   lh_insert(CHECKED_CAST(_LHASH *, LHASH_OF(CONF_VALUE) *, lh), \
@@ -94,7 +106,7 @@
                arg);
 
 
-/* CRYPTO_BUFFER */
+// CRYPTO_BUFFER
 #define lh_CRYPTO_BUFFER_new(hash, comp)                                       \
   ((LHASH_OF(CRYPTO_BUFFER) *)lh_new(                                          \
       CHECKED_CAST(lhash_hash_func, uint32_t(*)(const CRYPTO_BUFFER *), hash), \
@@ -112,6 +124,12 @@
   ((CRYPTO_BUFFER *)lh_retrieve(                             \
       CHECKED_CAST(_LHASH *, LHASH_OF(CRYPTO_BUFFER) *, lh), \
       CHECKED_CAST(void *, CRYPTO_BUFFER *, data)))
+
+#define lh_CRYPTO_BUFFER_retrieve_key(lh, key, key_hash, cmp_key)           \
+  ((CRYPTO_BUFFER *)lh_retrieve_key(                                        \
+      CHECKED_CAST(_LHASH *, LHASH_OF(CRYPTO_BUFFER) *, lh), key, key_hash, \
+      CHECKED_CAST(int (*)(const void *, const void *),                     \
+                   int (*)(const void *, const CRYPTO_BUFFER *), cmp_key)))
 
 #define lh_CRYPTO_BUFFER_insert(lh, old_data, data)                \
   lh_insert(CHECKED_CAST(_LHASH *, LHASH_OF(CRYPTO_BUFFER) *, lh), \
@@ -134,7 +152,7 @@
                arg);
 
 
-/* SSL_SESSION */
+// SSL_SESSION
 #define lh_SSL_SESSION_new(hash, comp)                                       \
   ((LHASH_OF(SSL_SESSION) *)lh_new(                                          \
       CHECKED_CAST(lhash_hash_func, uint32_t(*)(const SSL_SESSION *), hash), \
@@ -152,6 +170,12 @@
   ((SSL_SESSION *)lh_retrieve(                             \
       CHECKED_CAST(_LHASH *, LHASH_OF(SSL_SESSION) *, lh), \
       CHECKED_CAST(void *, SSL_SESSION *, data)))
+
+#define lh_SSL_SESSION_retrieve_key(lh, key, key_hash, cmp_key)           \
+  ((SSL_SESSION *)lh_retrieve_key(                                        \
+      CHECKED_CAST(_LHASH *, LHASH_OF(SSL_SESSION) *, lh), key, key_hash, \
+      CHECKED_CAST(int (*)(const void *, const void *),                   \
+                   int (*)(const void *, const SSL_SESSION *), cmp_key)))
 
 #define lh_SSL_SESSION_insert(lh, old_data, data)                \
   lh_insert(CHECKED_CAST(_LHASH *, LHASH_OF(SSL_SESSION) *, lh), \

@@ -8,18 +8,18 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_TEST_MOCK_AUDIO_DECODER_H_
-#define WEBRTC_TEST_MOCK_AUDIO_DECODER_H_
+#ifndef TEST_MOCK_AUDIO_DECODER_H_
+#define TEST_MOCK_AUDIO_DECODER_H_
 
-#include "webrtc/api/audio_codecs/audio_decoder.h"
-#include "webrtc/test/gmock.h"
+#include "api/audio_codecs/audio_decoder.h"
+#include "test/gmock.h"
 
 namespace webrtc {
 
 class MockAudioDecoder : public AudioDecoder {
  public:
-  MockAudioDecoder() {}
-  virtual ~MockAudioDecoder() { Die(); }
+  MockAudioDecoder();
+  ~MockAudioDecoder();
   MOCK_METHOD0(Die, void());
   MOCK_METHOD5(DecodeInternal,
                int(const uint8_t*, size_t, int, int16_t*, SpeechType*));
@@ -35,4 +35,4 @@ class MockAudioDecoder : public AudioDecoder {
 };
 
 }  // namespace webrtc
-#endif  // WEBRTC_TEST_MOCK_AUDIO_DECODER_H_
+#endif  // TEST_MOCK_AUDIO_DECODER_H_

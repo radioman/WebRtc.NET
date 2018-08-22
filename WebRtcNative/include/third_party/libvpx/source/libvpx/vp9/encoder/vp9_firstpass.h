@@ -11,6 +11,8 @@
 #ifndef VP9_ENCODER_VP9_FIRSTPASS_H_
 #define VP9_ENCODER_VP9_FIRSTPASS_H_
 
+#include <assert.h>
+
 #include "vp9/encoder/vp9_lookahead.h"
 #include "vp9/encoder/vp9_ratectrl.h"
 
@@ -40,6 +42,13 @@ typedef struct {
 #endif
 
 #define INVALID_ROW -1
+
+// Length of the bi-predictive frame group (BFG)
+// NOTE: Currently each BFG contains one backward ref (BWF) frame plus a certain
+//       number of bi-predictive frames.
+#define BFG_INTERVAL 2
+#define MAX_EXT_ARFS 2
+#define MIN_EXT_ARF_INTERVAL 4
 
 typedef struct {
   double frame_mb_intra_factor;
@@ -107,7 +116,12 @@ typedef enum {
   GF_UPDATE = 2,
   ARF_UPDATE = 3,
   OVERLAY_UPDATE = 4,
-  FRAME_UPDATE_TYPES = 5
+  BRF_UPDATE = 5,            // Backward Reference Frame
+  LAST_BIPRED_UPDATE = 6,    // Last Bi-predictive Frame
+  BIPRED_UPDATE = 7,         // Bi-predictive Frame, but not the last one
+  INTNL_OVERLAY_UPDATE = 8,  // Internal Overlay Frame
+  INTNL_ARF_UPDATE = 9,      // Internal Altref Frame (candidate for ALTREF2)
+  FRAME_UPDATE_TYPES = 10
 } FRAME_UPDATE_TYPE;
 
 #define FC_ANIMATION_THRESH 0.15
@@ -120,12 +134,14 @@ typedef enum {
 typedef struct {
   unsigned char index;
   unsigned char first_inter_index;
-  RATE_FACTOR_LEVEL rf_level[(MAX_LAG_BUFFERS * 2) + 1];
-  FRAME_UPDATE_TYPE update_type[(MAX_LAG_BUFFERS * 2) + 1];
-  unsigned char arf_src_offset[(MAX_LAG_BUFFERS * 2) + 1];
-  unsigned char arf_update_idx[(MAX_LAG_BUFFERS * 2) + 1];
-  unsigned char arf_ref_idx[(MAX_LAG_BUFFERS * 2) + 1];
-  int bit_allocation[(MAX_LAG_BUFFERS * 2) + 1];
+  RATE_FACTOR_LEVEL rf_level[MAX_STATIC_GF_GROUP_LENGTH + 2];
+  FRAME_UPDATE_TYPE update_type[MAX_STATIC_GF_GROUP_LENGTH + 2];
+  unsigned char arf_src_offset[MAX_STATIC_GF_GROUP_LENGTH + 2];
+  unsigned char arf_update_idx[MAX_STATIC_GF_GROUP_LENGTH + 2];
+  unsigned char arf_ref_idx[MAX_STATIC_GF_GROUP_LENGTH + 2];
+  unsigned char brf_src_offset[MAX_STATIC_GF_GROUP_LENGTH + 2];
+  unsigned char bidir_pred_enabled[MAX_STATIC_GF_GROUP_LENGTH + 2];
+  int bit_allocation[MAX_STATIC_GF_GROUP_LENGTH + 2];
 } GF_GROUP;
 
 typedef struct {
@@ -138,9 +154,8 @@ typedef struct {
   FIRSTPASS_STATS total_left_stats;
   int first_pass_done;
   int64_t bits_left;
-  double modified_error_min;
-  double modified_error_max;
-  double modified_error_left;
+  double mean_mod_score;
+  double normalized_score_left;
   double mb_av_energy;
   double mb_smooth_pct;
 
@@ -159,7 +174,7 @@ typedef struct {
   int64_t kf_group_bits;
 
   // Error score of frames still to be coded in kf group
-  int64_t kf_group_error_left;
+  double kf_group_error_left;
 
   double bpm_factor;
   int rolling_arf_group_target_bits;
@@ -195,13 +210,23 @@ void vp9_first_pass_encode_tile_mb_row(struct VP9_COMP *cpi,
 
 void vp9_init_second_pass(struct VP9_COMP *cpi);
 void vp9_rc_get_second_pass_params(struct VP9_COMP *cpi);
-void vp9_twopass_postencode_update(struct VP9_COMP *cpi);
 
 // Post encode update of the rate control parameters for 2-pass
 void vp9_twopass_postencode_update(struct VP9_COMP *cpi);
 
 void calculate_coded_size(struct VP9_COMP *cpi, int *scaled_frame_width,
                           int *scaled_frame_height);
+
+static INLINE int get_number_of_extra_arfs(int interval, int arf_pending) {
+  assert(MAX_EXT_ARFS > 0);
+  if (arf_pending) {
+    if (interval >= MIN_EXT_ARF_INTERVAL * (MAX_EXT_ARFS + 1))
+      return MAX_EXT_ARFS;
+    else if (interval >= MIN_EXT_ARF_INTERVAL * MAX_EXT_ARFS)
+      return MAX_EXT_ARFS - 1;
+  }
+  return 0;
+}
 
 #ifdef __cplusplus
 }  // extern "C"

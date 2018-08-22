@@ -44,6 +44,14 @@ OPENSSL_MSVC_PRAGMA(warning(pop))
   #define BORINGSSL_WRITE write
 #endif
 
+struct FileCloser {
+  void operator()(FILE *file) {
+    fclose(file);
+  }
+};
+
+using ScopedFILE = std::unique_ptr<FILE, FileCloser>;
+
 enum ArgumentType {
   kRequiredArgument,
   kOptionalArgument,
@@ -90,4 +98,4 @@ extern const uint8_t kDERRSAPrivate4096[];
 extern const size_t kDERRSAPrivate4096Len;
 
 
-#endif /* !OPENSSL_HEADER_TOOL_INTERNAL_H */
+#endif  // !OPENSSL_HEADER_TOOL_INTERNAL_H

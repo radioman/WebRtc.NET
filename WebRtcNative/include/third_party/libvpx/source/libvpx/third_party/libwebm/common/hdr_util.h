@@ -47,7 +47,7 @@ struct Vp9CodecFeatures {
   int chroma_subsampling;
 };
 
-typedef std::auto_ptr<mkvmuxer::PrimaryChromaticity> PrimaryChromaticityPtr;
+typedef std::unique_ptr<mkvmuxer::PrimaryChromaticity> PrimaryChromaticityPtr;
 
 bool CopyPrimaryChromaticity(const mkvparser::PrimaryChromaticity& parser_pc,
                              PrimaryChromaticityPtr* muxer_pc);

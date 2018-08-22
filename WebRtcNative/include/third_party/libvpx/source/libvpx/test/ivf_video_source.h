@@ -16,7 +16,7 @@
 #include "test/video_source.h"
 
 namespace libvpx_test {
-const unsigned int kCodeBufferSize = 256 * 1024;
+const unsigned int kCodeBufferSize = 256 * 1024 * 1024;
 const unsigned int kIvfFileHdrSize = 32;
 const unsigned int kIvfFrameHdrSize = 12;
 
@@ -47,8 +47,8 @@ class IVFVideoSource : public CompressedVideoSource {
 
   virtual void Begin() {
     input_file_ = OpenTestDataFile(file_name_);
-    ASSERT_TRUE(input_file_ != NULL) << "Input file open failed. Filename: "
-                                     << file_name_;
+    ASSERT_TRUE(input_file_ != NULL)
+        << "Input file open failed. Filename: " << file_name_;
 
     // Read file header
     uint8_t file_hdr[kIvfFileHdrSize];

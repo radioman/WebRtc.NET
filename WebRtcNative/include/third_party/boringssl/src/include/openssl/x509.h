@@ -89,6 +89,14 @@ extern "C" {
 #endif
 
 
+/* Legacy X.509 library.
+ *
+ * This header is part of OpenSSL's X.509 implementation. It is retained for
+ * compatibility but otherwise underdocumented and not actively maintained. In
+ * the future, a replacement library will be available. Meanwhile, minimize
+ * dependencies on this header where possible. */
+
+
 #define X509_FILETYPE_PEM	1
 #define X509_FILETYPE_ASN1	2
 #define X509_FILETYPE_DEFAULT	3
@@ -104,13 +112,7 @@ extern "C" {
 #define X509v3_KU_DECIPHER_ONLY		0x8000
 #define X509v3_KU_UNDEF			0xffff
 
-struct X509_objects_st
-	{
-	int nid;
-	int (*a2i)(void);
-	int (*i2a)(void);
-	} /* X509_OBJECTS */;
-
+DEFINE_STACK_OF(X509_ALGOR)
 DECLARE_ASN1_SET_OF(X509_ALGOR)
 
 typedef STACK_OF(X509_ALGOR) X509_ALGORS;
@@ -142,7 +144,7 @@ struct X509_name_entry_st
 	int size; 	/* temp variable */
 	} /* X509_NAME_ENTRY */;
 
-DECLARE_STACK_OF(X509_NAME_ENTRY)
+DEFINE_STACK_OF(X509_NAME_ENTRY)
 DECLARE_ASN1_SET_OF(X509_NAME_ENTRY)
 
 /* we always keep X509_NAMEs in 2 forms. */
@@ -150,20 +152,14 @@ struct X509_name_st
 	{
 	STACK_OF(X509_NAME_ENTRY) *entries;
 	int modified;	/* true if 'bytes' needs to be built */
-#ifndef OPENSSL_NO_BUFFER
 	BUF_MEM *bytes;
-#else
-	char *bytes;
-#endif
 /*	unsigned long hash; Keep the hash around for lookups */
 	unsigned char *canon_enc;
 	int canon_enclen;
 	} /* X509_NAME */;
 
-DECLARE_STACK_OF(X509_NAME)
+DEFINE_STACK_OF(X509_NAME)
 
-#define X509_EX_V_NETSCAPE_HACK		0x8000
-#define X509_EX_V_INIT			0x0001
 struct X509_extension_st
 	{
 	ASN1_OBJECT *object;
@@ -173,7 +169,7 @@ struct X509_extension_st
 
 typedef STACK_OF(X509_EXTENSION) X509_EXTENSIONS;
 
-DECLARE_STACK_OF(X509_EXTENSION)
+DEFINE_STACK_OF(X509_EXTENSION)
 DECLARE_ASN1_SET_OF(X509_EXTENSION)
 
 /* a sequence of these are used */
@@ -188,7 +184,7 @@ struct x509_attributes_st
 		} value;
 	} /* X509_ATTRIBUTE */;
 
-DECLARE_STACK_OF(X509_ATTRIBUTE)
+DEFINE_STACK_OF(X509_ATTRIBUTE)
 DECLARE_ASN1_SET_OF(X509_ATTRIBUTE)
 
 
@@ -240,6 +236,9 @@ struct x509_cert_aux_st
 	STACK_OF(X509_ALGOR) *other;		/* other unspecified info */
 	} /* X509_CERT_AUX */;
 
+DECLARE_STACK_OF(DIST_POINT)
+DECLARE_STACK_OF(GENERAL_NAME)
+
 struct x509_st
 	{
 	X509_CINF *cert_info;
@@ -267,7 +266,7 @@ struct x509_st
 	CRYPTO_MUTEX lock;
 	} /* X509 */;
 
-DECLARE_STACK_OF(X509)
+DEFINE_STACK_OF(X509)
 DECLARE_ASN1_SET_OF(X509)
 
 /* This is used for a table of trust checking functions */
@@ -281,12 +280,7 @@ struct x509_trust_st {
 	void *arg2;
 } /* X509_TRUST */;
 
-DECLARE_STACK_OF(X509_TRUST)
-
-struct x509_cert_pair_st {
-	X509 *forward;
-	X509 *reverse;
-} /* X509_CERT_PAIR */;
+DEFINE_STACK_OF(X509_TRUST)
 
 /* standard trust ids */
 
@@ -403,7 +397,7 @@ struct x509_revoked_st
 	int sequence; /* load sequence */
 	};
 
-DECLARE_STACK_OF(X509_REVOKED)
+DEFINE_STACK_OF(X509_REVOKED)
 DECLARE_ASN1_SET_OF(X509_REVOKED)
 
 struct X509_crl_info_st
@@ -417,6 +411,8 @@ struct X509_crl_info_st
 	STACK_OF(X509_EXTENSION) /* [0] */ *extensions;
 	ASN1_ENCODING enc;
 	} /* X509_CRL_INFO */;
+
+DECLARE_STACK_OF(GENERAL_NAMES)
 
 struct X509_crl_st
 	{
@@ -441,7 +437,7 @@ struct X509_crl_st
 	void *meth_data;
 	} /* X509_CRL */;
 
-DECLARE_STACK_OF(X509_CRL)
+DEFINE_STACK_OF(X509_CRL)
 DECLARE_ASN1_SET_OF(X509_CRL)
 
 struct private_key_st
@@ -476,7 +472,7 @@ struct X509_info_st
 
 	} /* X509_INFO */;
 
-DECLARE_STACK_OF(X509_INFO)
+DEFINE_STACK_OF(X509_INFO)
 #endif
 
 /* The next 2 structures and their 8 routines were sent to me by
@@ -495,20 +491,6 @@ struct Netscape_spki_st
 	X509_ALGOR *sig_algor;
 	ASN1_BIT_STRING *signature;
 	} /* NETSCAPE_SPKI */;
-
-/* Netscape certificate sequence structure */
-struct Netscape_certificate_sequence
-	{
-	ASN1_OBJECT *type;
-	STACK_OF(X509) *certs;
-	} /* NETSCAPE_CERT_SEQUENCE */;
-
-/* Unused (and iv length is wrong)
-typedef struct CBCParameter_st
-	{
-	unsigned char iv[8];
-	} CBC_PARAM;
-*/
 
 /* PKCS#8 private key info structure */
 
@@ -535,9 +517,6 @@ struct pkcs8_priv_key_info_st
 #ifdef  __cplusplus
 extern "C" {
 #endif
-
-#define X509_EXT_PACK_UNKNOWN	1
-#define X509_EXT_PACK_STRING	2
 
 #define		X509_get_version(x) ASN1_INTEGER_get((x)->cert_info->version)
 /* #define	X509_get_serialNumber(x) ((x)->cert_info->serialNumber) */
@@ -596,7 +575,8 @@ OPENSSL_EXPORT int NETSCAPE_SPKI_set_pubkey(NETSCAPE_SPKI *x, EVP_PKEY *pkey);
 OPENSSL_EXPORT int NETSCAPE_SPKI_print(BIO *out, NETSCAPE_SPKI *spki);
 
 OPENSSL_EXPORT int X509_signature_dump(BIO *bp,const ASN1_STRING *sig, int indent);
-OPENSSL_EXPORT int X509_signature_print(BIO *bp,X509_ALGOR *alg, ASN1_STRING *sig);
+OPENSSL_EXPORT int X509_signature_print(BIO *bp, const X509_ALGOR *alg,
+                                        const ASN1_STRING *sig);
 
 OPENSSL_EXPORT int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md);
 OPENSSL_EXPORT int X509_sign_ctx(X509 *x, EVP_MD_CTX *ctx);
@@ -691,6 +671,8 @@ OPENSSL_EXPORT int i2d_PrivateKey_bio(BIO *bp, EVP_PKEY *pkey);
 OPENSSL_EXPORT EVP_PKEY *d2i_PrivateKey_bio(BIO *bp, EVP_PKEY **a);
 OPENSSL_EXPORT int i2d_PUBKEY_bio(BIO *bp, EVP_PKEY *pkey);
 OPENSSL_EXPORT EVP_PKEY *d2i_PUBKEY_bio(BIO *bp, EVP_PKEY **a);
+OPENSSL_EXPORT DH *d2i_DHparams_bio(BIO *bp, DH **dh);
+OPENSSL_EXPORT int i2d_DHparams_bio(BIO *bp, const DH *dh);
 
 OPENSSL_EXPORT X509 *X509_dup(X509 *x509);
 OPENSSL_EXPORT X509_ATTRIBUTE *X509_ATTRIBUTE_dup(X509_ATTRIBUTE *xa);
@@ -700,13 +682,18 @@ OPENSSL_EXPORT X509_REVOKED *X509_REVOKED_dup(X509_REVOKED *rev);
 OPENSSL_EXPORT X509_REQ *X509_REQ_dup(X509_REQ *req);
 OPENSSL_EXPORT X509_ALGOR *X509_ALGOR_dup(X509_ALGOR *xn);
 OPENSSL_EXPORT int X509_ALGOR_set0(X509_ALGOR *alg, const ASN1_OBJECT *aobj, int ptype, void *pval);
-OPENSSL_EXPORT void X509_ALGOR_get0(ASN1_OBJECT **paobj, int *pptype, void **ppval,
-						X509_ALGOR *algor);
+OPENSSL_EXPORT void X509_ALGOR_get0(const ASN1_OBJECT **paobj, int *pptype,
+                                    const void **ppval,
+                                    const X509_ALGOR *algor);
 OPENSSL_EXPORT void X509_ALGOR_set_md(X509_ALGOR *alg, const EVP_MD *md);
 OPENSSL_EXPORT int X509_ALGOR_cmp(const X509_ALGOR *a, const X509_ALGOR *b);
 
 OPENSSL_EXPORT X509_NAME *X509_NAME_dup(X509_NAME *xn);
 OPENSSL_EXPORT X509_NAME_ENTRY *X509_NAME_ENTRY_dup(X509_NAME_ENTRY *ne);
+OPENSSL_EXPORT int X509_NAME_ENTRY_set(const X509_NAME_ENTRY *ne);
+
+OPENSSL_EXPORT int X509_NAME_get0_der(X509_NAME *nm, const unsigned char **pder,
+                                      size_t *pderlen);
 
 OPENSSL_EXPORT int		X509_cmp_time(const ASN1_TIME *s, time_t *t);
 OPENSSL_EXPORT int		X509_cmp_current_time(const ASN1_TIME *s);
@@ -767,20 +754,20 @@ DECLARE_ASN1_FUNCTIONS(X509_CINF)
 DECLARE_ASN1_FUNCTIONS(X509)
 DECLARE_ASN1_FUNCTIONS(X509_CERT_AUX)
 
-DECLARE_ASN1_FUNCTIONS(X509_CERT_PAIR)
-
 /* X509_up_ref adds one to the reference count of |x| and returns one. */
 OPENSSL_EXPORT int X509_up_ref(X509 *x);
 
 OPENSSL_EXPORT int X509_get_ex_new_index(long argl, void *argp, CRYPTO_EX_unused *unused,
-	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+	     CRYPTO_EX_dup *dup_unused, CRYPTO_EX_free *free_func);
 OPENSSL_EXPORT int X509_set_ex_data(X509 *r, int idx, void *arg);
 OPENSSL_EXPORT void *X509_get_ex_data(X509 *r, int idx);
 OPENSSL_EXPORT int		i2d_X509_AUX(X509 *a,unsigned char **pp);
 OPENSSL_EXPORT X509 *		d2i_X509_AUX(X509 **a,const unsigned char **pp,long length);
 
-OPENSSL_EXPORT void X509_get0_signature(ASN1_BIT_STRING **psig, X509_ALGOR **palg,
-								const X509 *x);
+OPENSSL_EXPORT int i2d_re_X509_tbs(X509 *x, unsigned char **pp);
+
+OPENSSL_EXPORT void X509_get0_signature(const ASN1_BIT_STRING **psig,
+                                        const X509_ALGOR **palg, const X509 *x);
 OPENSSL_EXPORT int X509_get_signature_nid(const X509 *x);
 
 OPENSSL_EXPORT int X509_alias_set1(X509 *x, unsigned char *name, int len);
@@ -808,7 +795,6 @@ OPENSSL_EXPORT void		X509_PKEY_free(X509_PKEY *a);
 
 DECLARE_ASN1_FUNCTIONS(NETSCAPE_SPKI)
 DECLARE_ASN1_FUNCTIONS(NETSCAPE_SPKAC)
-DECLARE_ASN1_FUNCTIONS(NETSCAPE_CERT_SEQUENCE)
 
 #ifndef OPENSSL_NO_EVP
 OPENSSL_EXPORT X509_INFO *	X509_INFO_new(void);
@@ -840,15 +826,22 @@ OPENSSL_EXPORT X509_NAME *	X509_get_issuer_name(X509 *a);
 OPENSSL_EXPORT int 		X509_set_subject_name(X509 *x, X509_NAME *name);
 OPENSSL_EXPORT X509_NAME *	X509_get_subject_name(X509 *a);
 OPENSSL_EXPORT int 		X509_set_notBefore(X509 *x, const ASN1_TIME *tm);
+OPENSSL_EXPORT const ASN1_TIME *X509_get0_notBefore(const X509 *x);
 OPENSSL_EXPORT int 		X509_set_notAfter(X509 *x, const ASN1_TIME *tm);
+OPENSSL_EXPORT const ASN1_TIME *X509_get0_notAfter(const X509 *x);
 OPENSSL_EXPORT int 		X509_set_pubkey(X509 *x, EVP_PKEY *pkey);
 OPENSSL_EXPORT EVP_PKEY *	X509_get_pubkey(X509 *x);
 OPENSSL_EXPORT ASN1_BIT_STRING * X509_get0_pubkey_bitstr(const X509 *x);
-OPENSSL_EXPORT int		X509_certificate_type(X509 *x,EVP_PKEY *pubkey /* optional */);
 OPENSSL_EXPORT STACK_OF(X509_EXTENSION) *X509_get0_extensions(const X509 *x);
+OPENSSL_EXPORT const X509_ALGOR *X509_get0_tbs_sigalg(const X509 *x);
 
 OPENSSL_EXPORT int		X509_REQ_set_version(X509_REQ *x,long version);
 OPENSSL_EXPORT int		X509_REQ_set_subject_name(X509_REQ *req,X509_NAME *name);
+OPENSSL_EXPORT void X509_REQ_get0_signature(const X509_REQ *req,
+                                            const ASN1_BIT_STRING **psig,
+                                            const X509_ALGOR **palg);
+OPENSSL_EXPORT int X509_REQ_get_signature_nid(const X509_REQ *req);
+OPENSSL_EXPORT int i2d_re_X509_REQ_tbs(X509_REQ *req, unsigned char **pp);
 OPENSSL_EXPORT int		X509_REQ_set_pubkey(X509_REQ *x, EVP_PKEY *pkey);
 OPENSSL_EXPORT EVP_PKEY *	X509_REQ_get_pubkey(X509_REQ *req);
 OPENSSL_EXPORT int		X509_REQ_extension_nid(int nid);
@@ -883,7 +876,17 @@ OPENSSL_EXPORT int X509_CRL_set_nextUpdate(X509_CRL *x, const ASN1_TIME *tm);
 OPENSSL_EXPORT int X509_CRL_sort(X509_CRL *crl);
 OPENSSL_EXPORT int X509_CRL_up_ref(X509_CRL *crl);
 
+OPENSSL_EXPORT void X509_CRL_get0_signature(const X509_CRL *crl,
+                                            const ASN1_BIT_STRING **psig,
+                                            const X509_ALGOR **palg);
+OPENSSL_EXPORT int X509_CRL_get_signature_nid(const X509_CRL *crl);
+OPENSSL_EXPORT int i2d_re_X509_CRL_tbs(X509_CRL *req, unsigned char **pp);
+
+OPENSSL_EXPORT const ASN1_INTEGER *X509_REVOKED_get0_serialNumber(
+    const X509_REVOKED *x);
 OPENSSL_EXPORT int X509_REVOKED_set_serialNumber(X509_REVOKED *x, ASN1_INTEGER *serial);
+OPENSSL_EXPORT const ASN1_TIME *X509_REVOKED_get0_revocationDate(
+    const X509_REVOKED *x);
 OPENSSL_EXPORT int X509_REVOKED_set_revocationDate(X509_REVOKED *r, ASN1_TIME *tm);
 
 OPENSSL_EXPORT X509_CRL *X509_CRL_diff(X509_CRL *base, X509_CRL *newer,
@@ -891,7 +894,7 @@ OPENSSL_EXPORT X509_CRL *X509_CRL_diff(X509_CRL *base, X509_CRL *newer,
 
 OPENSSL_EXPORT int		X509_REQ_check_private_key(X509_REQ *x509,EVP_PKEY *pkey);
 
-OPENSSL_EXPORT int		X509_check_private_key(X509 *x509,EVP_PKEY *pkey);
+OPENSSL_EXPORT int		X509_check_private_key(X509 *x509, const EVP_PKEY *pkey);
 OPENSSL_EXPORT int 		X509_chain_check_suiteb(int *perror_depth,
 						X509 *x, STACK_OF(X509) *chain,
 						unsigned long flags);
@@ -1116,49 +1119,23 @@ typedef struct rsa_pss_params_st {
 DECLARE_ASN1_FUNCTIONS(RSA_PSS_PARAMS)
 
 
-/* EVP_PK values indicate the algorithm of the public key in a certificate. */
-
-#define EVP_PK_RSA	0x0001
-#define EVP_PK_DSA	0x0002
-#define EVP_PK_DH	0x0004
-#define EVP_PK_EC	0x0008
-
-/* EVP_PKS values indicate the algorithm used to sign a certificate. */
-
-#define EVP_PKS_RSA 0x0100
-#define EVP_PKS_DSA 0x0200
-#define EVP_PKS_EC 0x0400
-
-/* EVP_PKT values are flags that define what public-key operations can be
- * performed with the public key from a certificate. */
-
-/* EVP_PKT_SIGN indicates that the public key can be used for signing. */
-#define EVP_PKT_SIGN 0x0010
-/* EVP_PKT_ENC indicates that a session key can be encrypted to the public
- * key. */
-#define EVP_PKT_ENC 0x0020
-/* EVP_PKT_EXCH indicates that key-agreement can be performed. */
-#define EVP_PKT_EXCH 0x0040
-/* EVP_PKT_EXP indicates that key is weak (i.e. "export"). */
-#define EVP_PKT_EXP 0x1000
-
 
 #ifdef  __cplusplus
 }
+#endif
 
+#if !defined(BORINGSSL_NO_CXX)
 extern "C++" {
 
 namespace bssl {
 
-BORINGSSL_MAKE_STACK_DELETER(X509, X509_free)
-BORINGSSL_MAKE_STACK_DELETER(X509_CRL, X509_CRL_free)
-BORINGSSL_MAKE_STACK_DELETER(X509_EXTENSION, X509_EXTENSION_free)
-BORINGSSL_MAKE_STACK_DELETER(X509_NAME, X509_NAME_free)
-
 BORINGSSL_MAKE_DELETER(NETSCAPE_SPKI, NETSCAPE_SPKI_free)
+BORINGSSL_MAKE_DELETER(RSA_PSS_PARAMS, RSA_PSS_PARAMS_free)
 BORINGSSL_MAKE_DELETER(X509, X509_free)
+BORINGSSL_MAKE_UP_REF(X509, X509_up_ref)
 BORINGSSL_MAKE_DELETER(X509_ALGOR, X509_ALGOR_free)
 BORINGSSL_MAKE_DELETER(X509_CRL, X509_CRL_free)
+BORINGSSL_MAKE_UP_REF(X509_CRL, X509_CRL_up_ref)
 BORINGSSL_MAKE_DELETER(X509_CRL_METHOD, X509_CRL_METHOD_free)
 BORINGSSL_MAKE_DELETER(X509_EXTENSION, X509_EXTENSION_free)
 BORINGSSL_MAKE_DELETER(X509_INFO, X509_INFO_free)
@@ -1167,6 +1144,7 @@ BORINGSSL_MAKE_DELETER(X509_NAME, X509_NAME_free)
 BORINGSSL_MAKE_DELETER(X509_NAME_ENTRY, X509_NAME_ENTRY_free)
 BORINGSSL_MAKE_DELETER(X509_PKEY, X509_PKEY_free)
 BORINGSSL_MAKE_DELETER(X509_POLICY_TREE, X509_policy_tree_free)
+BORINGSSL_MAKE_DELETER(X509_PUBKEY, X509_PUBKEY_free)
 BORINGSSL_MAKE_DELETER(X509_REQ, X509_REQ_free)
 BORINGSSL_MAKE_DELETER(X509_REVOKED, X509_REVOKED_free)
 BORINGSSL_MAKE_DELETER(X509_SIG, X509_SIG_free)
@@ -1174,11 +1152,14 @@ BORINGSSL_MAKE_DELETER(X509_STORE, X509_STORE_free)
 BORINGSSL_MAKE_DELETER(X509_STORE_CTX, X509_STORE_CTX_free)
 BORINGSSL_MAKE_DELETER(X509_VERIFY_PARAM, X509_VERIFY_PARAM_free)
 
+using ScopedX509_STORE_CTX =
+    internal::StackAllocated<X509_STORE_CTX, void, X509_STORE_CTX_zero,
+                             X509_STORE_CTX_cleanup>;
+
 }  // namespace bssl
 
 }  /* extern C++ */
-
-#endif
+#endif  /* !BORINGSSL_NO_CXX */
 
 #define X509_R_AKID_MISMATCH 100
 #define X509_R_BAD_PKCS7_VERSION 101

@@ -37,8 +37,7 @@
 
 // internal
 #pragma comment(lib,"liblept168.lib")
-#pragma comment(lib,"turbojpeg-static.lib")
-#pragma comment(lib,"webrtc-all.lib")
+#pragma comment(lib,"webrtc.lib")
 
 #include "internals.h"
 
@@ -47,9 +46,9 @@
 #pragma comment(lib,"d3d11.lib")
 #endif
 
-#include "webrtc/base/ssladapter.h"
-#include "webrtc/base/win32socketinit.h"
-#include "webrtc/base/win32socketserver.h"
+#include "webrtc/rtc_base/ssladapter.h"
+#include "webrtc/rtc_base/win32socketinit.h"
+#include "webrtc/rtc_base/win32socketserver.h"
 
 namespace Native
 {
@@ -57,8 +56,9 @@ namespace Native
 
 	void InitializeSSL()
 	{
+		// rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
 		rtc::EnsureWinsockInit();
-		rtc::InitializeSSL(NULL);
+		rtc::InitializeSSL();
 	}
 
 	void CleanupSSL()

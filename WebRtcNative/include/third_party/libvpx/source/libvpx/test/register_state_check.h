@@ -28,7 +28,7 @@
 //   See platform implementations of RegisterStateCheckXXX for details.
 //
 
-#if defined(_WIN64)
+#if defined(_WIN64) && ARCH_X86_64
 
 #undef NOMINMAX
 #define NOMINMAX
@@ -113,8 +113,8 @@ class RegisterStateCheck {
     int64_t post_store[8];
     vpx_push_neon(post_store);
     for (int i = 0; i < 8; ++i) {
-      EXPECT_EQ(pre_store_[i], post_store[i]) << "d" << i + 8
-                                              << " has been modified";
+      EXPECT_EQ(pre_store_[i], post_store[i])
+          << "d" << i + 8 << " has been modified";
     }
   }
 
@@ -138,7 +138,7 @@ class RegisterStateCheck {};
 
 }  // namespace libvpx_test
 
-#endif  // _WIN64
+#endif  // _WIN64 && ARCH_X86_64
 
 #if ARCH_X86 || ARCH_X86_64
 #if defined(__GNUC__)

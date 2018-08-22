@@ -57,7 +57,8 @@ typedef enum {
   BIGDIA = 3,
   SQUARE = 4,
   FAST_HEX = 5,
-  FAST_DIAMOND = 6
+  FAST_DIAMOND = 6,
+  MESH = 7
 } SEARCH_METHODS;
 
 typedef enum {
@@ -161,6 +162,17 @@ typedef enum {
   ONE_LOOP_REDUCED = 1
 } FAST_COEFF_UPDATE;
 
+typedef struct ADAPT_SUBPEL_FORCE_STOP {
+  // Threshold for full pixel motion vector;
+  int mv_thresh;
+
+  // subpel_force_stop if full pixel MV is below the threshold.
+  int force_stop_below;
+
+  // subpel_force_stop if full pixel MV is equal to or above the threshold.
+  int force_stop_above;
+} ADAPT_SUBPEL_FORCE_STOP;
+
 typedef struct MV_SPEED_FEATURES {
   // Motion search method (Diamond, NSTEP, Hex, Big Diamond, Square, etc).
   SEARCH_METHODS search_method;
@@ -188,6 +200,11 @@ typedef struct MV_SPEED_FEATURES {
   // 2: Stop at half pixel.
   // 3: Stop at full pixel.
   int subpel_force_stop;
+
+  // If it's enabled, different subpel_force_stop will be used for different MV.
+  int enable_adaptive_subpel_force_stop;
+
+  ADAPT_SUBPEL_FORCE_STOP adapt_subpel_force_stop;
 
   // This variable sets the step_param used in full pel motion search.
   int fullpel_search_step_param;
@@ -231,9 +248,11 @@ typedef struct SPEED_FEATURES {
 
   // This variable is used to cap the maximum number of times we skip testing a
   // mode to be evaluated. A high value means we will be faster.
+  // Turned off when (row_mt_bit_exact == 1 && adaptive_rd_thresh_row_mt == 0).
   int adaptive_rd_thresh;
 
-  // Flag to use adaptive_rd_thresh when row-mt it enabled.
+  // Flag to use adaptive_rd_thresh when row-mt it enabled, only for non-rd
+  // pickmode.
   int adaptive_rd_thresh_row_mt;
 
   // Enables skipping the reconstruction step (idct, recon) in the
@@ -256,6 +275,9 @@ typedef struct SPEED_FEATURES {
   // alternate reference frames.
   int allow_acl;
 
+  // Temporal dependency model based encoding mode optimization
+  int enable_tpl_model;
+
   // Use transform domain distortion. Use pixel domain distortion in speed 0
   // and certain situations in higher speed to improve the RD model precision.
   int allow_txfm_domain_distortion;
@@ -269,6 +291,9 @@ typedef struct SPEED_FEATURES {
   // between options like full rd, largest for prediction size, largest
   // for intra and model coefs for the rest.
   TX_SIZE_SEARCH_METHOD tx_size_search_method;
+
+  // How many levels of tx size to search, starting from the largest.
+  int tx_size_search_depth;
 
   // Low precision 32x32 fdct keeps everything in 16 bits and thus is less
   // precise but significantly faster than the non lp version.
@@ -294,6 +319,9 @@ typedef struct SPEED_FEATURES {
   // Disable testing non square partitions. (eg 16x32)
   int use_square_partition_only;
   BLOCK_SIZE use_square_only_threshold;
+
+  // Prune reference frames for rectangular partitions.
+  int prune_ref_frame_for_rect_partitions;
 
   // Sets min and max partition sizes for this 64x64 region based on the
   // same 64x64 in last encoded frame, and the left and above neighbor.
@@ -325,14 +353,8 @@ typedef struct SPEED_FEATURES {
   // point for this motion search and limits the search range around it.
   int adaptive_motion_search;
 
-  // Flag for allowing some use of exhaustive searches;
-  int allow_exhaustive_searches;
-
   // Threshold for allowing exhaistive motion search.
   int exhaustive_searches_thresh;
-
-  // Maximum number of exhaustive searches for a frame.
-  int max_exaustive_pct;
 
   // Pattern to be used for any exhaustive mesh searches.
   MESH_PATTERN mesh_patterns[MAX_MESH_STEP];
@@ -452,6 +474,10 @@ typedef struct SPEED_FEATURES {
   // Partition search early breakout thresholds.
   PARTITION_SEARCH_BREAKOUT_THR partition_search_breakout_thr;
 
+  // Use ML-based partition search early breakout.
+  int use_ml_partition_search_breakout;
+  float ml_partition_search_breakout_thresh[3];
+
   // Machine-learning based partition search early termination
   int ml_partition_search_early_termination;
 
@@ -494,6 +520,34 @@ typedef struct SPEED_FEATURES {
   int use_source_sad;
 
   int use_simple_block_yrd;
+
+  // If source sad of superblock is high (> adapt_partition_thresh), will switch
+  // from VARIANCE_PARTITION to REFERENCE_PARTITION (which selects partition
+  // based on the nonrd-pickmode).
+  int adapt_partition_source_sad;
+  int adapt_partition_thresh;
+
+  // Enable use of alt-refs in 1 pass VBR.
+  int use_altref_onepass;
+
+  // Enable use of compound prediction, for nonrd_pickmode with nonzero lag.
+  int use_compound_nonrd_pickmode;
+
+  // Always use nonrd_pick_intra for all block sizes on keyframes.
+  int nonrd_keyframe;
+
+  // For SVC: enables use of partition from lower spatial resolution.
+  int svc_use_lowres_part;
+
+  // Enable re-encoding on scene change with potential high overshoot,
+  // for real-time encoding flow.
+  int re_encode_overshoot_rt;
+
+  // Disable partitioning of 16x16 blocks.
+  int disable_16x16part_nonkey;
+
+  // Allow for disabling golden reference.
+  int disable_golden_ref;
 } SPEED_FEATURES;
 
 struct VP9_COMP;

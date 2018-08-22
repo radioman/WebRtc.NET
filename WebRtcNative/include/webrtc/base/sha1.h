@@ -1,33 +1,31 @@
-/*
- * SHA-1 in C
- * By Steve Reid <sreid@sea-to-sky.net>
- * 100% Public Domain
- *
-*/
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-// Ported to C++, Google style, under namespace rtc.
+#ifndef BASE_SHA1_H_
+#define BASE_SHA1_H_
 
-#ifndef WEBRTC_BASE_SHA1_H_
-#define WEBRTC_BASE_SHA1_H_
+#include <stddef.h>
 
-#include <stdint.h>
-#include <stdlib.h>
+#include <string>
 
-namespace rtc {
+#include "base/base_export.h"
 
-struct SHA1_CTX {
-  uint32_t state[5];
-  // TODO: Change bit count to uint64_t.
-  uint32_t count[2];  // Bit count of input.
-  uint8_t buffer[64];
-};
+namespace base {
 
-#define SHA1_DIGEST_SIZE 20
+// These functions perform SHA-1 operations.
 
-void SHA1Init(SHA1_CTX* context);
-void SHA1Update(SHA1_CTX* context, const uint8_t* data, size_t len);
-void SHA1Final(SHA1_CTX* context, uint8_t digest[SHA1_DIGEST_SIZE]);
+static const size_t kSHA1Length = 20;  // Length in bytes of a SHA-1 hash.
 
-#endif  // WEBRTC_BASE_SHA1_H_
+// Computes the SHA-1 hash of the input string |str| and returns the full
+// hash.
+BASE_EXPORT std::string SHA1HashString(const std::string& str);
 
-}  // namespace rtc
+// Computes the SHA-1 hash of the |len| bytes in |data| and puts the hash
+// in |hash|. |hash| must be kSHA1Length bytes long.
+BASE_EXPORT void SHA1HashBytes(const unsigned char* data, size_t len,
+                               unsigned char* hash);
+
+}  // namespace base
+
+#endif  // BASE_SHA1_H_

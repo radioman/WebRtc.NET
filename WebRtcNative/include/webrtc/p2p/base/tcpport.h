@@ -8,15 +8,15 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_P2P_BASE_TCPPORT_H_
-#define WEBRTC_P2P_BASE_TCPPORT_H_
+#ifndef P2P_BASE_TCPPORT_H_
+#define P2P_BASE_TCPPORT_H_
 
 #include <list>
 #include <memory>
 #include <string>
 
-#include "webrtc/p2p/base/port.h"
-#include "webrtc/base/asyncpacketsocket.h"
+#include "p2p/base/port.h"
+#include "rtc_base/asyncpacketsocket.h"
 
 namespace cricket {
 
@@ -33,19 +33,13 @@ class TCPPort : public Port {
   static TCPPort* Create(rtc::Thread* thread,
                          rtc::PacketSocketFactory* factory,
                          rtc::Network* network,
-                         const rtc::IPAddress& ip,
                          uint16_t min_port,
                          uint16_t max_port,
                          const std::string& username,
                          const std::string& password,
                          bool allow_listen) {
-    TCPPort* port = new TCPPort(thread, factory, network, ip, min_port,
-                                max_port, username, password, allow_listen);
-    if (!port->Init()) {
-      delete port;
-      port = NULL;
-    }
-    return port;
+    return new TCPPort(thread, factory, network, min_port, max_port, username,
+                       password, allow_listen);
   }
   ~TCPPort() override;
 
@@ -57,23 +51,18 @@ class TCPPort : public Port {
   int GetOption(rtc::Socket::Option opt, int* value) override;
   int SetOption(rtc::Socket::Option opt, int value) override;
   int GetError() override;
-  bool SupportsProtocol(const std::string& protocol) const override {
-    return protocol == TCP_PROTOCOL_NAME || protocol == SSLTCP_PROTOCOL_NAME;
-  }
-
-  ProtocolType GetProtocol() const override { return PROTO_TCP; }
+  bool SupportsProtocol(const std::string& protocol) const override;
+  ProtocolType GetProtocol() const override;
 
  protected:
   TCPPort(rtc::Thread* thread,
           rtc::PacketSocketFactory* factory,
           rtc::Network* network,
-          const rtc::IPAddress& ip,
           uint16_t min_port,
           uint16_t max_port,
           const std::string& username,
           const std::string& password,
           bool allow_listen);
-  bool Init();
 
   // Handles sending using the local TCP socket.
   int SendTo(const void* data,
@@ -92,12 +81,15 @@ class TCPPort : public Port {
     rtc::AsyncPacketSocket* socket;
   };
 
-  rtc::AsyncPacketSocket* GetIncoming(
-      const rtc::SocketAddress& addr, bool remove = false);
+  void TryCreateServerSocket();
+
+  rtc::AsyncPacketSocket* GetIncoming(const rtc::SocketAddress& addr,
+                                      bool remove = false);
 
   // Receives packet signal from the local TCP Socket.
   void OnReadPacket(rtc::AsyncPacketSocket* socket,
-                    const char* data, size_t size,
+                    const char* data,
+                    size_t size,
                     const rtc::SocketAddress& remote_addr,
                     const rtc::PacketTime& packet_time);
 
@@ -109,7 +101,7 @@ class TCPPort : public Port {
   void OnAddressReady(rtc::AsyncPacketSocket* socket,
                       const rtc::SocketAddress& address);
 
-  // TODO: Is this still needed?
+  // TODO(?): Is this still needed?
   bool incoming_only_;
   bool allow_listen_;
   rtc::AsyncPacketSocket* socket_;
@@ -122,7 +114,8 @@ class TCPPort : public Port {
 class TCPConnection : public Connection {
  public:
   // Connection is outgoing unless socket is specified
-  TCPConnection(TCPPort* port, const Candidate& candidate,
+  TCPConnection(TCPPort* port,
+                const Candidate& candidate,
                 rtc::AsyncPacketSocket* socket = 0);
   ~TCPConnection() override;
 
@@ -163,7 +156,8 @@ class TCPConnection : public Connection {
   void OnConnect(rtc::AsyncPacketSocket* socket);
   void OnClose(rtc::AsyncPacketSocket* socket, int error);
   void OnReadPacket(rtc::AsyncPacketSocket* socket,
-                    const char* data, size_t size,
+                    const char* data,
+                    size_t size,
                     const rtc::SocketAddress& remote_addr,
                     const rtc::PacketTime& packet_time);
   void OnReadyToSend(rtc::AsyncPacketSocket* socket);
@@ -191,4 +185,4 @@ class TCPConnection : public Connection {
 
 }  // namespace cricket
 
-#endif  // WEBRTC_P2P_BASE_TCPPORT_H_
+#endif  // P2P_BASE_TCPPORT_H_

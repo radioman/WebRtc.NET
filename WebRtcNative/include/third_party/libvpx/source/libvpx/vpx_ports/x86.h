@@ -151,16 +151,17 @@ static INLINE uint64_t xgetbv(void) {
 #endif
 #endif
 
-#define HAS_MMX 0x01
-#define HAS_SSE 0x02
-#define HAS_SSE2 0x04
-#define HAS_SSE3 0x08
-#define HAS_SSSE3 0x10
-#define HAS_SSE4_1 0x20
-#define HAS_AVX 0x40
-#define HAS_AVX2 0x80
+#define HAS_MMX 0x001
+#define HAS_SSE 0x002
+#define HAS_SSE2 0x004
+#define HAS_SSE3 0x008
+#define HAS_SSSE3 0x010
+#define HAS_SSE4_1 0x020
+#define HAS_AVX 0x040
+#define HAS_AVX2 0x080
+#define HAS_AVX512 0x100
 #ifndef BIT
-#define BIT(n) (1 << n)
+#define BIT(n) (1u << n)
 #endif
 
 static INLINE int x86_simd_caps(void) {
@@ -209,6 +210,12 @@ static INLINE int x86_simd_caps(void) {
         cpuid(7, 0, reg_eax, reg_ebx, reg_ecx, reg_edx);
 
         if (reg_ebx & BIT(5)) flags |= HAS_AVX2;
+
+        // bits 16 (AVX-512F) & 17 (AVX-512DQ) & 28 (AVX-512CD) &
+        // 30 (AVX-512BW) & 32 (AVX-512VL)
+        if ((reg_ebx & (BIT(16) | BIT(17) | BIT(28) | BIT(30) | BIT(31))) ==
+            (BIT(16) | BIT(17) | BIT(28) | BIT(30) | BIT(31)))
+          flags |= HAS_AVX512;
       }
     }
   }
@@ -306,11 +313,20 @@ static unsigned short x87_get_control_word(void) {
 
 static INLINE unsigned int x87_set_double_precision(void) {
   unsigned int mode = x87_get_control_word();
+  // Intel 64 and IA-32 Architectures Developer's Manual: Vol. 1
+  // https://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-vol-1-manual.pdf
+  // 8.1.5.2 Precision Control Field
+  // Bits 8 and 9 (0x300) of the x87 FPU Control Word ("Precision Control")
+  // determine the number of bits used in floating point calculations. To match
+  // later SSE instructions restrict x87 operations to Double Precision (0x200).
+  // Precision                     PC Field
+  // Single Precision (24-Bits)    00B
+  // Reserved                      01B
+  // Double Precision (53-Bits)    10B
+  // Extended Precision (64-Bits)  11B
   x87_set_control_word((mode & ~0x300) | 0x200);
   return mode;
 }
-
-extern void vpx_reset_mmx_state(void);
 
 #ifdef __cplusplus
 }  // extern "C"

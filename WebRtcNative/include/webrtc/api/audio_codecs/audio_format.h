@@ -8,15 +8,15 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_API_AUDIO_CODECS_AUDIO_FORMAT_H_
-#define WEBRTC_API_AUDIO_CODECS_AUDIO_FORMAT_H_
+#ifndef API_AUDIO_CODECS_AUDIO_FORMAT_H_
+#define API_AUDIO_CODECS_AUDIO_FORMAT_H_
 
 #include <map>
-#include <ostream>
 #include <string>
 #include <utility>
 
-#include "webrtc/base/optional.h"
+#include "absl/types/optional.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 
@@ -61,7 +61,6 @@ struct SdpAudioFormat {
 };
 
 void swap(SdpAudioFormat& a, SdpAudioFormat& b);
-std::ostream& operator<<(std::ostream& os, const SdpAudioFormat& saf);
 
 // Information about how an audio format is treated by the codec implementation.
 // Contains basic information, such as sample rate and number of channels, which
@@ -135,4 +134,4 @@ struct AudioCodecSpec {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_API_AUDIO_CODECS_AUDIO_FORMAT_H_
+#endif  // API_AUDIO_CODECS_AUDIO_FORMAT_H_

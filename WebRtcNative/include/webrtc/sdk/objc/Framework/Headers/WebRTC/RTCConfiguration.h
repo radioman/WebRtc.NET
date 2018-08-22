@@ -13,6 +13,7 @@
 #import <WebRTC/RTCMacros.h>
 
 @class RTCIceServer;
+@class RTCIntervalRange;
 
 /**
  * Represents the ice transport policy. This exposes the same states in C++,
@@ -33,10 +34,7 @@ typedef NS_ENUM(NSInteger, RTCBundlePolicy) {
 };
 
 /** Represents the rtcp mux policy. */
-typedef NS_ENUM(NSInteger, RTCRtcpMuxPolicy) {
-  RTCRtcpMuxPolicyNegotiate,
-  RTCRtcpMuxPolicyRequire
-};
+typedef NS_ENUM(NSInteger, RTCRtcpMuxPolicy) { RTCRtcpMuxPolicyNegotiate, RTCRtcpMuxPolicyRequire };
 
 /** Represents the tcp candidate policy. */
 typedef NS_ENUM(NSInteger, RTCTcpCandidatePolicy) {
@@ -62,6 +60,12 @@ typedef NS_ENUM(NSInteger, RTCEncryptionKeyType) {
   RTCEncryptionKeyTypeECDSA,
 };
 
+/** Represents the chosen SDP semantics for the RTCPeerConnection. */
+typedef NS_ENUM(NSInteger, RTCSdpSemantics) {
+  RTCSdpSemanticsPlanB,
+  RTCSdpSemanticsUnifiedPlan,
+};
+
 NS_ASSUME_NONNULL_BEGIN
 
 RTC_EXPORT
@@ -81,8 +85,22 @@ RTC_EXPORT
 @property(nonatomic, assign) RTCRtcpMuxPolicy rtcpMuxPolicy;
 @property(nonatomic, assign) RTCTcpCandidatePolicy tcpCandidatePolicy;
 @property(nonatomic, assign) RTCCandidateNetworkPolicy candidateNetworkPolicy;
-@property(nonatomic, assign)
-    RTCContinualGatheringPolicy continualGatheringPolicy;
+@property(nonatomic, assign) RTCContinualGatheringPolicy continualGatheringPolicy;
+
+/** By default, the PeerConnection will use a limited number of IPv6 network
+ *  interfaces, in order to avoid too many ICE candidate pairs being created
+ *  and delaying ICE completion.
+ *
+ *  Can be set to INT_MAX to effectively disable the limit.
+ */
+@property(nonatomic, assign) int maxIPv6Networks;
+
+/** Exclude link-local network interfaces
+ *  from considertaion for gathering ICE candidates.
+ *  Defaults to NO.
+ */
+@property(nonatomic, assign) BOOL disableLinkLocalNetworks;
+
 @property(nonatomic, assign) int audioJitterBufferMaxPackets;
 @property(nonatomic, assign) BOOL audioJitterBufferFastAccelerate;
 @property(nonatomic, assign) int iceConnectionReceivingTimeout;
@@ -108,6 +126,43 @@ RTC_EXPORT
  *  check packets.
  */
 @property(nonatomic, copy, nullable) NSNumber *iceCheckMinInterval;
+
+/** ICE Periodic Regathering
+ *  If set, WebRTC will periodically create and propose candidates without
+ *  starting a new ICE generation. The regathering happens continuously with
+ *  interval specified in milliseconds by the uniform distribution [a, b].
+ */
+@property(nonatomic, strong, nullable) RTCIntervalRange *iceRegatherIntervalRange;
+
+/** Configure the SDP semantics used by this PeerConnection. Note that the
+ *  WebRTC 1.0 specification requires UnifiedPlan semantics. The
+ *  RTCRtpTransceiver API is only available with UnifiedPlan semantics.
+ *
+ *  PlanB will cause RTCPeerConnection to create offers and answers with at
+ *  most one audio and one video m= section with multiple RTCRtpSenders and
+ *  RTCRtpReceivers specified as multiple a=ssrc lines within the section. This
+ *  will also cause RTCPeerConnection to ignore all but the first m= section of
+ *  the same media type.
+ *
+ *  UnifiedPlan will cause RTCPeerConnection to create offers and answers with
+ *  multiple m= sections where each m= section maps to one RTCRtpSender and one
+ *  RTCRtpReceiver (an RTCRtpTransceiver), either both audio or both video. This
+ *  will also cause RTCPeerConnection to ignore all but the first a=ssrc lines
+ *  that form a Plan B stream.
+ *
+ *  For users who wish to send multiple audio/video streams and need to stay
+ *  interoperable with legacy WebRTC implementations or use legacy APIs,
+ *  specify PlanB.
+ *
+ *  For all other users, specify UnifiedPlan.
+ */
+@property(nonatomic, assign) RTCSdpSemantics sdpSemantics;
+
+/** Actively reset the SRTP parameters when the DTLS transports underneath are
+ *  changed after offer/answer negotiation. This is only intended to be a
+ *  workaround for crbug.com/835958
+ */
+@property(nonatomic, assign) BOOL activeResetSrtpParams;
 
 - (instancetype)init;
 

@@ -2,10 +2,14 @@
 #include "defaults.h"
 #include "conductor.h"
 
-#include "webrtc/base/checks.h"
+#include "webrtc/rtc_base/checks.h"
 #include "webrtc/api/test/fakeconstraints.h"
 #include "webrtc/api/video_codecs/video_encoder.h"
-#include "webrtc/modules/video_coding/codecs/vp8/simulcast_encoder_adapter.h"
+#include "webrtc/api/audio_codecs/builtin_audio_decoder_factory.h"
+#include "webrtc/api/audio_codecs/builtin_audio_encoder_factory.h"
+#include "webrtc/api/video_codecs/builtin_video_decoder_factory.h"
+#include "webrtc/api/video_codecs/builtin_video_encoder_factory.h"
+//#include "webrtc/modules/video_coding/codecs/vp8/"
 #include "webrtc/modules/video_coding/codecs/vp8/include/vp8.h"
 #include "webrtc/modules/video_capture/video_capture_factory.h"
 #include "webrtc/media/engine/webrtcvideocapturerfactory.h"
@@ -15,14 +19,14 @@
 #include "webrtc/p2p/base/stunserver.h"
 #include "webrtc/p2p/base/basicpacketsocketfactory.h"
 #include "webrtc/p2p/base/turnserver.h"
-#include "webrtc/base/asyncudpsocket.h"
-#include "webrtc/base/optionsfile.h"
-#include "webrtc/base/stringencode.h"
-#include "webrtc/base/thread.h"
+#include "webrtc/rtc_base/asyncudpsocket.h"
+#include "webrtc/rtc_base/optionsfile.h"
+#include "webrtc/rtc_base/stringencode.h"
+#include "webrtc/rtc_base/thread.h"
 
 //#define L_LITTLE_ENDIAN
 //#include "leptonica/allheaders.h"
-#include "turbojpeg/turbojpeg.h"
+#include "webrtc/third_party/libjpeg_turbo/turbojpeg.h"
 #include "atlsafe.h"
 
 extern "C"
@@ -340,7 +344,14 @@ namespace Native
 		RTC_DCHECK(pc_factory_ == nullptr);
 		RTC_DCHECK(peer_connection_ == nullptr);
 
-		pc_factory_ = webrtc::CreatePeerConnectionFactory();
+		pc_factory_ = webrtc::CreatePeerConnectionFactory(
+			nullptr /* network_thread */, nullptr /* worker_thread */,
+			nullptr /* signaling_thread */, nullptr /* default_adm */,
+			webrtc::CreateBuiltinAudioEncoderFactory(),
+			webrtc::CreateBuiltinAudioDecoderFactory(),
+			webrtc::CreateBuiltinVideoEncoderFactory(),
+			webrtc::CreateBuiltinVideoDecoderFactory(), nullptr /* audio_mixer */,
+			nullptr /* audio_processing */);
 
 		if (!pc_factory_)
 		{
@@ -373,7 +384,7 @@ namespace Native
 		webrtc::PeerConnectionInterface::RTCConfiguration config;
 		config.tcp_candidate_policy = webrtc::PeerConnectionInterface::kTcpCandidatePolicyDisabled;
 		config.disable_ipv6 = true;
-		config.enable_dtls_srtp = rtc::Optional<bool>(dtls);
+		config.enable_dtls_srtp = absl::optional<bool>(dtls);
 		config.rtcp_mux_policy = webrtc::PeerConnectionInterface::kRtcpMuxPolicyRequire;
 
 		for each (auto server in serverConfigs)
@@ -421,7 +432,7 @@ namespace Native
 		webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription(type, sdp, &error));
 		if (!session_description)
 		{
-			LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
+			RTC_LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
 			return;
 		}
 		peer_connection_->SetRemoteDescription(this, session_description);
@@ -436,7 +447,7 @@ namespace Native
 		webrtc::SessionDescriptionInterface* session_description(webrtc::CreateSessionDescription("offer", sdp, &error));
 		if (!session_description)
 		{
-			LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
+			RTC_LOG(WARNING) << "Can't parse received session description message. " << "SdpParseError was: " << error.description;
 			return;
 		}
 		peer_connection_->SetRemoteDescription(this, session_description);
@@ -456,7 +467,7 @@ namespace Native
 		webrtc::IceCandidateInterface * candidate = webrtc::CreateIceCandidate(sdp_mid, sdp_mlineindex, sdp, &error);
 		if (!candidate)
 		{
-			LOG(WARNING) << "Can't parse received candidate message. "
+			RTC_LOG(WARNING) << "Can't parse received candidate message. "
 				<< "SdpParseError was: " << error.description;
 			return false;
 		}
@@ -466,7 +477,7 @@ namespace Native
 
 		if (!peer_connection_->AddIceCandidate(candidate))
 		{
-			LOG(WARNING) << "Failed to apply the received candidate";
+			RTC_LOG(WARNING) << "Failed to apply the received candidate";
 			return false;
 		}
 		return true;
@@ -505,7 +516,7 @@ namespace Native
 			capturer_internal = factory.Create(cricket::Device(name, 0));
 			if (capturer_internal)
 			{
-				LOG(LS_ERROR) << "Capturer != NULL!";
+				RTC_LOG(LS_ERROR) << "Capturer != NULL!";
 				return true;
 			}
 		}
@@ -538,7 +549,7 @@ namespace Native
 					}
 					else
 					{
-						LOG(LS_ERROR) << tjGetErrorStr();
+						RTC_LOG(LS_ERROR) << tjGetErrorStr();
 					}
 				}
 				else
@@ -568,7 +579,7 @@ namespace Native
 		{
 			if (audioEnabled)
 			{
-				auto a = pc_factory_->CreateAudioSource(NULL);
+				auto a = pc_factory_->CreateAudioSource(cricket::AudioOptions());
 				auto audio_track = pc_factory_->CreateAudioTrack(kAudioLabel, a);
 				stream->AddTrack(audio_track);
 			}
@@ -576,17 +587,17 @@ namespace Native
 
 			if (!peer_connection_->AddStream(stream))
 			{
-				LOG(LS_ERROR) << "Adding stream to PeerConnection failed";
+				RTC_LOG(LS_ERROR) << "Adding stream to PeerConnection failed";
 			}
 			typedef std::pair<std::string, rtc::scoped_refptr<webrtc::MediaStreamInterface> >	MediaStreamPair;
-			active_streams_.insert(MediaStreamPair(stream->label(), stream));
+			active_streams_.insert(MediaStreamPair(stream->id(), stream));
 		}
 	}
 
 	// Called when a remote stream is added
 	void Conductor::OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 	{
-		LOG(INFO) << __FUNCTION__ << " " << stream->label();
+		RTC_LOG(INFO) << __FUNCTION__ << " " << stream->id();
 
 		if (onRenderRemote)
 		{
@@ -611,7 +622,7 @@ namespace Native
 
 	void Conductor::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> stream)
 	{
-		LOG(INFO) << __FUNCTION__ << " " << stream->label();
+		RTC_LOG(INFO) << __FUNCTION__ << " " << stream->id();
 		remote_video.reset(nullptr);
 		remote_audio.reset(nullptr);
 
@@ -622,12 +633,12 @@ namespace Native
 
 	void Conductor::OnIceCandidate(const webrtc::IceCandidateInterface* candidate)
 	{
-		LOG(INFO) << __FUNCTION__ << " " << candidate->sdp_mline_index();
+		RTC_LOG(INFO) << __FUNCTION__ << " " << candidate->sdp_mline_index();
 
 		std::string sdp;
 		if (!candidate->ToString(&sdp))
 		{
-			LOG(LS_ERROR) << "Failed to serialize candidate";
+			RTC_LOG(LS_ERROR) << "Failed to serialize candidate";
 			return;
 		}
 
@@ -655,7 +666,7 @@ namespace Native
 
 	void Conductor::OnFailure(const std::string & error)
 	{
-		LOG(LERROR) << error;
+		RTC_LOG(LERROR) << error;
 
 		if (onFailure != nullptr)
 		{
@@ -688,7 +699,7 @@ namespace Native
 
 	void Conductor::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> channel)
 	{
-		LOG(INFO) << __FUNCTION__ << " " << channel->label();
+		RTC_LOG(INFO) << __FUNCTION__ << " " << channel->label();
 
 		data_channel = channel.get();
 		data_channel->RegisterObserver(this);
@@ -707,7 +718,7 @@ namespace Native
 	//  A data buffer was successfully received.
 	void Conductor::OnMessage(const webrtc::DataBuffer& buffer)
 	{
-		LOG(INFO) << __FUNCTION__;
+		RTC_LOG(INFO) << __FUNCTION__;
 
 		if (buffer.binary)
 		{
@@ -732,7 +743,7 @@ namespace Native
 		rtc::SocketAddress server_addr;
 		if (!server_addr.FromString(bindIp))
 		{
-			LOG(LERROR) << "Unable to parse IP address: " << bindIp;
+			RTC_LOG(LERROR) << "Unable to parse IP address: " << bindIp;
 			return false;
 		}
 
@@ -740,13 +751,13 @@ namespace Native
 		rtc::AsyncUDPSocket* server_socket = rtc::AsyncUDPSocket::Create(main->socketserver(), server_addr);
 		if (!server_socket)
 		{
-			LOG(LERROR) << "Failed to create a UDP socket" << std::endl;
+			RTC_LOG(LERROR) << "Failed to create a UDP socket";// << std::endl;
 			return false;
 		}
 
 		stunServer.reset(new cricket::StunServer(server_socket));
 
-		LOG(INFO) << "Listening at " << server_addr.ToString() << std::endl;
+		RTC_LOG(INFO) << "Listening at " << server_addr.ToString();// << std::endl;
 
 		return true;
 	}
@@ -757,14 +768,14 @@ namespace Native
 		rtc::SocketAddress int_addr;
 		if (!int_addr.FromString(bindIp))
 		{
-			LOG(LERROR) << "Unable to parse IP address: " << bindIp << std::endl;
+			RTC_LOG(LERROR) << "Unable to parse IP address: " << bindIp;// << std::endl;
 			return false;
 		}
 
 		rtc::IPAddress ext_addr;
 		if (!IPFromString(ip, &ext_addr))
 		{
-			LOG(LERROR) << "Unable to parse IP address: " << ip << std::endl;
+			RTC_LOG(LERROR) << "Unable to parse IP address: " << ip;// << std::endl;
 			return false;
 		}
 
@@ -772,14 +783,14 @@ namespace Native
 		rtc::AsyncUDPSocket * int_socket = rtc::AsyncUDPSocket::Create(main->socketserver(), int_addr);
 		if (!int_socket)
 		{
-			LOG(LERROR) << "Failed to create a UDP socket bound at" << int_addr.ToString() << std::endl;
+			RTC_LOG(LERROR) << "Failed to create a UDP socket bound at" << int_addr.ToString(); // << std::endl;
 			return false;
 		}
 
 		TurnFileAuth * auth = new TurnFileAuth(authFile);
 		if (!auth->Load())
 		{
-			LOG(LERROR) << "Failed to load auth file " << authFile << std::endl;
+			RTC_LOG(LERROR) << "Failed to load auth file " << authFile; // << std::endl;
 			return false;
 		}
 
@@ -794,7 +805,7 @@ namespace Native
 		t->SetExternalSocketFactory(new rtc::BasicPacketSocketFactory(),
 											 rtc::SocketAddress(ext_addr, 0));
 
-		LOG(INFO) << "Listening internally at " << int_addr.ToString() << std::endl;
+		RTC_LOG(INFO) << "Listening internally at " << int_addr.ToString();// << std::endl;
 
 		return true;
 	}

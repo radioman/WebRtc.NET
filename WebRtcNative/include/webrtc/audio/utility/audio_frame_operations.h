@@ -8,16 +8,14 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_AUDIO_UTILITY_AUDIO_FRAME_OPERATIONS_H_
-#define WEBRTC_AUDIO_UTILITY_AUDIO_FRAME_OPERATIONS_H_
+#ifndef AUDIO_UTILITY_AUDIO_FRAME_OPERATIONS_H_
+#define AUDIO_UTILITY_AUDIO_FRAME_OPERATIONS_H_
 
 #include <stddef.h>
 
-#include "webrtc/typedefs.h"
+#include "api/audio/audio_frame.h"
 
 namespace webrtc {
-
-class AudioFrame;
 
 // TODO(andrew): consolidate this with utility.h and audio_frame_manipulator.h.
 // Change reference parameters to pointers. Consider using a namespace rather
@@ -115,19 +113,9 @@ class AudioFrameOperations {
 
   static int Scale(float left, float right, AudioFrame* frame);
 
-  static int Scale(float left, float right, AudioFrame& frame) {  // NOLINT
-    // TODO(oprypin): drop this method
-    return Scale(left, right, &frame);
-  }
-
   static int ScaleWithSat(float scale, AudioFrame* frame);
-
-  static int ScaleWithSat(float scale, AudioFrame& frame) {  // NOLINT
-    // TODO(oprypin): drop this method
-    return ScaleWithSat(scale, &frame);
-  }
 };
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_AUDIO_UTILITY_AUDIO_FRAME_OPERATIONS_H_
+#endif  // AUDIO_UTILITY_AUDIO_FRAME_OPERATIONS_H_

@@ -67,6 +67,8 @@ struct CYCLIC_REFRESH {
   int qindex_delta[3];
   int reduce_refresh;
   double weight_segment;
+  int apply_cyclic_refresh;
+  int counter_encode_maxq_scene_change;
 };
 
 struct VP9_COMP;
@@ -137,6 +139,8 @@ static INLINE int cyclic_refresh_segment_id(int segment_id) {
   else
     return CR_SEGMENT_ID_BASE;
 }
+
+void vp9_cyclic_refresh_limit_q(const struct VP9_COMP *cpi, int *q);
 
 #ifdef __cplusplus
 }  // extern "C"

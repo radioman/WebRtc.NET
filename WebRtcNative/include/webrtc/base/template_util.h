@@ -1,127 +1,153 @@
-/*
- *  Copyright (c) 2013 The WebRTC project authors. All Rights Reserved.
- *
- *  Use of this source code is governed by a BSD-style license
- *  that can be found in the LICENSE file in the root of the source
- *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may
- *  be found in the AUTHORS file in the root of the source tree.
- */
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-// Borrowed from Chromium's src/base/template_util.h.
+#ifndef BASE_TEMPLATE_UTIL_H_
+#define BASE_TEMPLATE_UTIL_H_
 
-#ifndef WEBRTC_BASE_TEMPLATE_UTIL_H_
-#define WEBRTC_BASE_TEMPLATE_UTIL_H_
+#include <stddef.h>
+#include <iosfwd>
+#include <iterator>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-#include <stddef.h>  // For size_t.
+#include "build/build_config.h"
 
-namespace rtc {
+// Some versions of libstdc++ have partial support for type_traits, but misses
+// a smaller subset while removing some of the older non-standard stuff. Assume
+// that all versions below 5.0 fall in this category, along with one 5.0
+// experimental release. Test for this by consulting compiler major version,
+// the only reliable option available, so theoretically this could fail should
+// you attempt to mix an earlier version of libstdc++ with >= GCC5. But
+// that's unlikely to work out, especially as GCC5 changed ABI.
+#define CR_GLIBCXX_5_0_0 20150123
+#if (defined(__GNUC__) && __GNUC__ < 5) || \
+    (defined(__GLIBCXX__) && __GLIBCXX__ == CR_GLIBCXX_5_0_0)
+#define CR_USE_FALLBACKS_FOR_OLD_EXPERIMENTAL_GLIBCXX
+#endif
 
-// Template definitions from tr1.
+// This hacks around using gcc with libc++ which has some incompatibilies.
+// - is_trivially_* doesn't work: https://llvm.org/bugs/show_bug.cgi?id=27538
+// TODO(danakj): Remove this when android builders are all using a newer version
+// of gcc, or the android ndk is updated to a newer libc++ that works with older
+// gcc versions.
+#if !defined(__clang__) && defined(_LIBCPP_VERSION)
+#define CR_USE_FALLBACKS_FOR_GCC_WITH_LIBCXX
+#endif
 
-template<class T, T v>
-struct integral_constant {
-  static const T value = v;
-  typedef T value_type;
-  typedef integral_constant<T, v> type;
-};
+namespace base {
 
-template <class T, T v> const T integral_constant<T, v>::value;
-
-typedef integral_constant<bool, true> true_type;
-typedef integral_constant<bool, false> false_type;
-
-template <class T> struct is_pointer : false_type {};
-template <class T> struct is_pointer<T*> : true_type {};
-
-template <class T, class U> struct is_same : public false_type {};
-template <class T> struct is_same<T, T> : true_type {};
-
-template<class> struct is_array : public false_type {};
-template<class T, size_t n> struct is_array<T[n]> : public true_type {};
-template<class T> struct is_array<T[]> : public true_type {};
-
-template <class T> struct is_non_const_reference : false_type {};
-template <class T> struct is_non_const_reference<T&> : true_type {};
-template <class T> struct is_non_const_reference<const T&> : false_type {};
-
-template <class T> struct is_void : false_type {};
-template <> struct is_void<void> : true_type {};
-
-// Helper useful for converting a tuple to variadic template function
-// arguments.
-//
-// sequence_generator<3>::type will be sequence<0, 1, 2>.
-template <int...>
-struct sequence {};
-template <int N, int... S>
-struct sequence_generator : sequence_generator<N - 1, N - 1, S...> {};
-template <int... S>
-struct sequence_generator<0, S...> {
-  typedef sequence<S...> type;
-};
+template <class T> struct is_non_const_reference : std::false_type {};
+template <class T> struct is_non_const_reference<T&> : std::true_type {};
+template <class T> struct is_non_const_reference<const T&> : std::false_type {};
 
 namespace internal {
 
-// Types YesType and NoType are guaranteed such that sizeof(YesType) <
-// sizeof(NoType).
-typedef char YesType;
-
-struct NoType {
-  YesType dummy[2];
-};
-
-// This class is an implementation detail for is_convertible, and you
-// don't need to know how it works to use is_convertible. For those
-// who care: we declare two different functions, one whose argument is
-// of type To and one with a variadic argument list. We give them
-// return types of different size, so we can use sizeof to trick the
-// compiler into telling us which function it would have chosen if we
-// had called it with an argument of type From.  See Alexandrescu's
-// _Modern C++ Design_ for more details on this sort of trick.
-
-struct ConvertHelper {
-  template <typename To>
-  static YesType Test(To);
-
-  template <typename To>
-  static NoType Test(...);
-
-  template <typename From>
-  static From& Create();
-};
-
-// Used to determine if a type is a struct/union/class. Inspired by Boost's
-// is_class type_trait implementation.
-struct IsClassHelper {
-  template <typename C>
-  static YesType Test(void(C::*)(void));
-
-  template <typename C>
-  static NoType Test(...);
+// Implementation detail of base::void_t below.
+template <typename...>
+struct make_void {
+  using type = void;
 };
 
 }  // namespace internal
 
-// Inherits from true_type if From is convertible to To, false_type otherwise.
+// base::void_t is an implementation of std::void_t from C++17.
 //
-// Note that if the type is convertible, this will be a true_type REGARDLESS
-// of whether or not the conversion would emit a warning.
-template <typename From, typename To>
-struct is_convertible
-    : integral_constant<bool,
-                        sizeof(internal::ConvertHelper::Test<To>(
-                                   internal::ConvertHelper::Create<From>())) ==
-                        sizeof(internal::YesType)> {
-};
+// We use |base::internal::make_void| as a helper struct to avoid a C++14
+// defect:
+//   http://en.cppreference.com/w/cpp/types/void_t
+//   http://open-std.org/JTC1/SC22/WG21/docs/cwg_defects.html#1558
+template <typename... Ts>
+using void_t = typename ::base::internal::make_void<Ts...>::type;
+
+namespace internal {
+
+// Uses expression SFINAE to detect whether using operator<< would work.
+template <typename T, typename = void>
+struct SupportsOstreamOperator : std::false_type {};
+template <typename T>
+struct SupportsOstreamOperator<T,
+                               decltype(void(std::declval<std::ostream&>()
+                                             << std::declval<T>()))>
+    : std::true_type {};
+
+// Used to detech whether the given type is an iterator.  This is normally used
+// with std::enable_if to provide disambiguation for functions that take
+// templatzed iterators as input.
+template <typename T, typename = void>
+struct is_iterator : std::false_type {};
 
 template <typename T>
-struct is_class
-    : integral_constant<bool,
-                        sizeof(internal::IsClassHelper::Test<T>(0)) ==
-                            sizeof(internal::YesType)> {
+struct is_iterator<T,
+                   void_t<typename std::iterator_traits<T>::iterator_category>>
+    : std::true_type {};
+
+}  // namespace internal
+
+// is_trivially_copyable is especially hard to get right.
+// - Older versions of libstdc++ will fail to have it like they do for other
+//   type traits. This has become a subset of the second point, but used to be
+//   handled independently.
+// - An experimental release of gcc includes most of type_traits but misses
+//   is_trivially_copyable, so we still have to avoid using libstdc++ in this
+//   case, which is covered by CR_USE_FALLBACKS_FOR_OLD_EXPERIMENTAL_GLIBCXX.
+// - When compiling libc++ from before r239653, with a gcc compiler, the
+//   std::is_trivially_copyable can fail. So we need to work around that by not
+//   using the one in libc++ in this case. This is covered by the
+//   CR_USE_FALLBACKS_FOR_GCC_WITH_LIBCXX define, and is discussed in
+//   https://llvm.org/bugs/show_bug.cgi?id=27538#c1 where they point out that
+//   in libc++'s commit r239653 this is fixed by libc++ checking for gcc 5.1.
+// - In both of the above cases we are using the gcc compiler. When defining
+//   this ourselves on compiler intrinsics, the __is_trivially_copyable()
+//   intrinsic is not available on gcc before version 5.1 (see the discussion in
+//   https://llvm.org/bugs/show_bug.cgi?id=27538#c1 again), so we must check for
+//   that version.
+// - When __is_trivially_copyable() is not available because we are on gcc older
+//   than 5.1, we need to fall back to something, so we use __has_trivial_copy()
+//   instead based on what was done one-off in bit_cast() previously.
+
+// TODO(crbug.com/554293): Remove this when all platforms have this in the std
+// namespace and it works with gcc as needed.
+#if defined(CR_USE_FALLBACKS_FOR_OLD_EXPERIMENTAL_GLIBCXX) || \
+    defined(CR_USE_FALLBACKS_FOR_GCC_WITH_LIBCXX)
+template <typename T>
+struct is_trivially_copyable {
+// TODO(danakj): Remove this when android builders are all using a newer version
+// of gcc, or the android ndk is updated to a newer libc++ that does this for
+// us.
+#if _GNUC_VER >= 501
+  static constexpr bool value = __is_trivially_copyable(T);
+#else
+  static constexpr bool value =
+      __has_trivial_copy(T) && __has_trivial_destructor(T);
+#endif
 };
+#else
+template <class T>
+using is_trivially_copyable = std::is_trivially_copyable<T>;
+#endif
 
-}  // namespace rtc
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ <= 7
+// Workaround for g++7 and earlier family.
+// Due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=80654, without this
+// Optional<std::vector<T>> where T is non-copyable causes a compile error.
+// As we know it is not trivially copy constructible, explicitly declare so.
+template <typename T>
+struct is_trivially_copy_constructible
+    : std::is_trivially_copy_constructible<T> {};
 
-#endif  // WEBRTC_BASE_TEMPLATE_UTIL_H_
+template <typename... T>
+struct is_trivially_copy_constructible<std::vector<T...>> : std::false_type {};
+#else
+// Otherwise use std::is_trivially_copy_constructible as is.
+template <typename T>
+using is_trivially_copy_constructible = std::is_trivially_copy_constructible<T>;
+#endif
+
+}  // namespace base
+
+#undef CR_USE_FALLBACKS_FOR_GCC_WITH_LIBCXX
+#undef CR_USE_FALLBACKS_FOR_OLD_EXPERIMENTAL_GLIBCXX
+
+#endif  // BASE_TEMPLATE_UTIL_H_
