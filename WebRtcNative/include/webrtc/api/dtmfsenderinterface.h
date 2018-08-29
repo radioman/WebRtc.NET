@@ -8,13 +8,13 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_API_DTMFSENDERINTERFACE_H_
-#define WEBRTC_API_DTMFSENDERINTERFACE_H_
+#ifndef API_DTMFSENDERINTERFACE_H_
+#define API_DTMFSENDERINTERFACE_H_
 
 #include <string>
 
-#include "webrtc/api/mediastreaminterface.h"
-#include "webrtc/base/refcount.h"
+#include "api/mediastreaminterface.h"
+#include "rtc_base/refcount.h"
 
 namespace webrtc {
 
@@ -67,13 +67,9 @@ class DtmfSenderInterface : public rtc::RefCountInterface {
   // If InsertDtmf is called on the same object while an existing task for this
   // object to generate DTMF is still running, the previous task is canceled.
   // Returns true on success and false on failure.
-  virtual bool InsertDtmf(const std::string& tones, int duration,
+  virtual bool InsertDtmf(const std::string& tones,
+                          int duration,
                           int inter_tone_gap) = 0;
-
-  // Returns the track given as argument to the constructor. Only exists for
-  // backwards compatibilty; now that DtmfSenders are tied to RtpSenders, it's
-  // no longer relevant.
-  virtual const AudioTrackInterface* track() const = 0;
 
   // Returns the tones remaining to be played out.
   virtual std::string tones() const = 0;
@@ -94,4 +90,4 @@ class DtmfSenderInterface : public rtc::RefCountInterface {
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_API_DTMFSENDERINTERFACE_H_
+#endif  // API_DTMFSENDERINTERFACE_H_

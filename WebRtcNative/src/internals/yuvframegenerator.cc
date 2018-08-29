@@ -1,11 +1,10 @@
 
-#include "webrtc/media/base/yuvframegenerator.h"
+#include "yuvframegenerator.h"
 
 #include <string.h>
 #include <sstream>
 
-#include "webrtc/base/checks.h"
-#include "webrtc/base/basictypes.h"
+#include "webrtc/rtc_base/checks.h"
 
 namespace cricket
 {

@@ -8,14 +8,14 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_P2P_BASE_STUNREQUEST_H_
-#define WEBRTC_P2P_BASE_STUNREQUEST_H_
+#ifndef P2P_BASE_STUNREQUEST_H_
+#define P2P_BASE_STUNREQUEST_H_
 
 #include <map>
 #include <string>
-#include "webrtc/p2p/base/stun.h"
-#include "webrtc/base/sigslot.h"
-#include "webrtc/base/thread.h"
+#include "p2p/base/stun.h"
+#include "rtc_base/sigslot.h"
+#include "rtc_base/thread.h"
 
 namespace cricket {
 
@@ -32,7 +32,7 @@ const int STUN_TOTAL_TIMEOUT = 39750;  // milliseconds
 // response or determine that the request has timed out.
 class StunRequestManager {
  public:
-  StunRequestManager(rtc::Thread* thread);
+  explicit StunRequestManager(rtc::Thread* thread);
   ~StunRequestManager();
 
   // Starts sending the given request (perhaps after a delay).
@@ -83,8 +83,8 @@ class StunRequestManager {
 class StunRequest : public rtc::MessageHandler {
  public:
   StunRequest();
-  StunRequest(StunMessage* request);
-  virtual ~StunRequest();
+  explicit StunRequest(StunMessage* request);
+  ~StunRequest() override;
 
   // Causes our wrapped StunMessage to be Prepared
   void Construct();
@@ -104,6 +104,9 @@ class StunRequest : public rtc::MessageHandler {
 
   // Returns a const pointer to |msg_|.
   const StunMessage* msg() const;
+
+  // Returns a mutable pointer to |msg_|.
+  StunMessage* mutable_msg();
 
   // Time elapsed since last send (in ms)
   int Elapsed() const;
@@ -130,7 +133,7 @@ class StunRequest : public rtc::MessageHandler {
   void set_manager(StunRequestManager* manager);
 
   // Handles messages for sending and timeout.
-  void OnMessage(rtc::Message* pmsg);
+  void OnMessage(rtc::Message* pmsg) override;
 
   StunRequestManager* manager_;
   StunMessage* msg_;
@@ -141,4 +144,4 @@ class StunRequest : public rtc::MessageHandler {
 
 }  // namespace cricket
 
-#endif  // WEBRTC_P2P_BASE_STUNREQUEST_H_
+#endif  // P2P_BASE_STUNREQUEST_H_

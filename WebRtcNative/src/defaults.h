@@ -4,9 +4,10 @@
 #pragma once
 
 #include "internals.h"
-
+#include "webrtc/base/logging.h"
 #include "webrtc/media/base/videocapturer.h"
-#include "webrtc/media/base/yuvframegenerator.h"
+#include "api/video/i420_buffer.h"
+#include "internals/yuvframegenerator.h"
 #include "webrtc/api/mediastreaminterface.h"
 #include "webrtc/modules/desktop_capture/desktop_capturer.h"
 

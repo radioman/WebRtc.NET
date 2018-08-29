@@ -8,12 +8,12 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_AUDIO_CODING_NETEQ_TOOLS_AUDIO_SINK_H_
-#define WEBRTC_MODULES_AUDIO_CODING_NETEQ_TOOLS_AUDIO_SINK_H_
+#ifndef MODULES_AUDIO_CODING_NETEQ_TOOLS_AUDIO_SINK_H_
+#define MODULES_AUDIO_CODING_NETEQ_TOOLS_AUDIO_SINK_H_
 
-#include "webrtc/base/constructormagic.h"
-#include "webrtc/modules/include/module_common_types.h"
-#include "webrtc/typedefs.h"
+#include "api/audio/audio_frame.h"
+#include "rtc_base/constructormagic.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 namespace test {
@@ -32,9 +32,8 @@ class AudioSink {
   // Writes |audio_frame| to the AudioSink. Returns true if successful,
   // otherwise false.
   bool WriteAudioFrame(const AudioFrame& audio_frame) {
-    return WriteArray(
-        audio_frame.data_,
-        audio_frame.samples_per_channel_ * audio_frame.num_channels_);
+    return WriteArray(audio_frame.data(), audio_frame.samples_per_channel_ *
+                                              audio_frame.num_channels_);
   }
 
  private:
@@ -68,4 +67,4 @@ class VoidAudioSink : public AudioSink {
 
 }  // namespace test
 }  // namespace webrtc
-#endif  // WEBRTC_MODULES_AUDIO_CODING_NETEQ_TOOLS_AUDIO_SINK_H_
+#endif  // MODULES_AUDIO_CODING_NETEQ_TOOLS_AUDIO_SINK_H_

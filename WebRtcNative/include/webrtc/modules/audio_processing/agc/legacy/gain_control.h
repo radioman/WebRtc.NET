@@ -8,10 +8,10 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef WEBRTC_MODULES_AUDIO_PROCESSING_AGC_LEGACY_GAIN_CONTROL_H_
-#define WEBRTC_MODULES_AUDIO_PROCESSING_AGC_LEGACY_GAIN_CONTROL_H_
+#ifndef MODULES_AUDIO_PROCESSING_AGC_LEGACY_GAIN_CONTROL_H_
+#define MODULES_AUDIO_PROCESSING_AGC_LEGACY_GAIN_CONTROL_H_
 
-#include "webrtc/typedefs.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 // Errors
 #define AGC_UNSPECIFIED_ERROR 18000
@@ -208,7 +208,7 @@ int WebRtcAgc_get_config(void* agcInst, WebRtcAgcConfig* config);
  * This function creates and returns an AGC instance, which will contain the
  * state information for one (duplex) channel.
  */
-void* WebRtcAgc_Create();
+void* WebRtcAgc_Create(void);
 
 /*
  * This function frees the AGC instance created at the beginning.
@@ -244,4 +244,4 @@ int WebRtcAgc_Init(void* agcInst,
 }
 #endif
 
-#endif  // WEBRTC_MODULES_AUDIO_PROCESSING_AGC_LEGACY_GAIN_CONTROL_H_
+#endif  // MODULES_AUDIO_PROCESSING_AGC_LEGACY_GAIN_CONTROL_H_

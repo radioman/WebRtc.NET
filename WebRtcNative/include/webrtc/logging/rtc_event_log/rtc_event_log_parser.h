@@ -7,29 +7,40 @@
  *  in the file PATENTS.  All contributing project authors may
  *  be found in the AUTHORS file in the root of the source tree.
  */
-#ifndef WEBRTC_LOGGING_RTC_EVENT_LOG_RTC_EVENT_LOG_PARSER_H_
-#define WEBRTC_LOGGING_RTC_EVENT_LOG_RTC_EVENT_LOG_PARSER_H_
+#ifndef LOGGING_RTC_EVENT_LOG_RTC_EVENT_LOG_PARSER_H_
+#define LOGGING_RTC_EVENT_LOG_RTC_EVENT_LOG_PARSER_H_
 
+#include <map>
 #include <string>
+#include <utility>  // pair
 #include <vector>
 
-#include "webrtc/base/ignore_wundef.h"
-#include "webrtc/logging/rtc_event_log/rtc_event_log.h"
-#include "webrtc/video_receive_stream.h"
-#include "webrtc/video_send_stream.h"
+#include "call/video_receive_stream.h"
+#include "call/video_send_stream.h"
+#include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair.h"
+#include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
+#include "logging/rtc_event_log/events/rtc_event_probe_result_failure.h"
+#include "logging/rtc_event_log/rtc_event_log.h"
+#include "logging/rtc_event_log/rtc_stream_config.h"
+#include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
+#include "modules/rtp_rtcp/source/byte_io.h"
+#include "rtc_base/ignore_wundef.h"
 
 // Files generated at build-time by the protobuf compiler.
 RTC_PUSH_IGNORING_WUNDEF()
 #ifdef WEBRTC_ANDROID_PLATFORM_BUILD
 #include "external/webrtc/webrtc/logging/rtc_event_log/rtc_event_log.pb.h"
 #else
-#include "webrtc/logging/rtc_event_log/rtc_event_log.pb.h"
+#include "logging/rtc_event_log/rtc_event_log.pb.h"
 #endif
 RTC_POP_IGNORING_WUNDEF()
 
 namespace webrtc {
 
+enum class BandwidthUsage;
 enum class MediaType;
+
+struct AudioEncoderRuntimeConfig;
 
 class ParsedRtcEventLog {
   friend class RtcEventLogTestHelper;
@@ -46,14 +57,38 @@ class ParsedRtcEventLog {
   struct BweProbeResultEvent {
     uint64_t timestamp;
     uint32_t id;
-    rtc::Optional<uint64_t> bitrate_bps;
-    rtc::Optional<ProbeFailureReason> failure_reason;
+    absl::optional<uint64_t> bitrate_bps;
+    absl::optional<ProbeFailureReason> failure_reason;
   };
 
   struct BweDelayBasedUpdate {
     uint64_t timestamp;
     int32_t bitrate_bps;
     BandwidthUsage detector_state;
+  };
+
+  struct AlrStateEvent {
+    uint64_t timestamp;
+    bool in_alr;
+  };
+
+  struct IceCandidatePairConfig {
+    uint64_t timestamp;
+    IceCandidatePairConfigType type;
+    uint32_t candidate_pair_id;
+    IceCandidateType local_candidate_type;
+    IceCandidatePairProtocol local_relay_protocol;
+    IceCandidateNetworkType local_network_type;
+    IceCandidatePairAddressFamily local_address_family;
+    IceCandidateType remote_candidate_type;
+    IceCandidatePairAddressFamily remote_address_family;
+    IceCandidatePairProtocol candidate_pair_protocol;
+  };
+
+  struct IceCandidatePairEvent {
+    uint64_t timestamp;
+    IceCandidatePairEventType type;
+    uint32_t candidate_pair_id;
   };
 
   enum EventType {
@@ -71,8 +106,13 @@ class ParsedRtcEventLog {
     AUDIO_SENDER_CONFIG_EVENT = 11,
     AUDIO_NETWORK_ADAPTATION_EVENT = 16,
     BWE_PROBE_CLUSTER_CREATED_EVENT = 17,
-    BWE_PROBE_RESULT_EVENT = 18
+    BWE_PROBE_RESULT_EVENT = 18,
+    ALR_STATE_EVENT = 19,
+    ICE_CANDIDATE_PAIR_CONFIG = 20,
+    ICE_CANDIDATE_PAIR_EVENT = 21,
   };
+
+  enum class MediaType { ANY, AUDIO, VIDEO, DATA };
 
   // Reads an RtcEventLog file and returns true if parsing was successful.
   bool ParseFile(const std::string& file_name);
@@ -92,45 +132,48 @@ class ParsedRtcEventLog {
   // Reads the event type of the rtclog::Event at |index|.
   EventType GetEventType(size_t index) const;
 
-  // Reads the header, direction, media type, header length and packet length
-  // from the RTP event at |index|, and stores the values in the corresponding
-  // output parameters. Each output parameter can be set to nullptr if that
-  // value isn't needed.
+  // Reads the header, direction, header length and packet length from the RTP
+  // event at |index|, and stores the values in the corresponding output
+  // parameters. Each output parameter can be set to nullptr if that value
+  // isn't needed.
   // NB: The header must have space for at least IP_PACKET_SIZE bytes.
-  void GetRtpHeader(size_t index,
-                    PacketDirection* incoming,
-                    MediaType* media_type,
-                    uint8_t* header,
-                    size_t* header_length,
-                    size_t* total_length) const;
+  // Returns: a pointer to a header extensions map acquired from parsing
+  // corresponding Audio/Video Sender/Receiver config events.
+  // Warning: if the same SSRC is reused by both video and audio streams during
+  // call, extensions maps may be incorrect (the last one would be returned).
+  webrtc::RtpHeaderExtensionMap* GetRtpHeader(size_t index,
+                                              PacketDirection* incoming,
+                                              uint8_t* header,
+                                              size_t* header_length,
+                                              size_t* total_length,
+                                              int* probe_cluster_id) const;
 
-  // Reads packet, direction, media type and packet length from the RTCP event
-  // at |index|, and stores the values in the corresponding output parameters.
+  // Reads packet, direction and packet length from the RTCP event at |index|,
+  // and stores the values in the corresponding output parameters.
   // Each output parameter can be set to nullptr if that value isn't needed.
   // NB: The packet must have space for at least IP_PACKET_SIZE bytes.
   void GetRtcpPacket(size_t index,
                      PacketDirection* incoming,
-                     MediaType* media_type,
                      uint8_t* packet,
                      size_t* length) const;
 
-  // Reads a config event to a (non-NULL) VideoReceiveStream::Config struct.
+  // Reads a video receive config event to a StreamConfig struct.
   // Only the fields that are stored in the protobuf will be written.
-  void GetVideoReceiveConfig(size_t index,
-                             VideoReceiveStream::Config* config) const;
+  rtclog::StreamConfig GetVideoReceiveConfig(size_t index) const;
 
-  // Reads a config event to a (non-NULL) VideoSendStream::Config struct.
+  // Reads a video send config event to a StreamConfig struct. If the proto
+  // contains multiple SSRCs and RTX SSRCs (this used to be the case for
+  // simulcast streams) then we return one StreamConfig per SSRC,RTX_SSRC pair.
   // Only the fields that are stored in the protobuf will be written.
-  void GetVideoSendConfig(size_t index, VideoSendStream::Config* config) const;
+  std::vector<rtclog::StreamConfig> GetVideoSendConfig(size_t index) const;
 
-  // Reads a config event to a (non-NULL) AudioReceiveStream::Config struct.
+  // Reads a audio receive config event to a StreamConfig struct.
   // Only the fields that are stored in the protobuf will be written.
-  void GetAudioReceiveConfig(size_t index,
-                             AudioReceiveStream::Config* config) const;
+  rtclog::StreamConfig GetAudioReceiveConfig(size_t index) const;
 
-  // Reads a config event to a (non-NULL) AudioSendStream::Config struct.
+  // Reads a config event to a StreamConfig struct.
   // Only the fields that are stored in the protobuf will be written.
-  void GetAudioSendConfig(size_t index, AudioSendStream::Config* config) const;
+  rtclog::StreamConfig GetAudioSendConfig(size_t index) const;
 
   // Reads the SSRC from the audio playout event at |index|. The SSRC is stored
   // in the output parameter ssrc. The output parameter can be set to nullptr
@@ -160,15 +203,50 @@ class ParsedRtcEventLog {
   void GetAudioNetworkAdaptation(size_t index,
                                  AudioEncoderRuntimeConfig* config) const;
 
-  ParsedRtcEventLog::BweProbeClusterCreatedEvent GetBweProbeClusterCreated(
-      size_t index) const;
+  BweProbeClusterCreatedEvent GetBweProbeClusterCreated(size_t index) const;
 
-  ParsedRtcEventLog::BweProbeResultEvent GetBweProbeResult(size_t index) const;
+  BweProbeResultEvent GetBweProbeResult(size_t index) const;
+
+  MediaType GetMediaType(uint32_t ssrc, PacketDirection direction) const;
+
+  AlrStateEvent GetAlrState(size_t index) const;
+
+  IceCandidatePairConfig GetIceCandidatePairConfig(size_t index) const;
+  IceCandidatePairEvent GetIceCandidatePairEvent(size_t index) const;
 
  private:
+  rtclog::StreamConfig GetVideoReceiveConfig(const rtclog::Event& event) const;
+  std::vector<rtclog::StreamConfig> GetVideoSendConfig(
+      const rtclog::Event& event) const;
+  rtclog::StreamConfig GetAudioReceiveConfig(const rtclog::Event& event) const;
+  rtclog::StreamConfig GetAudioSendConfig(const rtclog::Event& event) const;
+
   std::vector<rtclog::Event> events_;
+
+  struct Stream {
+    Stream(uint32_t ssrc,
+           MediaType media_type,
+           webrtc::PacketDirection direction,
+           webrtc::RtpHeaderExtensionMap map)
+        : ssrc(ssrc),
+          media_type(media_type),
+          direction(direction),
+          rtp_extensions_map(map) {}
+    uint32_t ssrc;
+    MediaType media_type;
+    webrtc::PacketDirection direction;
+    webrtc::RtpHeaderExtensionMap rtp_extensions_map;
+  };
+
+  // All configured streams found in the event log.
+  std::vector<Stream> streams_;
+
+  // To find configured extensions map for given stream, what are needed to
+  // parse a header.
+  typedef std::pair<uint32_t, webrtc::PacketDirection> StreamId;
+  std::map<StreamId, webrtc::RtpHeaderExtensionMap*> rtp_extensions_maps_;
 };
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_LOGGING_RTC_EVENT_LOG_RTC_EVENT_LOG_PARSER_H_
+#endif  // LOGGING_RTC_EVENT_LOG_RTC_EVENT_LOG_PARSER_H_

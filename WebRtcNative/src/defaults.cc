@@ -2,7 +2,7 @@
 #include "defaults.h"
 #include "conductor.h"
 
-#include "turbojpeg/turbojpeg.h"
+#include "webrtc/third_party/libjpeg_turbo/turbojpeg.h"
 #include "webrtc/modules/desktop_capture/desktop_capture_options.h"
 
 namespace Native
@@ -55,7 +55,7 @@ namespace Native
 	{
 		if (IsRunning())
 		{
-			LOG(LS_ERROR) << "Yuv Frame Generator is already running";
+			RTC_LOG(LS_ERROR) << "Yuv Frame Generator is already running";
 			return cricket::CS_FAILED;
 		}
 		SetCaptureFormat(&capture_format);
@@ -80,7 +80,7 @@ namespace Native
 		}
 #endif
 
-		LOG(LS_INFO) << "Yuv Frame Generator started";
+		RTC_LOG(LS_INFO) << "Yuv Frame Generator started";
 		return cricket::CS_RUNNING;
 	}
 
@@ -169,10 +169,11 @@ namespace Native
 		if (remote && con->onRenderRemote)
 		{
 			auto b = frame.video_frame_buffer();
+			auto b420 = b->ToI420();
 			int width = b->width();
 			int height = b->height();
 
-			if (0 == DecodeYUV(b->DataY(), width, height))
+			if (0 == DecodeYUV(b420->DataY(), width, height))
 			{
 				con->onRenderRemote(bgr24, width, height);
 			}
@@ -180,10 +181,11 @@ namespace Native
 		else if (con->onRenderLocal)
 		{
 			auto b = frame.video_frame_buffer();
+			auto b420 = b->ToI420();
 			int width = b->width();
 			int height = b->height();
 
-			if (0 == DecodeYUV(b->DataY(), width, height))
+			if (0 == DecodeYUV(b420->DataY(), width, height))
 			{
 				con->onRenderLocal(bgr24, width, height);
 			}

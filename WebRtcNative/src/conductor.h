@@ -92,7 +92,7 @@ namespace Native
 
 		virtual void webrtc::SetSessionDescriptionObserver::OnSuccess()
 		{
-			LOG(INFO) << __FUNCTION__;
+			RTC_LOG(INFO) << __FUNCTION__;
 		}
 
 #pragma endregion
@@ -113,32 +113,32 @@ namespace Native
 
 		virtual void OnIceChange()
 		{
-			LOG(INFO) << __FUNCTION__ << " ";
+			RTC_LOG(INFO) << __FUNCTION__ << " ";
 		}
 
 		virtual void OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState state)
 		{
-			LOG(INFO) << __FUNCTION__ << " " << state;
+			RTC_LOG(INFO) << __FUNCTION__ << " " << state;
 		}
 
 		virtual void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState state)
 		{
-			LOG(INFO) << __FUNCTION__ << " " << state;
+			RTC_LOG(INFO) << __FUNCTION__ << " " << state;
 		}
 
 		virtual void OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState state)
 		{
-			LOG(INFO) << __FUNCTION__ << " " << state;
+			RTC_LOG(INFO) << __FUNCTION__ << " " << state;
 		}
 
-		virtual void OnStateChange(webrtc::PeerConnectionObserver::StateType state_changed)
-		{
-			LOG(INFO) << __FUNCTION__ << " " << state_changed;
-		}
+		//virtual void OnStateChange(webrtc::PeerConnectionObserver::StateType state_changed)
+		//{
+		//	LOG(INFO) << __FUNCTION__ << " " << state_changed;
+		//}
 
 		virtual void OnRenegotiationNeeded()
 		{
-			LOG(INFO) << __FUNCTION__ << " ";
+			RTC_LOG(INFO) << __FUNCTION__ << " ";
 		}
 
 #pragma endregion
@@ -150,7 +150,7 @@ namespace Native
 		// The data channel state have changed.
 		virtual void OnStateChange()
 		{
-			LOG(INFO) << __FUNCTION__;
+			RTC_LOG(INFO) << __FUNCTION__;
 		}
 
 		//  A data buffer was successfully received.
@@ -159,18 +159,18 @@ namespace Native
 		// The data channel's buffered_amount has changed.
 		virtual void OnBufferedAmountChange(uint64_t previous_amount)
 		{
-			LOG(INFO) << __FUNCTION__;
+			RTC_LOG(INFO) << __FUNCTION__;
 		}
 
 #pragma endregion
 
-		int AddRef() const
+		void AddRef() const
 		{
-			return 0;
 		};
-		int Release() const
+
+		rtc::RefCountReleaseStatus Release() const
 		{
-			return 0;
+			return rtc::RefCountReleaseStatus::kOtherRefsRemained;
 		};
 
 	private:

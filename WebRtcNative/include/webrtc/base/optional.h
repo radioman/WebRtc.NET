@@ -1,400 +1,922 @@
-/*
- *  Copyright 2015 The WebRTC Project Authors. All rights reserved.
- *
- *  Use of this source code is governed by a BSD-style license
- *  that can be found in the LICENSE file in the root of the source
- *  tree. An additional intellectual property rights grant can be found
- *  in the file PATENTS.  All contributing project authors may
- *  be found in the AUTHORS file in the root of the source tree.
- */
+// Copyright 2016 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-#ifndef WEBRTC_BASE_OPTIONAL_H_
-#define WEBRTC_BASE_OPTIONAL_H_
+#ifndef BASE_OPTIONAL_H_
+#define BASE_OPTIONAL_H_
 
-#include <algorithm>
-#include <memory>
+#include <type_traits>
 #include <utility>
 
-#ifdef UNIT_TEST
-#include <iomanip>
-#include <ostream>
-#endif  // UNIT_TEST
+#include "base/logging.h"
+#include "base/template_util.h"
 
-#include "webrtc/base/array_view.h"
-#include "webrtc/base/checks.h"
-#include "webrtc/base/sanitizer.h"
+namespace base {
 
-namespace rtc {
+// Specification:
+// http://en.cppreference.com/w/cpp/utility/optional/in_place_t
+struct in_place_t {};
 
-namespace optional_internal {
+// Specification:
+// http://en.cppreference.com/w/cpp/utility/optional/nullopt_t
+struct nullopt_t {
+  constexpr explicit nullopt_t(int) {}
+};
 
-#if RTC_HAS_ASAN
+// Specification:
+// http://en.cppreference.com/w/cpp/utility/optional/in_place
+constexpr in_place_t in_place = {};
 
-// This is a non-inlined function. The optimizer can't see inside it.  It
-// prevents the compiler from generating optimized code that reads value_ even
-// if it is unset. Although safe, this causes memory sanitizers to complain.
-void* FunctionThatDoesNothingImpl(void*);
+// Specification:
+// http://en.cppreference.com/w/cpp/utility/optional/nullopt
+constexpr nullopt_t nullopt(0);
 
+// Forward declaration, which is refered by following helpers.
 template <typename T>
-inline T* FunctionThatDoesNothing(T* x) {
-  return reinterpret_cast<T*>(
-      FunctionThatDoesNothingImpl(reinterpret_cast<void*>(x)));
-}
+class Optional;
 
-#else
+namespace internal {
 
-template <typename T>
-inline T* FunctionThatDoesNothing(T* x) { return x; }
+template <typename T, bool = std::is_trivially_destructible<T>::value>
+struct OptionalStorageBase {
+  // Initializing |empty_| here instead of using default member initializing
+  // to avoid errors in g++ 4.8.
+  constexpr OptionalStorageBase() : empty_('\0') {}
 
-#endif
+  template <class... Args>
+  constexpr explicit OptionalStorageBase(in_place_t, Args&&... args)
+      : is_populated_(true), value_(std::forward<Args>(args)...) {}
 
-}  // namespace optional_internal
-
-// Simple std::optional-wannabe. It either contains a T or not.
-//
-// A moved-from Optional<T> may only be destroyed, and assigned to if T allows
-// being assigned to after having been moved from. Specifically, you may not
-// assume that it just doesn't contain a value anymore.
-//
-// Examples of good places to use Optional:
-//
-// - As a class or struct member, when the member doesn't always have a value:
-//     struct Prisoner {
-//       std::string name;
-//       Optional<int> cell_number;  // Empty if not currently incarcerated.
-//     };
-//
-// - As a return value for functions that may fail to return a value on all
-//   allowed inputs. For example, a function that searches an array might
-//   return an Optional<size_t> (the index where it found the element, or
-//   nothing if it didn't find it); and a function that parses numbers might
-//   return Optional<double> (the parsed number, or nothing if parsing failed).
-//
-// Examples of bad places to use Optional:
-//
-// - As a return value for functions that may fail because of disallowed
-//   inputs. For example, a string length function should not return
-//   Optional<size_t> so that it can return nothing in case the caller passed
-//   it a null pointer; the function should probably use RTC_[D]CHECK instead,
-//   and return plain size_t.
-//
-// - As a return value for functions that may fail to return a value on all
-//   allowed inputs, but need to tell the caller what went wrong. Returning
-//   Optional<double> when parsing a single number as in the example above
-//   might make sense, but any larger parse job is probably going to need to
-//   tell the caller what the problem was, not just that there was one.
-//
-// - As a non-mutable function argument. When you want to pass a value of a
-//   type T that can fail to be there, const T* is almost always both fastest
-//   and cleanest. (If you're *sure* that the the caller will always already
-//   have an Optional<T>, const Optional<T>& is slightly faster than const T*,
-//   but this is a micro-optimization. In general, stick to const T*.)
-//
-// TODO(kwiberg): Get rid of this class when the standard library has
-// std::optional (and we're allowed to use it).
-template <typename T>
-class Optional final {
- public:
-  // Construct an empty Optional.
-  Optional() : has_value_(false), empty_('\0') {
-    PoisonValue();
-  }
-
-  // Construct an Optional that contains a value.
-  explicit Optional(const T& value) : has_value_(true) {
-    new (&value_) T(value);
-  }
-  explicit Optional(T&& value) : has_value_(true) {
-    new (&value_) T(std::move(value));
-  }
-
-  // Copy constructor: copies the value from m if it has one.
-  Optional(const Optional& m) : has_value_(m.has_value_) {
-    if (has_value_)
-      new (&value_) T(m.value_);
-    else
-      PoisonValue();
-  }
-
-  // Move constructor: if m has a value, moves the value from m, leaving m
-  // still in a state where it has a value, but a moved-from one (the
-  // properties of which depends on T; the only general guarantee is that we
-  // can destroy m).
-  Optional(Optional&& m) : has_value_(m.has_value_) {
-    if (has_value_)
-      new (&value_) T(std::move(m.value_));
-    else
-      PoisonValue();
-  }
-
-  ~Optional() {
-    if (has_value_)
+  // When T is not trivially destructible we must call its
+  // destructor before deallocating its memory.
+  // Note that this hides the (implicitly declared) move constructor, which
+  // would be used for constexpr move constructor in OptionalStorage<T>.
+  // It is needed iff T is trivially move constructible. However, the current
+  // is_trivially_{copy,move}_constructible implementation requires
+  // is_trivially_destructible (which looks a bug, cf:
+  // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=51452 and
+  // http://cplusplus.github.io/LWG/lwg-active.html#2116), so it is not
+  // necessary for this case at the moment. Please see also the destructor
+  // comment in "is_trivially_destructible = true" specialization below.
+  ~OptionalStorageBase() {
+    if (is_populated_)
       value_.~T();
-    else
-      UnpoisonValue();
-  }
-
-  // Copy assignment. Uses T's copy assignment if both sides have a value, T's
-  // copy constructor if only the right-hand side has a value.
-  Optional& operator=(const Optional& m) {
-    if (m.has_value_) {
-      if (has_value_) {
-        value_ = m.value_;  // T's copy assignment.
-      } else {
-        UnpoisonValue();
-        new (&value_) T(m.value_);  // T's copy constructor.
-        has_value_ = true;
-      }
-    } else {
-      reset();
-    }
-    return *this;
-  }
-
-  // Move assignment. Uses T's move assignment if both sides have a value, T's
-  // move constructor if only the right-hand side has a value. The state of m
-  // after it's been moved from is as for the move constructor.
-  Optional& operator=(Optional&& m) {
-    if (m.has_value_) {
-      if (has_value_) {
-        value_ = std::move(m.value_);  // T's move assignment.
-      } else {
-        UnpoisonValue();
-        new (&value_) T(std::move(m.value_));  // T's move constructor.
-        has_value_ = true;
-      }
-    } else {
-      reset();
-    }
-    return *this;
-  }
-
-  // Swap the values if both m1 and m2 have values; move the value if only one
-  // of them has one.
-  friend void swap(Optional& m1, Optional& m2) {
-    if (m1.has_value_) {
-      if (m2.has_value_) {
-        // Both have values: swap.
-        using std::swap;
-        swap(m1.value_, m2.value_);
-      } else {
-        // Only m1 has a value: move it to m2.
-        m2.UnpoisonValue();
-        new (&m2.value_) T(std::move(m1.value_));
-        m1.value_.~T();  // Destroy the moved-from value.
-        m1.has_value_ = false;
-        m2.has_value_ = true;
-        m1.PoisonValue();
-      }
-    } else if (m2.has_value_) {
-      // Only m2 has a value: move it to m1.
-      m1.UnpoisonValue();
-      new (&m1.value_) T(std::move(m2.value_));
-      m2.value_.~T();  // Destroy the moved-from value.
-      m1.has_value_ = true;
-      m2.has_value_ = false;
-      m2.PoisonValue();
-    }
-  }
-
-  // Destroy any contained value. Has no effect if we have no value.
-  void reset() {
-    if (!has_value_)
-      return;
-    value_.~T();
-    has_value_ = false;
-    PoisonValue();
   }
 
   template <class... Args>
-  void emplace(Args&&... args) {
-    if (has_value_)
-      value_.~T();
-    else
-      UnpoisonValue();
-    new (&value_) T(std::forward<Args>(args)...);
-    has_value_ = true;
+  void Init(Args&&... args) {
+    DCHECK(!is_populated_);
+    ::new (&value_) T(std::forward<Args>(args)...);
+    is_populated_ = true;
   }
 
-  // Conversion to bool to test if we have a value.
-  explicit operator bool() const { return has_value_; }
-
-  // Dereferencing. Only allowed if we have a value.
-  const T* operator->() const {
-    RTC_DCHECK(has_value_);
-    return &value_;
-  }
-  T* operator->() {
-    RTC_DCHECK(has_value_);
-    return &value_;
-  }
-  const T& operator*() const {
-    RTC_DCHECK(has_value_);
-    return value_;
-  }
-  T& operator*() {
-    RTC_DCHECK(has_value_);
-    return value_;
-  }
-
-  // Dereference with a default value in case we don't have a value.
-  const T& value_or(const T& default_val) const {
-    // The no-op call prevents the compiler from generating optimized code that
-    // reads value_ even if !has_value_, but only if FunctionThatDoesNothing is
-    // not completely inlined; see its declaration.).
-    return has_value_ ? *optional_internal::FunctionThatDoesNothing(&value_)
-                      : default_val;
-  }
-
-  // Dereference and move value.
-  T MoveValue() {
-    RTC_DCHECK(has_value_);
-    return std::move(value_);
-  }
-
-  // Equality tests. Two Optionals are equal if they contain equivalent values,
-  // or if they're both empty.
-  friend bool operator==(const Optional& m1, const Optional& m2) {
-    return m1.has_value_ && m2.has_value_ ? m1.value_ == m2.value_
-                                          : m1.has_value_ == m2.has_value_;
-  }
-  friend bool operator==(const Optional& opt, const T& value) {
-    return opt.has_value_ && opt.value_ == value;
-  }
-  friend bool operator==(const T& value, const Optional& opt) {
-    return opt.has_value_ && value == opt.value_;
-  }
-
-  friend bool operator!=(const Optional& m1, const Optional& m2) {
-    return m1.has_value_ && m2.has_value_ ? m1.value_ != m2.value_
-                                          : m1.has_value_ != m2.has_value_;
-  }
-  friend bool operator!=(const Optional& opt, const T& value) {
-    return !opt.has_value_ || opt.value_ != value;
-  }
-  friend bool operator!=(const T& value, const Optional& opt) {
-    return !opt.has_value_ || value != opt.value_;
-  }
-
- private:
-  // Tell sanitizers that value_ shouldn't be touched.
-  void PoisonValue() {
-    rtc::AsanPoison(rtc::MakeArrayView(&value_, 1));
-    rtc::MsanMarkUninitialized(rtc::MakeArrayView(&value_, 1));
-  }
-
-  // Tell sanitizers that value_ is OK to touch again.
-  void UnpoisonValue() {
-    rtc::AsanUnpoison(rtc::MakeArrayView(&value_, 1));
-  }
-
-  bool has_value_;  // True iff value_ contains a live value.
+  bool is_populated_ = false;
   union {
-    // empty_ exists only to make it possible to initialize the union, even when
-    // it doesn't contain any data. If the union goes uninitialized, it may
-    // trigger compiler warnings.
+    // |empty_| exists so that the union will always be initialized, even when
+    // it doesn't contain a value. Union members must be initialized for the
+    // constructor to be 'constexpr'.
     char empty_;
-    // By placing value_ in a union, we get to manage its construction and
-    // destruction manually: the Optional constructors won't automatically
-    // construct it, and the Optional destructor won't automatically destroy
-    // it. Basically, this just allocates a properly sized and aligned block of
-    // memory in which we can manually put a T with placement new.
     T value_;
   };
 };
 
-#ifdef UNIT_TEST
-namespace optional_internal {
-
-// Checks if there's a valid PrintTo(const T&, std::ostream*) call for T.
 template <typename T>
-struct HasPrintTo {
- private:
-  struct No {};
+struct OptionalStorageBase<T, true /* trivially destructible */> {
+  // Initializing |empty_| here instead of using default member initializing
+  // to avoid errors in g++ 4.8.
+  constexpr OptionalStorageBase() : empty_('\0') {}
 
-  template <typename T2>
-  static auto Test(const T2& obj)
-      -> decltype(PrintTo(obj, std::declval<std::ostream*>()));
+  template <class... Args>
+  constexpr explicit OptionalStorageBase(in_place_t, Args&&... args)
+      : is_populated_(true), value_(std::forward<Args>(args)...) {}
 
-  template <typename>
-  static No Test(...);
+  // When T is trivially destructible (i.e. its destructor does nothing) there
+  // is no need to call it. Implicitly defined destructor is trivial, because
+  // both members (bool and union containing only variants which are trivially
+  // destructible) are trivially destructible.
+  // Explicitly-defaulted destructor is also trivial, but do not use it here,
+  // because it hides the implicit move constructor. It is needed to implement
+  // constexpr move constructor in OptionalStorage iff T is trivially move
+  // constructible. Note that, if T is trivially move constructible, the move
+  // constructor of OptionalStorageBase<T> is also implicitly defined and it is
+  // trivially move constructor. If T is not trivially move constructible,
+  // "not declaring move constructor without destructor declaration" here means
+  // "delete move constructor", which works because any move constructor of
+  // OptionalStorage will not refer to it in that case.
 
- public:
-  static constexpr bool value =
-      !std::is_same<decltype(Test<T>(std::declval<const T&>())), No>::value;
+  template <class... Args>
+  void Init(Args&&... args) {
+    DCHECK(!is_populated_);
+    ::new (&value_) T(std::forward<Args>(args)...);
+    is_populated_ = true;
+  }
+
+  bool is_populated_ = false;
+  union {
+    // |empty_| exists so that the union will always be initialized, even when
+    // it doesn't contain a value. Union members must be initialized for the
+    // constructor to be 'constexpr'.
+    char empty_;
+    T value_;
+  };
 };
 
-// Checks if there's a valid operator<<(std::ostream&, const T&) call for T.
-template <typename T>
-struct HasOstreamOperator {
- private:
-  struct No {};
+// Implement conditional constexpr copy and move constructors. These are
+// constexpr if is_trivially_{copy,move}_constructible<T>::value is true
+// respectively. If each is true, the corresponding constructor is defined as
+// "= default;", which generates a constexpr constructor (In this case,
+// the condition of constexpr-ness is satisfied because the base class also has
+// compiler generated constexpr {copy,move} constructors). Note that
+// placement-new is prohibited in constexpr.
+template <typename T,
+          bool = is_trivially_copy_constructible<T>::value,
+          bool = std::is_trivially_move_constructible<T>::value>
+struct OptionalStorage : OptionalStorageBase<T> {
+  // This is no trivially {copy,move} constructible case. Other cases are
+  // defined below as specializations.
 
-  template <typename T2>
-  static auto Test(const T2& obj)
-      -> decltype(std::declval<std::ostream&>() << obj);
+  // Accessing the members of template base class requires explicit
+  // declaration.
+  using OptionalStorageBase<T>::is_populated_;
+  using OptionalStorageBase<T>::value_;
+  using OptionalStorageBase<T>::Init;
 
-  template <typename>
-  static No Test(...);
+  // Inherit constructors (specifically, the in_place constructor).
+  using OptionalStorageBase<T>::OptionalStorageBase;
 
- public:
-  static constexpr bool value =
-      !std::is_same<decltype(Test<T>(std::declval<const T&>())), No>::value;
+  // User defined constructor deletes the default constructor.
+  // Define it explicitly.
+  OptionalStorage() = default;
+
+  OptionalStorage(const OptionalStorage& other) {
+    if (other.is_populated_)
+      Init(other.value_);
+  }
+
+  OptionalStorage(OptionalStorage&& other) noexcept(
+      std::is_nothrow_move_constructible<T>::value) {
+    if (other.is_populated_)
+      Init(std::move(other.value_));
+  }
 };
 
-// Prefer using PrintTo to print the object.
 template <typename T>
-typename std::enable_if<HasPrintTo<T>::value, void>::type OptionalPrintToHelper(
-    const T& value,
-    std::ostream* os) {
-  PrintTo(value, os);
-}
+struct OptionalStorage<T,
+                       true /* trivially copy constructible */,
+                       false /* trivially move constructible */>
+    : OptionalStorageBase<T> {
+  using OptionalStorageBase<T>::is_populated_;
+  using OptionalStorageBase<T>::value_;
+  using OptionalStorageBase<T>::Init;
+  using OptionalStorageBase<T>::OptionalStorageBase;
 
-// Fall back to operator<<(std::ostream&, ...) if it exists.
-template <typename T>
-typename std::enable_if<HasOstreamOperator<T>::value && !HasPrintTo<T>::value,
-                        void>::type
-OptionalPrintToHelper(const T& value, std::ostream* os) {
-  *os << value;
-}
+  OptionalStorage() = default;
+  OptionalStorage(const OptionalStorage& other) = default;
 
-inline void OptionalPrintObjectBytes(const unsigned char* bytes,
-                                     size_t size,
-                                     std::ostream* os) {
-  *os << "<optional with " << size << "-byte object [";
-  for (size_t i = 0; i != size; ++i) {
-    *os << (i == 0 ? "" : ((i & 1) ? "-" : " "));
-    *os << std::hex << std::setw(2) << std::setfill('0')
-        << static_cast<int>(bytes[i]);
+  OptionalStorage(OptionalStorage&& other) noexcept(
+      std::is_nothrow_move_constructible<T>::value) {
+    if (other.is_populated_)
+      Init(std::move(other.value_));
   }
-  *os << "]>";
-}
+};
 
-// As a final back-up, just print the contents of the objcets byte-wise.
 template <typename T>
-typename std::enable_if<!HasOstreamOperator<T>::value && !HasPrintTo<T>::value,
-                        void>::type
-OptionalPrintToHelper(const T& value, std::ostream* os) {
-  OptionalPrintObjectBytes(reinterpret_cast<const unsigned char*>(&value),
-                           sizeof(value), os);
-}
+struct OptionalStorage<T,
+                       false /* trivially copy constructible */,
+                       true /* trivially move constructible */>
+    : OptionalStorageBase<T> {
+  using OptionalStorageBase<T>::is_populated_;
+  using OptionalStorageBase<T>::value_;
+  using OptionalStorageBase<T>::Init;
+  using OptionalStorageBase<T>::OptionalStorageBase;
 
-}  // namespace optional_internal
+  OptionalStorage() = default;
+  OptionalStorage(OptionalStorage&& other) = default;
 
-// PrintTo is used by gtest to print out the results of tests. We want to ensure
-// the object contained in an Optional can be printed out if it's set, while
-// avoiding touching the object's storage if it is undefined.
-template <typename T>
-void PrintTo(const rtc::Optional<T>& opt, std::ostream* os) {
-  if (opt) {
-    optional_internal::OptionalPrintToHelper(*opt, os);
-  } else {
-    *os << "<empty optional>";
+  OptionalStorage(const OptionalStorage& other) {
+    if (other.is_populated_)
+      Init(other.value_);
   }
+};
+
+template <typename T>
+struct OptionalStorage<T,
+                       true /* trivially copy constructible */,
+                       true /* trivially move constructible */>
+    : OptionalStorageBase<T> {
+  // If both trivially {copy,move} constructible are true, it is not necessary
+  // to use user-defined constructors. So, just inheriting constructors
+  // from the base class works.
+  using OptionalStorageBase<T>::OptionalStorageBase;
+};
+
+// Base class to support conditionally usable copy-/move- constructors
+// and assign operators.
+template <typename T>
+class OptionalBase {
+  // This class provides implementation rather than public API, so everything
+  // should be hidden. Often we use composition, but we cannot in this case
+  // because of C++ language restriction.
+ protected:
+  constexpr OptionalBase() = default;
+  constexpr OptionalBase(const OptionalBase& other) = default;
+  constexpr OptionalBase(OptionalBase&& other) = default;
+
+  template <class... Args>
+  constexpr explicit OptionalBase(in_place_t, Args&&... args)
+      : storage_(in_place, std::forward<Args>(args)...) {}
+
+  // Implementation of converting constructors.
+  template <typename U>
+  explicit OptionalBase(const OptionalBase<U>& other) {
+    if (other.storage_.is_populated_)
+      storage_.Init(other.storage_.value_);
+  }
+
+  template <typename U>
+  explicit OptionalBase(OptionalBase<U>&& other) {
+    if (other.storage_.is_populated_)
+      storage_.Init(std::move(other.storage_.value_));
+  }
+
+  ~OptionalBase() = default;
+
+  OptionalBase& operator=(const OptionalBase& other) {
+    CopyAssign(other);
+    return *this;
+  }
+
+  OptionalBase& operator=(OptionalBase&& other) noexcept(
+      std::is_nothrow_move_assignable<T>::value&&
+          std::is_nothrow_move_constructible<T>::value) {
+    MoveAssign(std::move(other));
+    return *this;
+  }
+
+  template <typename U>
+  void CopyAssign(const OptionalBase<U>& other) {
+    if (other.storage_.is_populated_)
+      InitOrAssign(other.storage_.value_);
+    else
+      FreeIfNeeded();
+  }
+
+  template <typename U>
+  void MoveAssign(OptionalBase<U>&& other) {
+    if (other.storage_.is_populated_)
+      InitOrAssign(std::move(other.storage_.value_));
+    else
+      FreeIfNeeded();
+  }
+
+  template <typename U>
+  void InitOrAssign(U&& value) {
+    if (storage_.is_populated_)
+      storage_.value_ = std::forward<U>(value);
+    else
+      storage_.Init(std::forward<U>(value));
+  }
+
+  void FreeIfNeeded() {
+    if (!storage_.is_populated_)
+      return;
+    storage_.value_.~T();
+    storage_.is_populated_ = false;
+  }
+
+  // For implementing conversion, allow access to other typed OptionalBase
+  // class.
+  template <typename U>
+  friend class OptionalBase;
+
+  OptionalStorage<T> storage_;
+};
+
+// The following {Copy,Move}{Constructible,Assignable} structs are helpers to
+// implement constructor/assign-operator overloading. Specifically, if T is
+// is not movable but copyable, Optional<T>'s move constructor should not
+// participate in overload resolution. This inheritance trick implements that.
+template <bool is_copy_constructible>
+struct CopyConstructible {};
+
+template <>
+struct CopyConstructible<false> {
+  constexpr CopyConstructible() = default;
+  constexpr CopyConstructible(const CopyConstructible&) = delete;
+  constexpr CopyConstructible(CopyConstructible&&) = default;
+  CopyConstructible& operator=(const CopyConstructible&) = default;
+  CopyConstructible& operator=(CopyConstructible&&) = default;
+};
+
+template <bool is_move_constructible>
+struct MoveConstructible {};
+
+template <>
+struct MoveConstructible<false> {
+  constexpr MoveConstructible() = default;
+  constexpr MoveConstructible(const MoveConstructible&) = default;
+  constexpr MoveConstructible(MoveConstructible&&) = delete;
+  MoveConstructible& operator=(const MoveConstructible&) = default;
+  MoveConstructible& operator=(MoveConstructible&&) = default;
+};
+
+template <bool is_copy_assignable>
+struct CopyAssignable {};
+
+template <>
+struct CopyAssignable<false> {
+  constexpr CopyAssignable() = default;
+  constexpr CopyAssignable(const CopyAssignable&) = default;
+  constexpr CopyAssignable(CopyAssignable&&) = default;
+  CopyAssignable& operator=(const CopyAssignable&) = delete;
+  CopyAssignable& operator=(CopyAssignable&&) = default;
+};
+
+template <bool is_move_assignable>
+struct MoveAssignable {};
+
+template <>
+struct MoveAssignable<false> {
+  constexpr MoveAssignable() = default;
+  constexpr MoveAssignable(const MoveAssignable&) = default;
+  constexpr MoveAssignable(MoveAssignable&&) = default;
+  MoveAssignable& operator=(const MoveAssignable&) = default;
+  MoveAssignable& operator=(MoveAssignable&&) = delete;
+};
+
+// Helper to conditionally enable converting constructors and assign operators.
+template <typename T, typename U>
+struct IsConvertibleFromOptional
+    : std::integral_constant<
+          bool,
+          std::is_constructible<T, Optional<U>&>::value ||
+              std::is_constructible<T, const Optional<U>&>::value ||
+              std::is_constructible<T, Optional<U>&&>::value ||
+              std::is_constructible<T, const Optional<U>&&>::value ||
+              std::is_convertible<Optional<U>&, T>::value ||
+              std::is_convertible<const Optional<U>&, T>::value ||
+              std::is_convertible<Optional<U>&&, T>::value ||
+              std::is_convertible<const Optional<U>&&, T>::value> {};
+
+template <typename T, typename U>
+struct IsAssignableFromOptional
+    : std::integral_constant<
+          bool,
+          IsConvertibleFromOptional<T, U>::value ||
+              std::is_assignable<T&, Optional<U>&>::value ||
+              std::is_assignable<T&, const Optional<U>&>::value ||
+              std::is_assignable<T&, Optional<U>&&>::value ||
+              std::is_assignable<T&, const Optional<U>&&>::value> {};
+
+// Forward compatibility for C++17.
+// Introduce one more deeper nested namespace to avoid leaking using std::swap.
+namespace swappable_impl {
+using std::swap;
+
+struct IsSwappableImpl {
+  // Tests if swap can be called. Check<T&>(0) returns true_type iff swap
+  // is available for T. Otherwise, Check's overload resolution falls back
+  // to Check(...) declared below thanks to SFINAE, so returns false_type.
+  template <typename T>
+  static auto Check(int)
+      -> decltype(swap(std::declval<T>(), std::declval<T>()), std::true_type());
+
+  template <typename T>
+  static std::false_type Check(...);
+};
+}  // namespace swappable_impl
+
+template <typename T>
+struct IsSwappable : decltype(swappable_impl::IsSwappableImpl::Check<T&>(0)) {};
+
+// Forward compatibility for C++20.
+template <typename T>
+using RemoveCvRefT = std::remove_cv_t<std::remove_reference_t<T>>;
+
+}  // namespace internal
+
+// On Windows, by default, empty-base class optimization does not work,
+// which means even if the base class is empty struct, it still consumes one
+// byte for its body. __declspec(empty_bases) enables the optimization.
+// cf)
+// https://blogs.msdn.microsoft.com/vcblog/2016/03/30/optimizing-the-layout-of-empty-base-classes-in-vs2015-update-2-3/
+#ifdef OS_WIN
+#define OPTIONAL_DECLSPEC_EMPTY_BASES __declspec(empty_bases)
+#else
+#define OPTIONAL_DECLSPEC_EMPTY_BASES
+#endif
+
+// base::Optional is a Chromium version of the C++17 optional class:
+// std::optional documentation:
+// http://en.cppreference.com/w/cpp/utility/optional
+// Chromium documentation:
+// https://chromium.googlesource.com/chromium/src/+/master/docs/optional.md
+//
+// These are the differences between the specification and the implementation:
+// - Constructors do not use 'constexpr' as it is a C++14 extension.
+// - 'constexpr' might be missing in some places for reasons specified locally.
+// - No exceptions are thrown, because they are banned from Chromium.
+//   Marked noexcept for only move constructor and move assign operators.
+// - All the non-members are in the 'base' namespace instead of 'std'.
+//
+// Note that T cannot have a constructor T(Optional<T>) etc. Optional<T> checks
+// T's constructor (specifically via IsConvertibleFromOptional), and in the
+// check whether T can be constructible from Optional<T>, which is recursive
+// so it does not work. As of Feb 2018, std::optional C++17 implementation in
+// both clang and gcc has same limitation. MSVC SFINAE looks to have different
+// behavior, but anyway it reports an error, too.
+template <typename T>
+class OPTIONAL_DECLSPEC_EMPTY_BASES Optional
+    : public internal::OptionalBase<T>,
+      public internal::CopyConstructible<std::is_copy_constructible<T>::value>,
+      public internal::MoveConstructible<std::is_move_constructible<T>::value>,
+      public internal::CopyAssignable<std::is_copy_constructible<T>::value &&
+                                      std::is_copy_assignable<T>::value>,
+      public internal::MoveAssignable<std::is_move_constructible<T>::value &&
+                                      std::is_move_assignable<T>::value> {
+ public:
+#undef OPTIONAL_DECLSPEC_EMPTY_BASES
+  using value_type = T;
+
+  // Defer default/copy/move constructor implementation to OptionalBase.
+  constexpr Optional() = default;
+  constexpr Optional(const Optional& other) = default;
+  constexpr Optional(Optional&& other) noexcept(
+      std::is_nothrow_move_constructible<T>::value) = default;
+
+  constexpr Optional(nullopt_t) {}  // NOLINT(runtime/explicit)
+
+  // Converting copy constructor. "explicit" only if
+  // std::is_convertible<const U&, T>::value is false. It is implemented by
+  // declaring two almost same constructors, but that condition in enable_if_t
+  // is different, so that either one is chosen, thanks to SFINAE.
+  template <
+      typename U,
+      std::enable_if_t<std::is_constructible<T, const U&>::value &&
+                           !internal::IsConvertibleFromOptional<T, U>::value &&
+                           std::is_convertible<const U&, T>::value,
+                       bool> = false>
+  Optional(const Optional<U>& other) : internal::OptionalBase<T>(other) {}
+
+  template <
+      typename U,
+      std::enable_if_t<std::is_constructible<T, const U&>::value &&
+                           !internal::IsConvertibleFromOptional<T, U>::value &&
+                           !std::is_convertible<const U&, T>::value,
+                       bool> = false>
+  explicit Optional(const Optional<U>& other)
+      : internal::OptionalBase<T>(other) {}
+
+  // Converting move constructor. Similar to converting copy constructor,
+  // declaring two (explicit and non-explicit) constructors.
+  template <
+      typename U,
+      std::enable_if_t<std::is_constructible<T, U&&>::value &&
+                           !internal::IsConvertibleFromOptional<T, U>::value &&
+                           std::is_convertible<U&&, T>::value,
+                       bool> = false>
+  Optional(Optional<U>&& other) : internal::OptionalBase<T>(std::move(other)) {}
+
+  template <
+      typename U,
+      std::enable_if_t<std::is_constructible<T, U&&>::value &&
+                           !internal::IsConvertibleFromOptional<T, U>::value &&
+                           !std::is_convertible<U&&, T>::value,
+                       bool> = false>
+  explicit Optional(Optional<U>&& other)
+      : internal::OptionalBase<T>(std::move(other)) {}
+
+  template <class... Args>
+  constexpr explicit Optional(in_place_t, Args&&... args)
+      : internal::OptionalBase<T>(in_place, std::forward<Args>(args)...) {}
+
+  template <
+      class U,
+      class... Args,
+      class = std::enable_if_t<std::is_constructible<value_type,
+                                                     std::initializer_list<U>&,
+                                                     Args...>::value>>
+  constexpr explicit Optional(in_place_t,
+                              std::initializer_list<U> il,
+                              Args&&... args)
+      : internal::OptionalBase<T>(in_place, il, std::forward<Args>(args)...) {}
+
+  // Forward value constructor. Similar to converting constructors,
+  // conditionally explicit.
+  template <
+      typename U = value_type,
+      std::enable_if_t<
+          std::is_constructible<T, U&&>::value &&
+              !std::is_same<internal::RemoveCvRefT<U>, in_place_t>::value &&
+              !std::is_same<internal::RemoveCvRefT<U>, Optional<T>>::value &&
+              std::is_convertible<U&&, T>::value,
+          bool> = false>
+  constexpr Optional(U&& value)
+      : internal::OptionalBase<T>(in_place, std::forward<U>(value)) {}
+
+  template <
+      typename U = value_type,
+      std::enable_if_t<
+          std::is_constructible<T, U&&>::value &&
+              !std::is_same<internal::RemoveCvRefT<U>, in_place_t>::value &&
+              !std::is_same<internal::RemoveCvRefT<U>, Optional<T>>::value &&
+              !std::is_convertible<U&&, T>::value,
+          bool> = false>
+  constexpr explicit Optional(U&& value)
+      : internal::OptionalBase<T>(in_place, std::forward<U>(value)) {}
+
+  ~Optional() = default;
+
+  // Defer copy-/move- assign operator implementation to OptionalBase.
+  Optional& operator=(const Optional& other) = default;
+  Optional& operator=(Optional&& other) noexcept(
+      std::is_nothrow_move_assignable<T>::value&&
+          std::is_nothrow_move_constructible<T>::value) = default;
+
+  Optional& operator=(nullopt_t) {
+    FreeIfNeeded();
+    return *this;
+  }
+
+  // Perfect-forwarded assignment.
+  template <typename U>
+  std::enable_if_t<
+      !std::is_same<internal::RemoveCvRefT<U>, Optional<T>>::value &&
+          std::is_constructible<T, U>::value &&
+          std::is_assignable<T&, U>::value &&
+          (!std::is_scalar<T>::value ||
+           !std::is_same<std::decay_t<U>, T>::value),
+      Optional&>
+  operator=(U&& value) {
+    InitOrAssign(std::forward<U>(value));
+    return *this;
+  }
+
+  // Copy assign the state of other.
+  template <typename U>
+  std::enable_if_t<!internal::IsAssignableFromOptional<T, U>::value &&
+                       std::is_constructible<T, const U&>::value &&
+                       std::is_assignable<T&, const U&>::value,
+                   Optional&>
+  operator=(const Optional<U>& other) {
+    CopyAssign(other);
+    return *this;
+  }
+
+  // Move assign the state of other.
+  template <typename U>
+  std::enable_if_t<!internal::IsAssignableFromOptional<T, U>::value &&
+                       std::is_constructible<T, U>::value &&
+                       std::is_assignable<T&, U>::value,
+                   Optional&>
+  operator=(Optional<U>&& other) {
+    MoveAssign(std::move(other));
+    return *this;
+  }
+
+  constexpr const T* operator->() const {
+    DCHECK(storage_.is_populated_);
+    return &storage_.value_;
+  }
+
+  constexpr T* operator->() {
+    DCHECK(storage_.is_populated_);
+    return &storage_.value_;
+  }
+
+  constexpr const T& operator*() const & {
+    DCHECK(storage_.is_populated_);
+    return storage_.value_;
+  }
+
+  constexpr T& operator*() & {
+    DCHECK(storage_.is_populated_);
+    return storage_.value_;
+  }
+
+  constexpr const T&& operator*() const && {
+    DCHECK(storage_.is_populated_);
+    return std::move(storage_.value_);
+  }
+
+  constexpr T&& operator*() && {
+    DCHECK(storage_.is_populated_);
+    return std::move(storage_.value_);
+  }
+
+  constexpr explicit operator bool() const { return storage_.is_populated_; }
+
+  constexpr bool has_value() const { return storage_.is_populated_; }
+
+  constexpr T& value() & {
+    CHECK(storage_.is_populated_);
+    return storage_.value_;
+  }
+
+  constexpr const T& value() const & {
+    CHECK(storage_.is_populated_);
+    return storage_.value_;
+  }
+
+  constexpr T&& value() && {
+    CHECK(storage_.is_populated_);
+    return std::move(storage_.value_);
+  }
+
+  constexpr const T&& value() const && {
+    CHECK(storage_.is_populated_);
+    return std::move(storage_.value_);
+  }
+
+  template <class U>
+  constexpr T value_or(U&& default_value) const& {
+    // TODO(mlamouri): add the following assert when possible:
+    // static_assert(std::is_copy_constructible<T>::value,
+    //               "T must be copy constructible");
+    static_assert(std::is_convertible<U, T>::value,
+                  "U must be convertible to T");
+    return storage_.is_populated_
+               ? storage_.value_
+               : static_cast<T>(std::forward<U>(default_value));
+  }
+
+  template <class U>
+  constexpr T value_or(U&& default_value) && {
+    // TODO(mlamouri): add the following assert when possible:
+    // static_assert(std::is_move_constructible<T>::value,
+    //               "T must be move constructible");
+    static_assert(std::is_convertible<U, T>::value,
+                  "U must be convertible to T");
+    return storage_.is_populated_
+               ? std::move(storage_.value_)
+               : static_cast<T>(std::forward<U>(default_value));
+  }
+
+  void swap(Optional& other) {
+    if (!storage_.is_populated_ && !other.storage_.is_populated_)
+      return;
+
+    if (storage_.is_populated_ != other.storage_.is_populated_) {
+      if (storage_.is_populated_) {
+        other.storage_.Init(std::move(storage_.value_));
+        FreeIfNeeded();
+      } else {
+        storage_.Init(std::move(other.storage_.value_));
+        other.FreeIfNeeded();
+      }
+      return;
+    }
+
+    DCHECK(storage_.is_populated_ && other.storage_.is_populated_);
+    using std::swap;
+    swap(**this, *other);
+  }
+
+  void reset() { FreeIfNeeded(); }
+
+  template <class... Args>
+  T& emplace(Args&&... args) {
+    FreeIfNeeded();
+    storage_.Init(std::forward<Args>(args)...);
+    return storage_.value_;
+  }
+
+  template <class U, class... Args>
+  std::enable_if_t<
+      std::is_constructible<T, std::initializer_list<U>&, Args&&...>::value,
+      T&>
+  emplace(std::initializer_list<U> il, Args&&... args) {
+    FreeIfNeeded();
+    storage_.Init(il, std::forward<Args>(args)...);
+    return storage_.value_;
+  }
+
+ private:
+  // Accessing template base class's protected member needs explicit
+  // declaration to do so.
+  using internal::OptionalBase<T>::CopyAssign;
+  using internal::OptionalBase<T>::FreeIfNeeded;
+  using internal::OptionalBase<T>::InitOrAssign;
+  using internal::OptionalBase<T>::MoveAssign;
+  using internal::OptionalBase<T>::storage_;
+};
+
+// Here after defines comparation operators. The definition follows
+// http://en.cppreference.com/w/cpp/utility/optional/operator_cmp
+// while bool() casting is replaced by has_value() to meet the chromium
+// style guide.
+template <class T, class U>
+constexpr bool operator==(const Optional<T>& lhs, const Optional<U>& rhs) {
+  if (lhs.has_value() != rhs.has_value())
+    return false;
+  if (!lhs.has_value())
+    return true;
+  return *lhs == *rhs;
 }
 
-#endif  // UNIT_TEST
+template <class T, class U>
+constexpr bool operator!=(const Optional<T>& lhs, const Optional<U>& rhs) {
+  if (lhs.has_value() != rhs.has_value())
+    return true;
+  if (!lhs.has_value())
+    return false;
+  return *lhs != *rhs;
+}
 
-}  // namespace rtc
+template <class T, class U>
+constexpr bool operator<(const Optional<T>& lhs, const Optional<U>& rhs) {
+  if (!rhs.has_value())
+    return false;
+  if (!lhs.has_value())
+    return true;
+  return *lhs < *rhs;
+}
 
-#endif  // WEBRTC_BASE_OPTIONAL_H_
+template <class T, class U>
+constexpr bool operator<=(const Optional<T>& lhs, const Optional<U>& rhs) {
+  if (!lhs.has_value())
+    return true;
+  if (!rhs.has_value())
+    return false;
+  return *lhs <= *rhs;
+}
+
+template <class T, class U>
+constexpr bool operator>(const Optional<T>& lhs, const Optional<U>& rhs) {
+  if (!lhs.has_value())
+    return false;
+  if (!rhs.has_value())
+    return true;
+  return *lhs > *rhs;
+}
+
+template <class T, class U>
+constexpr bool operator>=(const Optional<T>& lhs, const Optional<U>& rhs) {
+  if (!rhs.has_value())
+    return true;
+  if (!lhs.has_value())
+    return false;
+  return *lhs >= *rhs;
+}
+
+template <class T>
+constexpr bool operator==(const Optional<T>& opt, nullopt_t) {
+  return !opt;
+}
+
+template <class T>
+constexpr bool operator==(nullopt_t, const Optional<T>& opt) {
+  return !opt;
+}
+
+template <class T>
+constexpr bool operator!=(const Optional<T>& opt, nullopt_t) {
+  return opt.has_value();
+}
+
+template <class T>
+constexpr bool operator!=(nullopt_t, const Optional<T>& opt) {
+  return opt.has_value();
+}
+
+template <class T>
+constexpr bool operator<(const Optional<T>& opt, nullopt_t) {
+  return false;
+}
+
+template <class T>
+constexpr bool operator<(nullopt_t, const Optional<T>& opt) {
+  return opt.has_value();
+}
+
+template <class T>
+constexpr bool operator<=(const Optional<T>& opt, nullopt_t) {
+  return !opt;
+}
+
+template <class T>
+constexpr bool operator<=(nullopt_t, const Optional<T>& opt) {
+  return true;
+}
+
+template <class T>
+constexpr bool operator>(const Optional<T>& opt, nullopt_t) {
+  return opt.has_value();
+}
+
+template <class T>
+constexpr bool operator>(nullopt_t, const Optional<T>& opt) {
+  return false;
+}
+
+template <class T>
+constexpr bool operator>=(const Optional<T>& opt, nullopt_t) {
+  return true;
+}
+
+template <class T>
+constexpr bool operator>=(nullopt_t, const Optional<T>& opt) {
+  return !opt;
+}
+
+template <class T, class U>
+constexpr bool operator==(const Optional<T>& opt, const U& value) {
+  return opt.has_value() ? *opt == value : false;
+}
+
+template <class T, class U>
+constexpr bool operator==(const U& value, const Optional<T>& opt) {
+  return opt.has_value() ? value == *opt : false;
+}
+
+template <class T, class U>
+constexpr bool operator!=(const Optional<T>& opt, const U& value) {
+  return opt.has_value() ? *opt != value : true;
+}
+
+template <class T, class U>
+constexpr bool operator!=(const U& value, const Optional<T>& opt) {
+  return opt.has_value() ? value != *opt : true;
+}
+
+template <class T, class U>
+constexpr bool operator<(const Optional<T>& opt, const U& value) {
+  return opt.has_value() ? *opt < value : true;
+}
+
+template <class T, class U>
+constexpr bool operator<(const U& value, const Optional<T>& opt) {
+  return opt.has_value() ? value < *opt : false;
+}
+
+template <class T, class U>
+constexpr bool operator<=(const Optional<T>& opt, const U& value) {
+  return opt.has_value() ? *opt <= value : true;
+}
+
+template <class T, class U>
+constexpr bool operator<=(const U& value, const Optional<T>& opt) {
+  return opt.has_value() ? value <= *opt : false;
+}
+
+template <class T, class U>
+constexpr bool operator>(const Optional<T>& opt, const U& value) {
+  return opt.has_value() ? *opt > value : false;
+}
+
+template <class T, class U>
+constexpr bool operator>(const U& value, const Optional<T>& opt) {
+  return opt.has_value() ? value > *opt : true;
+}
+
+template <class T, class U>
+constexpr bool operator>=(const Optional<T>& opt, const U& value) {
+  return opt.has_value() ? *opt >= value : false;
+}
+
+template <class T, class U>
+constexpr bool operator>=(const U& value, const Optional<T>& opt) {
+  return opt.has_value() ? value >= *opt : true;
+}
+
+template <class T>
+constexpr Optional<std::decay_t<T>> make_optional(T&& value) {
+  return Optional<std::decay_t<T>>(std::forward<T>(value));
+}
+
+template <class T, class... Args>
+constexpr Optional<T> make_optional(Args&&... args) {
+  return Optional<T>(in_place, std::forward<Args>(args)...);
+}
+
+template <class T, class U, class... Args>
+constexpr Optional<T> make_optional(std::initializer_list<U> il,
+                                    Args&&... args) {
+  return Optional<T>(in_place, il, std::forward<Args>(args)...);
+}
+
+// Partial specialization for a function template is not allowed. Also, it is
+// not allowed to add overload function to std namespace, while it is allowed
+// to specialize the template in std. Thus, swap() (kind of) overloading is
+// defined in base namespace, instead.
+template <class T>
+std::enable_if_t<std::is_move_constructible<T>::value &&
+                 internal::IsSwappable<T>::value>
+swap(Optional<T>& lhs, Optional<T>& rhs) {
+  lhs.swap(rhs);
+}
+
+}  // namespace base
+
+namespace std {
+
+template <class T>
+struct hash<base::Optional<T>> {
+  size_t operator()(const base::Optional<T>& opt) const {
+    return opt == base::nullopt ? 0 : std::hash<T>()(*opt);
+  }
+};
+
+}  // namespace std
+
+#endif  // BASE_OPTIONAL_H_

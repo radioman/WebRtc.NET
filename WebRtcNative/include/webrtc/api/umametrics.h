@@ -10,10 +10,10 @@
 
 // This file contains enums related to IPv4/IPv6 metrics.
 
-#ifndef WEBRTC_API_UMAMETRICS_H_
-#define WEBRTC_API_UMAMETRICS_H_
+#ifndef API_UMAMETRICS_H_
+#define API_UMAMETRICS_H_
 
-#include "webrtc/base/refcount.h"
+#include "rtc_base/refcount.h"
 
 namespace webrtc {
 
@@ -37,6 +37,15 @@ enum PeerConnectionEnumCounterType {
   kEnumCounterDtlsHandshakeError,
   kEnumCounterIceRegathering,
   kEnumCounterIceRestart,
+  kEnumCounterKeyProtocol,
+  kEnumCounterSdpSemanticRequested,
+  kEnumCounterSdpSemanticNegotiated,
+  kEnumCounterKeyProtocolMediaType,
+  kEnumCounterSdpFormatReceived,
+  // The next 2 counters log the value of srtp_err_status_t defined in libsrtp.
+  kEnumCounterSrtpUnprotectError,
+  kEnumCounterSrtcpUnprotectError,
+  kEnumCounterUsagePattern,
   kPeerConnectionEnumCounterMax
 };
 
@@ -111,6 +120,55 @@ enum IceCandidatePairType {
   kIceCandidatePairMax
 };
 
+enum KeyExchangeProtocolType {
+  kEnumCounterKeyProtocolDtls,
+  kEnumCounterKeyProtocolSdes,
+  kEnumCounterKeyProtocolMax
+};
+
+enum KeyExchangeProtocolMedia {
+  kEnumCounterKeyProtocolMediaTypeDtlsAudio,
+  kEnumCounterKeyProtocolMediaTypeDtlsVideo,
+  kEnumCounterKeyProtocolMediaTypeDtlsData,
+  kEnumCounterKeyProtocolMediaTypeSdesAudio,
+  kEnumCounterKeyProtocolMediaTypeSdesVideo,
+  kEnumCounterKeyProtocolMediaTypeSdesData,
+  kEnumCounterKeyProtocolMediaTypeMax
+};
+
+enum SdpSemanticRequested {
+  kSdpSemanticRequestDefault,
+  kSdpSemanticRequestPlanB,
+  kSdpSemanticRequestUnifiedPlan,
+  kSdpSemanticRequestMax
+};
+
+enum SdpSemanticNegotiated {
+  kSdpSemanticNegotiatedNone,
+  kSdpSemanticNegotiatedPlanB,
+  kSdpSemanticNegotiatedUnifiedPlan,
+  kSdpSemanticNegotiatedMixed,
+  kSdpSemanticNegotiatedMax
+};
+
+// Metric which records the format of the received SDP for tracking how much the
+// difference between Plan B and Unified Plan affect users.
+enum SdpFormatReceived {
+  // No audio or video tracks. This is worth special casing since it seems to be
+  // the most common scenario (data-channel only).
+  kSdpFormatReceivedNoTracks,
+  // No more than one audio and one video track. Should be compatible with both
+  // Plan B and Unified Plan endpoints.
+  kSdpFormatReceivedSimple,
+  // More than one audio track or more than one video track in the Plan B format
+  // (e.g., one audio media section with multiple streams).
+  kSdpFormatReceivedComplexPlanB,
+  // More than one audio track or more than one video track in the Unified Plan
+  // format (e.g., two audio media sections).
+  kSdpFormatReceivedComplexUnifiedPlan,
+  kSdpFormatReceivedMax
+};
+
 class MetricsObserverInterface : public rtc::RefCountInterface {
  public:
   // |type| is the type of the enum counter to be incremented. |counter|
@@ -118,25 +176,20 @@ class MetricsObserverInterface : public rtc::RefCountInterface {
   // number after the highest counter.
   virtual void IncrementEnumCounter(PeerConnectionEnumCounterType type,
                                     int counter,
-                                    int counter_max) {}
+                                    int counter_max) = 0;
 
   // This is used to handle sparse counters like SSL cipher suites.
   // TODO(guoweis): Remove the implementation once the dependency's interface
   // definition is updated.
   virtual void IncrementSparseEnumCounter(PeerConnectionEnumCounterType type,
-                                          int counter) {
-    IncrementEnumCounter(type, counter, 0 /* Ignored */);
-  }
+                                          int counter) = 0;
 
   virtual void AddHistogramSample(PeerConnectionMetricsName type,
                                   int value) = 0;
-
- protected:
-  virtual ~MetricsObserverInterface() {}
 };
 
 typedef MetricsObserverInterface UMAObserver;
 
 }  // namespace webrtc
 
-#endif  // WEBRTC_API_UMAMETRICS_H_
+#endif  // API_UMAMETRICS_H_

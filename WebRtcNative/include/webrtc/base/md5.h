@@ -1,44 +1,78 @@
-/*
- * This is the header file for the MD5 message-digest algorithm.
- * The algorithm is due to Ron Rivest.  This code was
- * written by Colin Plumb in 1993, no copyright is claimed.
- * This code is in the public domain; do with it what you wish.
- *
- * Equivalent code is available from RSA Data Security, Inc.
- * This code has been tested against that, and is equivalent,
- * except that you don't need to include two pages of legalese
- * with every copy.
- * To compute the message digest of a chunk of bytes, declare an
- * MD5Context structure, pass it to MD5Init, call MD5Update as
- * needed on buffers full of bytes, and then call MD5Final, which
- * will fill a supplied 16-byte array with the digest.
- *
- */
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
-// Changes(fbarchard): Ported to C++ and Google style guide.
-// Made context first parameter in MD5Final for consistency with Sha1.
-// Changes(hellner): added rtc namespace
-// Changes(pbos): Reverted types back to uint32(8)_t with _t suffix.
+#ifndef BASE_MD5_H_
+#define BASE_MD5_H_
 
-#ifndef WEBRTC_BASE_MD5_H_
-#define WEBRTC_BASE_MD5_H_
-
+#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
-namespace rtc {
+#include "base/base_export.h"
+#include "base/strings/string_piece.h"
 
-struct MD5Context {
-  uint32_t buf[4];
-  uint32_t bits[2];
-  uint32_t in[16];
+namespace base {
+
+// MD5 stands for Message Digest algorithm 5.
+// MD5 is a robust hash function, designed for cyptography, but often used
+// for file checksums.  The code is complex and slow, but has few
+// collisions.
+// See Also:
+//   http://en.wikipedia.org/wiki/MD5
+
+// These functions perform MD5 operations. The simplest call is MD5Sum() to
+// generate the MD5 sum of the given data.
+//
+// You can also compute the MD5 sum of data incrementally by making multiple
+// calls to MD5Update():
+//   MD5Context ctx; // intermediate MD5 data: do not use
+//   MD5Init(&ctx);
+//   MD5Update(&ctx, data1, length1);
+//   MD5Update(&ctx, data2, length2);
+//   ...
+//
+//   MD5Digest digest; // the result of the computation
+//   MD5Final(&digest, &ctx);
+//
+// You can call MD5DigestToBase16() to generate a string of the digest.
+
+// The output of an MD5 operation.
+struct MD5Digest {
+  uint8_t a[16];
 };
 
-void MD5Init(MD5Context* context);
-void MD5Update(MD5Context* context, const uint8_t* data, size_t len);
-void MD5Final(MD5Context* context, uint8_t digest[16]);
-void MD5Transform(uint32_t buf[4], const uint32_t in[16]);
+// Used for storing intermediate data during an MD5 computation. Callers
+// should not access the data.
+typedef char MD5Context[88];
 
-}  // namespace rtc
+// Initializes the given MD5 context structure for subsequent calls to
+// MD5Update().
+BASE_EXPORT void MD5Init(MD5Context* context);
 
-#endif  // WEBRTC_BASE_MD5_H_
+// For the given buffer of |data| as a StringPiece, updates the given MD5
+// context with the sum of the data. You can call this any number of times
+// during the computation, except that MD5Init() must have been called first.
+BASE_EXPORT void MD5Update(MD5Context* context, const StringPiece& data);
+
+// Finalizes the MD5 operation and fills the buffer with the digest.
+BASE_EXPORT void MD5Final(MD5Digest* digest, MD5Context* context);
+
+// MD5IntermediateFinal() generates a digest without finalizing the MD5
+// operation.  Can be used to generate digests for the input seen thus far,
+// without affecting the digest generated for the entire input.
+BASE_EXPORT void MD5IntermediateFinal(MD5Digest* digest,
+                                      const MD5Context* context);
+
+// Converts a digest into human-readable hexadecimal.
+BASE_EXPORT std::string MD5DigestToBase16(const MD5Digest& digest);
+
+// Computes the MD5 sum of the given data buffer with the given length.
+// The given 'digest' structure will be filled with the result data.
+BASE_EXPORT void MD5Sum(const void* data, size_t length, MD5Digest* digest);
+
+// Returns the MD5 (in hexadecimal) of a string.
+BASE_EXPORT std::string MD5String(const StringPiece& str);
+
+}  // namespace base
+
+#endif  // BASE_MD5_H_

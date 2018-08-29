@@ -1,0 +1,35 @@
+ config/win/BUILD.gn                          | 2 +-
+ secondary/third_party/libjpeg_turbo/BUILD.gn | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/config/win/BUILD.gn b/config/win/BUILD.gn
+index 5dcc9ef55..29ff5137b 100644
+--- a/config/win/BUILD.gn
++++ b/config/win/BUILD.gn
+@@ -391,7 +391,7 @@ config("default_crt") {
+       configs = [ ":dynamic_crt" ]
+     } else {
+       # Desktop Windows: static CRT.
+-      configs = [ ":static_crt" ]
++      configs = [ ":dynamic_crt" ]
+     }
+   }
+ }
+diff --git a/secondary/third_party/libjpeg_turbo/BUILD.gn b/secondary/third_party/libjpeg_turbo/BUILD.gn
+index 265d30b07..a5ac9d54c 100644
+--- a/secondary/third_party/libjpeg_turbo/BUILD.gn
++++ b/secondary/third_party/libjpeg_turbo/BUILD.gn
+@@ -198,6 +198,13 @@ static_library("libjpeg") {
+     "jquant2.c",
+     "jutils.c",
+     "jversion.h",
++    "turbojpeg.c",
++    "jpegtran.c",
++    "transupp.c",
++    "jdatadst-tj.c",
++    "jdatasrc-tj.c",
++    "jdtrans.c",
++    "jctrans.c"
+   ]
+ 
+   defines = [
