@@ -141,9 +141,6 @@ class BASE_EXPORT SysInfo {
   // Test method to force re-parsing of lsb-release.
   static void SetChromeOSVersionInfoForTest(const std::string& lsb_release,
                                             const Time& lsb_release_time);
-
-  // Returns the kernel version of the host operating system.
-  static std::string KernelVersion();
 #endif  // defined(OS_CHROMEOS)
 
 #if defined(OS_ANDROID)

@@ -18,7 +18,6 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/constructormagic.h"
 #include "rtc_base/criticalsection.h"
-#include "rtc_base/system/unused.h"
 
 namespace webrtc {
 

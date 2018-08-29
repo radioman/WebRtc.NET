@@ -42,12 +42,6 @@ class BASE_EXPORT UnguessableToken {
   // Create a unique UnguessableToken.
   static UnguessableToken Create();
 
-  // Returns a reference to a global null UnguessableToken. This should only be
-  // used for functions that need to return a reference to an UnguessableToken,
-  // and should not be used as a general-purpose substitute for invoking the
-  // default constructor.
-  static const UnguessableToken& Null();
-
   // Return a UnguessableToken built from the high/low bytes provided.
   // It should only be used in deserialization scenarios.
   //

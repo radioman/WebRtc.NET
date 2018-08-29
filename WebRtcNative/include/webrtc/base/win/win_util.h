@@ -51,8 +51,7 @@ inline HANDLE Uint32ToHandle(uint32_t h) {
       static_cast<uintptr_t>(static_cast<int32_t>(h)));
 }
 
-// Returns the string representing the current user sid. Does not modify
-// |user_sid| on failure.
+// Returns the string representing the current user sid.
 BASE_EXPORT bool GetUserSidString(std::wstring* user_sid);
 
 // Returns false if user account control (UAC) has been disabled with the

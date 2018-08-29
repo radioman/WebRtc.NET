@@ -120,10 +120,6 @@ class BASE_EXPORT MessageLoopCurrent {
   void AddTaskObserver(TaskObserver* task_observer);
   void RemoveTaskObserver(TaskObserver* task_observer);
 
-  // When this functionality is enabled, the queue time will be recorded for
-  // posted tasks.
-  void SetAddQueueTimeToTasks(bool enable);
-
   // Enables or disables the recursive task processing. This happens in the case
   // of recursive message loops. Some unwanted message loops may occur when
   // using common controls or printer functions. By default, recursive task

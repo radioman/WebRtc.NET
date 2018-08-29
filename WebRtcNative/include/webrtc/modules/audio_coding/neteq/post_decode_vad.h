@@ -19,6 +19,7 @@
 #include "modules/audio_coding/neteq/defines.h"
 #include "modules/audio_coding/neteq/packet.h"
 #include "rtc_base/constructormagic.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

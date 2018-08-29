@@ -29,15 +29,9 @@ constexpr int64_t kPlusInfinityVal = std::numeric_limits<int64_t>::max();
 class DataSize {
  public:
   DataSize() = delete;
-  static constexpr DataSize Zero() { return DataSize(0); }
-  static constexpr DataSize Infinity() {
+  static DataSize Zero() { return DataSize(0); }
+  static DataSize Infinity() {
     return DataSize(data_size_impl::kPlusInfinityVal);
-  }
-  template <int64_t bytes>
-  static constexpr DataSize Bytes() {
-    static_assert(bytes >= 0, "");
-    static_assert(bytes < data_size_impl::kPlusInfinityVal, "");
-    return DataSize(bytes);
   }
 
   template <
@@ -70,20 +64,18 @@ class DataSize {
   }
 
   template <typename T>
-  constexpr typename std::enable_if<std::is_floating_point<T>::value, T>::type
-  bytes() const {
-    return IsInfinite() ? std::numeric_limits<T>::infinity() : bytes_;
+  typename std::enable_if<std::is_floating_point<T>::value, T>::type bytes()
+      const {
+    if (IsInfinite()) {
+      return std::numeric_limits<T>::infinity();
+    } else {
+      return bytes_;
+    }
   }
 
-  constexpr int64_t bytes_or(int64_t fallback_value) const {
-    return IsFinite() ? bytes_ : fallback_value;
-  }
-
-  constexpr bool IsZero() const { return bytes_ == 0; }
-  constexpr bool IsInfinite() const {
-    return bytes_ == data_size_impl::kPlusInfinityVal;
-  }
-  constexpr bool IsFinite() const { return !IsInfinite(); }
+  bool IsZero() const { return bytes_ == 0; }
+  bool IsInfinite() const { return bytes_ == data_size_impl::kPlusInfinityVal; }
+  bool IsFinite() const { return !IsInfinite(); }
   DataSize operator-(const DataSize& other) const {
     return DataSize::bytes(bytes() - other.bytes());
   }
@@ -98,30 +90,26 @@ class DataSize {
     bytes_ += other.bytes();
     return *this;
   }
-  constexpr double operator/(const DataSize& other) const {
+  double operator/(const DataSize& other) const {
     return bytes<double>() / other.bytes<double>();
   }
-  constexpr bool operator==(const DataSize& other) const {
+  bool operator==(const DataSize& other) const {
     return bytes_ == other.bytes_;
   }
-  constexpr bool operator!=(const DataSize& other) const {
+  bool operator!=(const DataSize& other) const {
     return bytes_ != other.bytes_;
   }
-  constexpr bool operator<=(const DataSize& other) const {
+  bool operator<=(const DataSize& other) const {
     return bytes_ <= other.bytes_;
   }
-  constexpr bool operator>=(const DataSize& other) const {
+  bool operator>=(const DataSize& other) const {
     return bytes_ >= other.bytes_;
   }
-  constexpr bool operator>(const DataSize& other) const {
-    return bytes_ > other.bytes_;
-  }
-  constexpr bool operator<(const DataSize& other) const {
-    return bytes_ < other.bytes_;
-  }
+  bool operator>(const DataSize& other) const { return bytes_ > other.bytes_; }
+  bool operator<(const DataSize& other) const { return bytes_ < other.bytes_; }
 
  private:
-  explicit constexpr DataSize(int64_t bytes) : bytes_(bytes) {}
+  explicit DataSize(int64_t bytes) : bytes_(bytes) {}
   int64_t bytes_;
 };
 

@@ -31,7 +31,6 @@
 #include <cstring>
 #include <iosfwd>
 #include <limits>
-#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/base/macros.h"

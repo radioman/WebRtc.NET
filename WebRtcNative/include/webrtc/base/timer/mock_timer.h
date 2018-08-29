@@ -12,7 +12,7 @@ namespace base {
 
 class TestSimpleTaskRunner;
 
-// A mock implementation of base::OneShotTimer which requires being explicitly
+// A mock implementation of base::Timer which requires being explicitly
 // Fire()'d.
 // Prefer using ScopedTaskEnvironment::MOCK_TIME + FastForward*() to this when
 // possible.

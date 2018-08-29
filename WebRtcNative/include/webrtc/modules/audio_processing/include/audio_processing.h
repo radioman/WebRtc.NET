@@ -34,6 +34,7 @@
 #include "rtc_base/platform_file.h"
 #include "rtc_base/refcount.h"
 #include "rtc_base/scoped_ref_ptr.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 
@@ -55,6 +56,9 @@ class LevelEstimator;
 class NoiseSuppression;
 class CustomProcessing;
 class VoiceDetection;
+
+// webrtc:8665, addedd temporarily to avoid breaking dependencies.
+typedef CustomProcessing PostProcessing;
 
 // Use to enable the extended filter mode in the AEC, along with robustness
 // measures around the reported system delays. It comes with a significant
@@ -121,10 +125,10 @@ struct ExperimentalAgc {
   explicit ExperimentalAgc(bool enabled) : enabled(enabled) {}
   ExperimentalAgc(bool enabled,
                   bool enabled_agc2_level_estimator,
-                  bool digital_adaptive_disabled)
+                  bool enabled_agc2_digital_adaptive)
       : enabled(enabled),
         enabled_agc2_level_estimator(enabled_agc2_level_estimator),
-        digital_adaptive_disabled(digital_adaptive_disabled) {}
+        enabled_agc2_digital_adaptive(enabled_agc2_digital_adaptive) {}
 
   ExperimentalAgc(bool enabled, int startup_min_volume)
       : enabled(enabled), startup_min_volume(startup_min_volume) {}
@@ -138,7 +142,7 @@ struct ExperimentalAgc {
   // Lowest microphone level that will be applied in response to clipping.
   int clipped_level_min = kClippedLevelMin;
   bool enabled_agc2_level_estimator = false;
-  bool digital_adaptive_disabled = false;
+  bool enabled_agc2_digital_adaptive = false;
 };
 
 // Use to enable experimental noise suppression. It can be set in the
@@ -249,12 +253,6 @@ class AudioProcessing : public rtc::RefCountInterface {
   // by changing the default values in the AudioProcessing::Config struct.
   // The config is applied by passing the struct to the ApplyConfig method.
   struct Config {
-    // TODO(bugs.webrtc.org/9535): Currently unused. Use this to determine AEC.
-    struct EchoCanceller {
-      bool enabled = false;
-      bool mobile_mode = false;
-    } echo_canceller;
-
     struct ResidualEchoDetector {
       bool enabled = true;
     } residual_echo_detector;

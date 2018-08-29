@@ -25,10 +25,8 @@ class ApmDataDumper;
 class AdaptiveAgc {
  public:
   explicit AdaptiveAgc(ApmDataDumper* apm_data_dumper);
-  ~AdaptiveAgc();
-
   void Process(AudioFrameView<float> float_frame);
-  void Reset();
+  ~AdaptiveAgc();
 
  private:
   AdaptiveModeLevelEstimator speech_level_estimator_;

@@ -5,7 +5,6 @@
 #ifndef BASE_TASK_SEQUENCE_MANAGER_THREAD_CONTROLLER_H_
 #define BASE_TASK_SEQUENCE_MANAGER_THREAD_CONTROLLER_H_
 
-#include "base/message_loop/timer_slack.h"
 #include "base/run_loop.h"
 #include "base/single_thread_task_runner.h"
 #include "base/task/sequence_manager/lazy_now.h"
@@ -19,7 +18,6 @@ struct PendingTask;
 namespace sequence_manager {
 namespace internal {
 
-struct AssociatedThreadId;
 class SequencedTaskSource;
 
 // Implementation of this interface is used by SequenceManager to schedule
@@ -63,22 +61,21 @@ class ThreadController {
   // Must be called before the first call to Schedule*Work().
   virtual void SetSequencedTaskSource(SequencedTaskSource*) = 0;
 
-  // Requests desired timer precision from the OS.
-  // Has no effect on some platforms.
-  virtual void SetTimerSlack(TimerSlack timer_slack) = 0;
-
   // TODO(altimin): Get rid of the methods below.
   // These methods exist due to current integration of SequenceManager
   // with MessageLoop.
 
   virtual bool RunsTasksInCurrentSequence() = 0;
+
   virtual const TickClock* GetClock() = 0;
+
   virtual void SetDefaultTaskRunner(scoped_refptr<SingleThreadTaskRunner>) = 0;
+
   virtual void RestoreDefaultTaskRunner() = 0;
+
   virtual void AddNestingObserver(RunLoop::NestingObserver* observer) = 0;
+
   virtual void RemoveNestingObserver(RunLoop::NestingObserver* observer) = 0;
-  virtual const scoped_refptr<AssociatedThreadId>& GetAssociatedThread()
-      const = 0;
 };
 
 }  // namespace internal

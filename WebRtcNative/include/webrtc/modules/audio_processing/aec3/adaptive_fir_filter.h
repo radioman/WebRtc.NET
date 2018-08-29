@@ -22,7 +22,6 @@
 #include "modules/audio_processing/aec3/render_buffer.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
 #include "rtc_base/constructormagic.h"
-#include "rtc_base/system/arch.h"
 
 namespace webrtc {
 namespace aec3 {

@@ -148,9 +148,6 @@ struct BASE_EXPORT PartitionRootGeneric : public internal::PartitionRootBase {
   ALWAYS_INLINE void Free(void* ptr);
 
   NOINLINE void* Realloc(void* ptr, size_t new_size, const char* type_name);
-  // Overload that may return nullptr if reallocation isn't possible. In this
-  // case, |ptr| remains valid.
-  NOINLINE void* TryRealloc(void* ptr, size_t new_size, const char* type_name);
 
   ALWAYS_INLINE size_t ActualSize(size_t size);
 
@@ -281,44 +278,17 @@ ALWAYS_INLINE void* PartitionRoot::Alloc(size_t size, const char* type_name) {
 #endif  // defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
 }
 
-ALWAYS_INLINE bool PartitionAllocSupportsGetSize() {
-#if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
-  return false;
-#else
-  return true;
-#endif
-}
-
-ALWAYS_INLINE size_t PartitionAllocGetSize(void* ptr) {
-  // No need to lock here. Only |ptr| being freed by another thread could
-  // cause trouble, and the caller is responsible for that not happening.
-  DCHECK(PartitionAllocSupportsGetSize());
-  ptr = internal::PartitionCookieFreePointerAdjust(ptr);
-  internal::PartitionPage* page = internal::PartitionPage::FromPointer(ptr);
-  // TODO(palmer): See if we can afford to make this a CHECK.
-  DCHECK(internal::PartitionRootBase::IsValidPage(page));
-  size_t size = page->bucket->slot_size;
-  return internal::PartitionCookieSizeAdjustSubtract(size);
-}
-
 ALWAYS_INLINE void PartitionFree(void* ptr) {
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
   free(ptr);
 #else
-  void* original_ptr = ptr;
   // TODO(palmer): Check ptr alignment before continuing. Shall we do the check
   // inside PartitionCookieFreePointerAdjust?
-  PartitionAllocHooks::FreeHookIfEnabled(original_ptr);
+  PartitionAllocHooks::FreeHookIfEnabled(ptr);
   ptr = internal::PartitionCookieFreePointerAdjust(ptr);
   internal::PartitionPage* page = internal::PartitionPage::FromPointer(ptr);
   // TODO(palmer): See if we can afford to make this a CHECK.
   DCHECK(internal::PartitionRootBase::IsValidPage(page));
-
-  // This is somewhat redundant with |PartitionPage::Free|.
-  // TODO(crbug.com/680657): Doing this here might? make it OK to not do it
-  // there.
-  memset(original_ptr, 0xCD, PartitionAllocGetSize(original_ptr));
-
   page->Free(ptr);
 #endif
 }
@@ -344,8 +314,6 @@ ALWAYS_INLINE void* PartitionAllocGenericFlags(PartitionRootGeneric* root,
                                                int flags,
                                                size_t size,
                                                const char* type_name) {
-  DCHECK_LT(flags, PartitionAllocLastFlag << 1);
-
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
   void* result = malloc(size);
   CHECK(result || flags & PartitionAllocReturnNull);
@@ -413,6 +381,26 @@ ALWAYS_INLINE size_t PartitionRootGeneric::ActualSize(size_t size) {
   }
   return internal::PartitionCookieSizeAdjustSubtract(size);
 #endif
+}
+
+ALWAYS_INLINE bool PartitionAllocSupportsGetSize() {
+#if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
+  return false;
+#else
+  return true;
+#endif
+}
+
+ALWAYS_INLINE size_t PartitionAllocGetSize(void* ptr) {
+  // No need to lock here. Only |ptr| being freed by another thread could
+  // cause trouble, and the caller is responsible for that not happening.
+  DCHECK(PartitionAllocSupportsGetSize());
+  ptr = internal::PartitionCookieFreePointerAdjust(ptr);
+  internal::PartitionPage* page = internal::PartitionPage::FromPointer(ptr);
+  // TODO(palmer): See if we can afford to make this a CHECK.
+  DCHECK(internal::PartitionRootBase::IsValidPage(page));
+  size_t size = page->bucket->slot_size;
+  return internal::PartitionCookieSizeAdjustSubtract(size);
 }
 
 template <size_t N>

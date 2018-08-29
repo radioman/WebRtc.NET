@@ -13,6 +13,8 @@
 
 #include <cstdlib>
 
+#include "typedefs.h"  // NOLINT(build/include)
+
 // Provides a set of static methods to perform dyadic decimations.
 
 namespace webrtc {

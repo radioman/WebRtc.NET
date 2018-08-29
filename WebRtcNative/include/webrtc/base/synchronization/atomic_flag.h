@@ -34,7 +34,7 @@ class BASE_EXPORT AtomicFlag {
 
  private:
   base::subtle::Atomic32 flag_ = 0;
-  SEQUENCE_CHECKER(set_sequence_checker_);
+  SequenceChecker set_sequence_checker_;
 
   DISALLOW_COPY_AND_ASSIGN(AtomicFlag);
 };

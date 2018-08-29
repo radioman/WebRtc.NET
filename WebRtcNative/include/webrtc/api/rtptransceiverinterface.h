@@ -34,9 +34,6 @@ enum class RtpTransceiverDirection {
 // PeerConnectionInterface::AddTransceiver.
 // https://w3c.github.io/webrtc-pc/#dom-rtcrtptransceiverinit
 struct RtpTransceiverInit final {
-  RtpTransceiverInit();
-  RtpTransceiverInit(const RtpTransceiverInit&);
-  ~RtpTransceiverInit();
   // Direction of the RtpTransceiver. See RtpTransceiverInterface::direction().
   RtpTransceiverDirection direction = RtpTransceiverDirection::kSendRecv;
 
@@ -115,7 +112,9 @@ class RtpTransceiverInterface : public rtc::RefCountInterface {
   // OnAddTrack only get fired once even if the same session description is
   // applied again.
   // Exposed in the public interface for use by Chromium.
-  virtual absl::optional<RtpTransceiverDirection> fired_direction() const;
+  virtual absl::optional<RtpTransceiverDirection> fired_direction() const {
+    return absl::nullopt;
+  }
 
   // The Stop method irreversibly stops the RtpTransceiver. The sender of this
   // transceiver will no longer send, the receiver will no longer receive.
@@ -130,7 +129,7 @@ class RtpTransceiverInterface : public rtc::RefCountInterface {
       rtc::ArrayView<RtpCodecCapability> codecs) = 0;
 
  protected:
-  ~RtpTransceiverInterface() override = default;
+  virtual ~RtpTransceiverInterface() = default;
 };
 
 }  // namespace webrtc

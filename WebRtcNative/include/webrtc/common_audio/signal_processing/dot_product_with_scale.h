@@ -11,8 +11,9 @@
 #ifndef COMMON_AUDIO_SIGNAL_PROCESSING_DOT_PRODUCT_WITH_SCALE_H_
 #define COMMON_AUDIO_SIGNAL_PROCESSING_DOT_PRODUCT_WITH_SCALE_H_
 
-#include <stdint.h>
 #include <string.h>
+
+#include "typedefs.h"  // NOLINT(build/include)
 
 #ifdef __cplusplus
 extern "C" {

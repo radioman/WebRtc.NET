@@ -20,12 +20,13 @@
 #include "p2p/base/portinterface.h"
 #include "rtc_base/helpers.h"
 #include "rtc_base/proxyinfo.h"
+#include "rtc_base/sigslot.h"
 #include "rtc_base/sslcertificate.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_checker.h"
 
 namespace webrtc {
+class MetricsObserverInterface;
 class TurnCustomizer;
 }  // namespace webrtc
 
@@ -526,6 +527,11 @@ class PortAllocator : public sigslot::has_slots<> {
     origin_ = origin;
   }
 
+  void SetMetricsObserver(webrtc::MetricsObserverInterface* observer) {
+    CheckRunOnValidThreadIfInitialized();
+    metrics_observer_ = observer;
+  }
+
   webrtc::TurnCustomizer* turn_customizer() {
     CheckRunOnValidThreadIfInitialized();
     return turn_customizer_;
@@ -545,6 +551,10 @@ class PortAllocator : public sigslot::has_slots<> {
       int component,
       const std::string& ice_ufrag,
       const std::string& ice_pwd) = 0;
+
+  webrtc::MetricsObserverInterface* metrics_observer() {
+    return metrics_observer_;
+  }
 
   const std::deque<std::unique_ptr<PortAllocatorSession>>& pooled_sessions() {
     return pooled_sessions_;
@@ -580,6 +590,8 @@ class PortAllocator : public sigslot::has_slots<> {
   std::deque<std::unique_ptr<PortAllocatorSession>> pooled_sessions_;
   bool candidate_pool_frozen_ = false;
   bool prune_turn_ports_ = false;
+
+  webrtc::MetricsObserverInterface* metrics_observer_ = nullptr;
 
   // Customizer for TURN messages.
   // The instance is owned by application and will be shared among

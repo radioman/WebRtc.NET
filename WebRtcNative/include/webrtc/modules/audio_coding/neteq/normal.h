@@ -20,6 +20,7 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/constructormagic.h"
 #include "rtc_base/numerics/safe_conversions.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

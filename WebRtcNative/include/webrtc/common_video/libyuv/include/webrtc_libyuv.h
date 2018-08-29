@@ -20,6 +20,7 @@
 
 #include "api/video/video_frame.h"
 #include "common_types.h"  // NOLINT(build/include)  // VideoTypes.
+#include "typedefs.h"      // NOLINT(build/include)
 
 namespace webrtc {
 

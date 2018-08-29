@@ -12,7 +12,6 @@
 #include <set>
 #include <unordered_map>
 #include <utility>
-#include <vector>
 
 #include "base/atomic_sequence_num.h"
 #include "base/cancelable_callback.h"
@@ -26,7 +25,6 @@
 #include "base/run_loop.h"
 #include "base/single_thread_task_runner.h"
 #include "base/synchronization/lock.h"
-#include "base/task/sequence_manager/associated_thread_id.h"
 #include "base/task/sequence_manager/enqueue_order.h"
 #include "base/task/sequence_manager/graceful_queue_shutdown_helper.h"
 #include "base/task/sequence_manager/moveable_auto_lock.h"
@@ -86,19 +84,7 @@ class BASE_EXPORT SequenceManagerImpl
   // the current thread.
   static std::unique_ptr<SequenceManagerImpl> CreateOnCurrentThread();
 
-  // Create a SequenceManager for a future thread that will run the provided
-  // MessageLoop. The SequenceManager can be initialized on the current thread
-  // and then needs to be bound and initialized on the target thread by calling
-  // BindToCurrentThread() and CompleteInitializationOnBoundThread() during the
-  // thread's startup.
-  //
-  // This function should be called only once per MessageLoop.
-  static std::unique_ptr<SequenceManagerImpl> CreateUnbound(
-      MessageLoop* message_loop);
-
   // SequenceManager implementation:
-  void BindToCurrentThread() override;
-  void CompleteInitializationOnBoundThread() override;
   void SetObserver(Observer* observer) override;
   void AddTaskObserver(MessageLoop::TaskObserver* task_observer) override;
   void RemoveTaskObserver(MessageLoop::TaskObserver* task_observer) override;
@@ -114,7 +100,6 @@ class BASE_EXPORT SequenceManagerImpl
   void SweepCanceledDelayedTasks() override;
   bool GetAndClearSystemIsQuiescentBit() override;
   void SetWorkBatchSize(int work_batch_size) override;
-  void SetTimerSlack(TimerSlack timer_slack) override;
   void EnableCrashKeys(const char* file_name_crash_key,
                        const char* function_name_crash_key) override;
   const MetricRecordingSettings& GetMetricRecordingSettings() const override;
@@ -151,10 +136,6 @@ class BASE_EXPORT SequenceManagerImpl
   scoped_refptr<internal::GracefulQueueShutdownHelper>
   GetGracefulQueueShutdownHelper() const;
 
-  const scoped_refptr<AssociatedThreadId>& associated_thread() const {
-    return associated_thread_;
-  }
-
   WeakPtr<SequenceManagerImpl> GetWeakPtr();
 
  protected:
@@ -190,25 +171,20 @@ class BASE_EXPORT SequenceManagerImpl
   // selector interface is unaware of those.  This struct keeps track off all
   // task related state needed to make pairs of TakeTask() / DidRunTask() work.
   struct ExecutingTask {
-    ExecutingTask(internal::TaskQueueImpl::Task&& task,
+    ExecutingTask(internal::TaskQueueImpl::Task&& pending_task,
                   internal::TaskQueueImpl* task_queue,
                   TaskQueue::TaskTiming task_timing)
-        : pending_task(std::move(task)),
+        : pending_task(std::move(pending_task)),
           task_queue(task_queue),
-          task_timing(task_timing),
-          task_type(pending_task.task_type()) {}
+          task_timing(task_timing) {}
 
     internal::TaskQueueImpl::Task pending_task;
     internal::TaskQueueImpl* task_queue = nullptr;
     TaskQueue::TaskTiming task_timing;
-    // Save task metadata to use in after running a task as |pending_task|
-    // won't be available then.
-    int task_type;
   };
 
   struct MainThreadOnly {
-    explicit MainThreadOnly(
-        const scoped_refptr<AssociatedThreadId>& associated_thread);
+    MainThreadOnly();
     ~MainThreadOnly();
 
     int nesting_depth = 0;
@@ -310,16 +286,10 @@ class BASE_EXPORT SequenceManagerImpl
 
   bool ShouldRecordCPUTimeForTask();
 
-  // Helper to terminate all scoped trace events to allow starting new ones
-  // in TakeTask().
-  Optional<PendingTask> TakeTaskImpl();
-
   // Determines if wall time or thread time should be recorded for the next
   // task.
   TaskQueue::TaskTiming InitializeTaskTiming(
       internal::TaskQueueImpl* task_queue);
-
-  scoped_refptr<AssociatedThreadId> associated_thread_;
 
   const scoped_refptr<internal::GracefulQueueShutdownHelper>
       graceful_shutdown_helper_;
@@ -348,13 +318,14 @@ class BASE_EXPORT SequenceManagerImpl
 
   int32_t memory_corruption_sentinel_;
 
+  THREAD_CHECKER(main_thread_checker_);
   MainThreadOnly main_thread_only_;
   MainThreadOnly& main_thread_only() {
-    DCHECK_CALLED_ON_VALID_THREAD(associated_thread_->thread_checker);
+    DCHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
     return main_thread_only_;
   }
   const MainThreadOnly& main_thread_only() const {
-    DCHECK_CALLED_ON_VALID_THREAD(associated_thread_->thread_checker);
+    DCHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
     return main_thread_only_;
   }
 

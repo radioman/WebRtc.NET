@@ -268,12 +268,6 @@ int GetVlogLevel(const char (&file)[N]) {
 BASE_EXPORT void SetLogItems(bool enable_process_id, bool enable_thread_id,
                              bool enable_timestamp, bool enable_tickcount);
 
-// Sets an optional prefix to add to each log message. |prefix| is not copied
-// and should be a raw string constant. |prefix| must only contain ASCII letters
-// to avoid confusion with PIDs and timestamps. Pass null to remove the prefix.
-// Logging defaults to no prefix.
-BASE_EXPORT void SetLogPrefix(const char* prefix);
-
 // Sets whether or not you'd like to see fatal debug messages popped up in
 // a dialog box or not.
 // Dialogs are not shown by default.

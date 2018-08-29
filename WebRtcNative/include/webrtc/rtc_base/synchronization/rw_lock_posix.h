@@ -14,6 +14,7 @@
 #include <pthread.h>
 
 #include "rtc_base/synchronization/rw_lock_wrapper.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

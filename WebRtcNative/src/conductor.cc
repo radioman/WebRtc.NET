@@ -5,6 +5,8 @@
 #include "webrtc/rtc_base/checks.h"
 #include "webrtc/api/test/fakeconstraints.h"
 #include "webrtc/api/video_codecs/video_encoder.h"
+#include "modules/audio_device/include/audio_device_default.h"
+#include "modules/audio_processing/include/audio_processing.h"
 #include "webrtc/api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "webrtc/api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "webrtc/api/video_codecs/builtin_video_decoder_factory.h"

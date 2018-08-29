@@ -5,15 +5,11 @@
 #ifndef BASE_TASK_SEQUENCE_MANAGER_THREAD_CONTROLLER_WITH_MESSAGE_PUMP_IMPL_H_
 #define BASE_TASK_SEQUENCE_MANAGER_THREAD_CONTROLLER_WITH_MESSAGE_PUMP_IMPL_H_
 
-#include <memory>
-
 #include "base/debug/task_annotator.h"
 #include "base/message_loop/message_pump.h"
-#include "base/task/sequence_manager/associated_thread_id.h"
 #include "base/task/sequence_manager/sequenced_task_source.h"
 #include "base/task/sequence_manager/thread_controller.h"
 #include "base/threading/platform_thread.h"
-#include "base/threading/sequence_local_storage_map.h"
 #include "base/threading/thread_task_runner_handle.h"
 
 namespace base {
@@ -28,8 +24,7 @@ class BASE_EXPORT ThreadControllerWithMessagePumpImpl
       public MessagePump::Delegate,
       public RunLoop::Delegate {
  public:
-  ThreadControllerWithMessagePumpImpl(std::unique_ptr<MessagePump> message_pump,
-                                      const TickClock* time_source);
+  explicit ThreadControllerWithMessagePumpImpl(TickClock* time_source);
   ~ThreadControllerWithMessagePumpImpl() override;
 
   // ThreadController implementation:
@@ -38,7 +33,6 @@ class BASE_EXPORT ThreadControllerWithMessagePumpImpl
   void WillQueueTask(PendingTask* pending_task) override;
   void ScheduleWork() override;
   void SetNextDelayedDoWork(LazyNow* lazy_now, TimeTicks run_time) override;
-  void SetTimerSlack(TimerSlack timer_slack) override;
   const TickClock* GetClock() override;
   bool RunsTasksInCurrentSequence() override;
   void SetDefaultTaskRunner(
@@ -46,7 +40,6 @@ class BASE_EXPORT ThreadControllerWithMessagePumpImpl
   void RestoreDefaultTaskRunner() override;
   void AddNestingObserver(RunLoop::NestingObserver* observer) override;
   void RemoveNestingObserver(RunLoop::NestingObserver* observer) override;
-  const scoped_refptr<AssociatedThreadId>& GetAssociatedThread() const override;
 
  private:
   friend class DoWorkScope;
@@ -70,6 +63,9 @@ class BASE_EXPORT ThreadControllerWithMessagePumpImpl
     RunLoop::NestingObserver* nesting_observer = nullptr;  // Not owned.
     std::unique_ptr<ThreadTaskRunnerHandle> thread_task_runner_handle;
 
+    // Next delayed DoWork time for scheduling de-duplication purpose.
+    TimeTicks next_delayed_work;
+
     // Indicates that we should yield DoWork ASAP.
     bool quit_do_work = false;
 
@@ -85,29 +81,24 @@ class BASE_EXPORT ThreadControllerWithMessagePumpImpl
   };
 
   MainThreadOnly& main_thread_only() {
-    DCHECK_CALLED_ON_VALID_THREAD(associated_thread_->thread_checker);
+    DCHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
     return main_thread_only_;
   }
 
   // Returns true if there's a DoWork running on the inner-most nesting layer.
   bool is_doing_work() const {
-    DCHECK_CALLED_ON_VALID_THREAD(associated_thread_->thread_checker);
+    DCHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
     return main_thread_only_.do_work_depth == main_thread_only_.run_depth &&
            main_thread_only_.do_work_depth != 0;
   }
 
-  scoped_refptr<AssociatedThreadId> associated_thread_;
   MainThreadOnly main_thread_only_;
+  const PlatformThreadId main_thread_id_;
   std::unique_ptr<MessagePump> pump_;
   debug::TaskAnnotator task_annotator_;
-  const TickClock* time_source_;  // Not owned.
+  TickClock* time_source_;  // Not owned.
 
-  // Required to register the current thread as a sequence.
-  base::internal::SequenceLocalStorageMap sequence_local_storage_map_;
-  std::unique_ptr<
-      base::internal::ScopedSetSequenceLocalStorageMapForCurrentThread>
-      scoped_set_sequence_local_storage_map_for_current_thread_;
-
+  THREAD_CHECKER(main_thread_checker_);
   DISALLOW_COPY_AND_ASSIGN(ThreadControllerWithMessagePumpImpl);
 };
 

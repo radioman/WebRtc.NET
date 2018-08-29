@@ -36,8 +36,8 @@
 #include "rtc_base/network.h"
 #include "rtc_base/proxyinfo.h"
 #include "rtc_base/ratetracker.h"
+#include "rtc_base/sigslot.h"
 #include "rtc_base/socketaddress.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 
 namespace cricket {
@@ -508,9 +508,6 @@ class Connection : public CandidatePairInterface,
 
   ~Connection() override;
 
-  // A unique ID assigned when the connection is created.
-  uint32_t id() { return id_; }
-
   // The local port where this connection sends and receives packets.
   Port* port() { return port_; }
   const Port* port() const { return port_; }
@@ -663,6 +660,8 @@ class Connection : public CandidatePairInterface,
   std::string ToSensitiveString() const;
   // Structured description of this candidate pair.
   const webrtc::IceCandidatePairDescription& ToLogDescription();
+  // Integer typed hash value of this candidate pair.
+  uint32_t hash() { return hash_; }
   void set_ice_event_log(webrtc::IceEventLog* ice_event_log) {
     ice_event_log_ = ice_event_log;
   }
@@ -746,7 +745,6 @@ class Connection : public CandidatePairInterface,
 
   void OnMessage(rtc::Message* pmsg) override;
 
-  uint32_t id_;
   Port* port_;
   size_t local_candidate_index_;
   Candidate remote_candidate_;
@@ -816,6 +814,7 @@ class Connection : public CandidatePairInterface,
   int num_pings_sent_ = 0;
 
   absl::optional<webrtc::IceCandidatePairDescription> log_description_;
+  uint32_t hash_;
   webrtc::IceEventLog* ice_event_log_ = nullptr;
 
   friend class Port;

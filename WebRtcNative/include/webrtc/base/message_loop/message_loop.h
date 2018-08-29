@@ -14,9 +14,10 @@
 #include "base/gtest_prod_util.h"
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/message_loop/incoming_task_queue.h"
 #include "base/message_loop/message_loop_current.h"
+#include "base/message_loop/message_loop_task_runner.h"
 #include "base/message_loop/message_pump.h"
-#include "base/message_loop/pending_task_queue.h"
 #include "base/message_loop/timer_slack.h"
 #include "base/observer_list.h"
 #include "base/pending_task.h"
@@ -29,12 +30,7 @@
 
 namespace base {
 
-class SequencedTaskSource;
 class ThreadTaskRunnerHandle;
-
-namespace internal {
-class MessageLoopTaskRunner;
-}
 
 // A MessageLoop is used to process events for a particular thread.  There is
 // at most one MessageLoop instance per thread.
@@ -169,9 +165,16 @@ class BASE_EXPORT MessageLoop : public MessagePump::Delegate,
     return task_runner_;
   }
 
-  // Sets a new TaskRunner for this message loop. If the message loop was
-  // already bound, this must be called on the thread to which it is bound.
+  // Sets a new TaskRunner for this message loop. The message loop must already
+  // have been bound to a thread prior to this call, and the task runner must
+  // belong to that thread. Note that changing the task runner will also affect
+  // the ThreadTaskRunnerHandle for the target thread. Must be called on the
+  // thread to which the message loop is bound.
   void SetTaskRunner(scoped_refptr<SingleThreadTaskRunner> task_runner);
+
+  // Clears task_runner() and the ThreadTaskRunnerHandle for the target thread.
+  // Must be called on the thread to which the message loop is bound.
+  void ClearTaskRunnerForTesting();
 
   // TODO(https://crbug.com/825327): Remove users of TaskObservers through
   // MessageLoop::current() and migrate the type back here.
@@ -181,10 +184,6 @@ class BASE_EXPORT MessageLoop : public MessagePump::Delegate,
   // running on.
   void AddTaskObserver(TaskObserver* task_observer);
   void RemoveTaskObserver(TaskObserver* task_observer);
-
-  // When this functionality is enabled, the queue time will be recorded for
-  // posted tasks.
-  void SetAddQueueTimeToTasks(bool enable);
 
   // Returns true if the message loop is idle (ignoring delayed tasks). This is
   // the same condition which triggers DoWork() to return false: i.e.
@@ -215,14 +214,13 @@ class BASE_EXPORT MessageLoop : public MessagePump::Delegate,
   void BindToCurrentThread();
 
  private:
+  friend class internal::IncomingTaskQueue;
   friend class MessageLoopCurrent;
   friend class MessageLoopCurrentForIO;
   friend class MessageLoopCurrentForUI;
   friend class ScheduleWorkTest;
   friend class Thread;
   FRIEND_TEST_ALL_PREFIXES(MessageLoopTest, DeleteUnboundLoop);
-
-  class Controller;
 
   // Creates a MessageLoop without binding to a thread.
   // If |type| is TYPE_CUSTOM non-null |pump_factory| must be also given
@@ -263,14 +261,6 @@ class BASE_EXPORT MessageLoop : public MessagePump::Delegate,
   // responsible for synchronizing ScheduleWork() calls.
   void ScheduleWork();
 
-  // Returns |next_run_time| capped at 1 day from |recent_time_|. This is used
-  // to mitigate https://crbug.com/850450 where some platforms are unhappy with
-  // delays > 100,000,000 seconds. In practice, a diagnosis metric showed that
-  // no sleep > 1 hour ever completes (always interrupted by an earlier
-  // MessageLoop event) and 99% of completed sleeps are the ones scheduled for
-  // <= 1 second. Details @ https://crrev.com/c/1142589.
-  TimeTicks CapAtOneDay(TimeTicks next_run_time);
-
   // MessagePump::Delegate methods:
   bool DoWork() override;
   bool DoDelayedWork(TimeTicks* next_delayed_work_time) override;
@@ -279,13 +269,22 @@ class BASE_EXPORT MessageLoop : public MessagePump::Delegate,
   const Type type_;
 
 #if defined(OS_WIN)
-  // Tracks if we have requested high resolution timers. Its only use is to
-  // turn off the high resolution timer upon loop destruction.
+  // Tracks if this MessageLoop has requested system-wide high resolution timers
+  // for its sleep period. Used to downvote that request when the sleep is over.
   bool in_high_res_mode_ = false;
 #endif
 
   // A recent snapshot of Time::Now(), used to check delayed_work_queue_.
   TimeTicks recent_time_;
+
+  // Non-null when the last thing this MessageLoop did is become idle with
+  // pending delayed tasks. Used to report metrics on the following wake up.
+  struct ScheduledWakeup {
+    // The scheduled time of the next delayed task when this loop became idle.
+    TimeTicks next_run_time;
+    // The delta until |next_run_time| when this loop became idle.
+    TimeDelta intended_sleep;
+  } scheduled_wakeup_;
 
   ObserverList<DestructionObserver> destruction_observers_;
 
@@ -305,26 +304,12 @@ class BASE_EXPORT MessageLoop : public MessagePump::Delegate,
 
   ObserverList<TaskObserver> task_observers_;
 
-  // Pointer to this MessageLoop's Controller, valid throughout this
-  // MessageLoop's lifetime (until |underlying_task_runner_| is released at the
-  // end of ~MessageLoop()).
-  Controller* const message_loop_controller_;
+  scoped_refptr<internal::IncomingTaskQueue> incoming_task_queue_;
 
-  // The task runner this MessageLoop will extract its tasks from. By default,
-  // it will also be bound as the ThreadTaskRunnerHandle on the current thread.
-  // That default can be overridden by SetTaskRunner() but this MessageLoop will
-  // nonetheless take its tasks from |underlying_task_runner_| (the overrider is
-  // responsible for doing the routing). This member must be before
-  // |pending_task_queue| as it must outlive it.
-  const scoped_refptr<internal::MessageLoopTaskRunner> underlying_task_runner_;
+  // A task runner which we haven't bound to a thread yet.
+  scoped_refptr<internal::MessageLoopTaskRunner> unbound_task_runner_;
 
-  // The source of tasks for this MessageLoop. Currently this is always
-  // |underlying_task_runner_|. TODO(gab): Make this customizable.
-  SequencedTaskSource* const sequenced_task_source_;
-
-  internal::PendingTaskQueue pending_task_queue_;
-
-  // The task runner exposed by this message loop.
+  // The task runner associated with this message loop.
   scoped_refptr<SingleThreadTaskRunner> task_runner_;
   std::unique_ptr<ThreadTaskRunnerHandle> thread_task_runner_handle_;
 

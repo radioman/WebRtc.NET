@@ -38,6 +38,13 @@
 // internal
 #pragma comment(lib,"liblept168.lib")
 #pragma comment(lib,"webrtc.lib")
+#pragma comment(lib,"builtin_audio_decoder_factory.lib")
+#pragma comment(lib,"audio_decoder_L16.lib")
+#pragma comment(lib,"audio_decoder_g711.lib")
+#pragma comment(lib,"audio_decoder_g722.lib")
+#pragma comment(lib,"audio_decoder_ilbc.lib")
+#pragma comment(lib,"audio_decoder_isac_float.lib")
+#pragma comment(lib,"audio_decoder_opus.lib")
 
 #include "internals.h"
 

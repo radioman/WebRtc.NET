@@ -28,8 +28,6 @@ namespace test {
 class NetEqInput {
  public:
   struct PacketData {
-    PacketData();
-    ~PacketData();
     std::string ToString() const;
 
     RTPHeader header;
@@ -86,7 +84,6 @@ class NetEqInput {
 class TimeLimitedNetEqInput : public NetEqInput {
  public:
   TimeLimitedNetEqInput(std::unique_ptr<NetEqInput> input, int64_t duration_ms);
-  ~TimeLimitedNetEqInput() override;
   absl::optional<int64_t> NextPacketTime() const override;
   absl::optional<int64_t> NextOutputEventTime() const override;
   std::unique_ptr<PacketData> PopPacket() override;

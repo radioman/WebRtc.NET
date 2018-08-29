@@ -14,6 +14,7 @@
 #include <stddef.h>  // size_t
 
 #include "test/gtest.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 namespace test {

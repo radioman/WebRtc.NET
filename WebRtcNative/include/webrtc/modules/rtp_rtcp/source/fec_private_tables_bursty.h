@@ -25,7 +25,9 @@
 // (i.e., more packets/symbols in the code, so larger (k,m), i.e.,  k > 4,
 // m > 3).
 
-#include <stdint.h>
+#include <cstddef>
+
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 namespace fec_private_tables {

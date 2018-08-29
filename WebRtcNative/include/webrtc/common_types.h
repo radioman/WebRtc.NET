@@ -21,6 +21,7 @@
 #include "api/video/video_bitrate_allocation.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/deprecation.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 #if defined(_MSC_VER)
 // Disable "new behavior: elements of array will be default initialized"
@@ -408,9 +409,6 @@ struct OverUseDetectorOptions {
   double initial_avg_noise;
   double initial_var_noise;
 };
-
-// TODO(nisse): This struct is phased out, delete as soon as down stream code is
-// updated.
 
 // This structure will have the information about when packet is actually
 // received by socket.

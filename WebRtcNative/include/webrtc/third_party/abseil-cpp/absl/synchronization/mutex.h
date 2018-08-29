@@ -24,7 +24,7 @@
 // Unlike a `std::mutex`, the Abseil `Mutex` provides the following additional
 // features:
 //   * Conditional predicates intrinsic to the `Mutex` object
-//   * Shared/reader locks, in addition to standard exclusive/writer locks
+//   * Reader/writer locks, in addition to standard exclusive/writer locks
 //   * Deadlock detection and debug support.
 //
 // The following helper classes are also defined within this file:
@@ -290,7 +290,7 @@ class LOCKABLE Mutex {
   // Mutex::ReaderLockWhen()
   // Mutex::WriterLockWhen()
   //
-  // Blocks until simultaneously both `cond` is `true` and this `Mutex` can
+  // Blocks until simultaneously both `cond` is `true` and this` Mutex` can
   // be acquired, then atomically acquires this `Mutex`. `LockWhen()` is
   // logically equivalent to `*Lock(); Await();` though they may have different
   // performance characteristics.
@@ -558,7 +558,7 @@ class SCOPED_LOCKABLE ReaderMutexLock {
 // WriterMutexLock
 //
 // The `WriterMutexLock` is a helper class, like `MutexLock`, which acquires and
-// releases a write (exclusive) lock on a `Mutex` via RAII.
+// releases a write (exclusive) lock on a `Mutex` va RAII.
 class SCOPED_LOCKABLE WriterMutexLock {
  public:
   explicit WriterMutexLock(Mutex *mu) EXCLUSIVE_LOCK_FUNCTION(mu)

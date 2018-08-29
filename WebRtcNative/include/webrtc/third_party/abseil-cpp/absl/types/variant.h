@@ -248,7 +248,7 @@ using variant_alternative_t = typename variant_alternative<I, T>::type;
 //
 // Example:
 //
-//   absl::variant<int, std::string> foo = 42;
+//   absl::variant<int, std::string> bar = 42;
 //   if (absl::holds_alternative<int>(foo)) {
 //       std::cout << "The variant holds an integer";
 //   }
@@ -449,19 +449,14 @@ constexpr bool operator!=(monostate, monostate) noexcept { return false; }
 //------------------------------------------------------------------------------
 template <typename T0, typename... Tn>
 class variant<T0, Tn...> : private variant_internal::VariantBase<T0, Tn...> {
-  static_assert(absl::conjunction<std::is_object<T0>,
-                                  std::is_object<Tn>...>::value,
-                "Attempted to instantiate a variant containing a non-object "
-                "type.");
   // Intentionally not qualifing `negation` with `absl::` to work around a bug
   // in MSVC 2015 with inline namespace and variadic template.
-  static_assert(absl::conjunction<negation<std::is_array<T0> >,
-                                  negation<std::is_array<Tn> >...>::value,
-                "Attempted to instantiate a variant containing an array type.");
-  static_assert(absl::conjunction<std::is_nothrow_destructible<T0>,
+  static_assert(absl::conjunction<std::is_object<T0>, std::is_object<Tn>...,
+                                  negation<std::is_array<T0> >,
+                                  negation<std::is_array<Tn> >...,
+                                  std::is_nothrow_destructible<T0>,
                                   std::is_nothrow_destructible<Tn>...>::value,
-                "Attempted to instantiate a variant containing a non-nothrow "
-                "destructible type.");
+                "Attempted to instantiate a variant with an unsupported type.");
 
   friend struct variant_internal::VariantCoreAccess;
 

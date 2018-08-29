@@ -11,7 +11,7 @@
 #ifndef MODULES_VIDEO_CODING_RTT_FILTER_H_
 #define MODULES_VIDEO_CODING_RTT_FILTER_H_
 
-#include <stdint.h>
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

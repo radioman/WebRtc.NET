@@ -5,31 +5,9 @@
 #ifndef BASE_ANDROID_ANDROID_HARDWARE_BUFFER_COMPAT_H_
 #define BASE_ANDROID_ANDROID_HARDWARE_BUFFER_COMPAT_H_
 
-#include <android/hardware_buffer.h>
-#include <android/sensor.h>
-
+#include "base/android/android_hardware_buffer_abi.h"
 #include "base/base_export.h"
 #include "base/lazy_instance.h"
-
-extern "C" {
-using PFAHardwareBuffer_allocate = void (*)(const AHardwareBuffer_Desc* desc,
-                                            AHardwareBuffer** outBuffer);
-using PFAHardwareBuffer_acquire = void (*)(AHardwareBuffer* buffer);
-using PFAHardwareBuffer_describe = void (*)(const AHardwareBuffer* buffer,
-                                            AHardwareBuffer_Desc* outDesc);
-using PFAHardwareBuffer_lock = int (*)(AHardwareBuffer* buffer,
-                                       uint64_t usage,
-                                       int32_t fence,
-                                       const ARect* rect,
-                                       void** outVirtualAddress);
-using PFAHardwareBuffer_recvHandleFromUnixSocket =
-    int (*)(int socketFd, AHardwareBuffer** outBuffer);
-using PFAHardwareBuffer_release = void (*)(AHardwareBuffer* buffer);
-using PFAHardwareBuffer_sendHandleToUnixSocket =
-    int (*)(const AHardwareBuffer* buffer, int socketFd);
-using PFAHardwareBuffer_unlock = int (*)(AHardwareBuffer* buffer,
-                                         int32_t* fence);
-}
 
 namespace base {
 

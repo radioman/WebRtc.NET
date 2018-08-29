@@ -11,7 +11,6 @@
 #include "base/callback.h"
 #include "base/containers/queue.h"
 #include "base/location.h"
-#include "base/optional.h"
 #include "base/time/time.h"
 
 namespace base {
@@ -44,10 +43,6 @@ struct BASE_EXPORT PendingTask {
 
   // The time when the task should be run.
   base::TimeTicks delayed_run_time;
-
-  // The time at which the task was queued. Only set if the task was posted to a
-  // MessageLoop with SetAddQueueTimeToTasks(true).
-  Optional<TimeTicks> queue_time;
 
   // Chain of up-to-four symbols of the parent tasks which led to this one being
   // posted.

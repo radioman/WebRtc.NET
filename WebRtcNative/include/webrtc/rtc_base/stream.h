@@ -21,7 +21,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/messagehandler.h"
 #include "rtc_base/messagequeue.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
+#include "rtc_base/sigslot.h"
 
 namespace rtc {
 
@@ -419,6 +419,18 @@ class MemoryStream : public MemoryStreamBase {
 
  protected:
   StreamResult DoReserve(size_t size, int* error) override;
+};
+
+// ExternalMemoryStream adapts an external memory buffer, so writes which would
+// extend past the end of the buffer will return end-of-stream.
+
+class ExternalMemoryStream : public MemoryStreamBase {
+ public:
+  ExternalMemoryStream();
+  ExternalMemoryStream(void* data, size_t length);
+  ~ExternalMemoryStream() override;
+
+  void SetData(void* data, size_t length);
 };
 
 // FifoBuffer allows for efficient, thread-safe buffering of data between

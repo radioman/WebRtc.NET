@@ -26,6 +26,7 @@
 #include "modules/audio_coding/neteq/include/neteq.h"
 #include "rtc_base/criticalsection.h"
 #include "rtc_base/thread_annotations.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

@@ -147,8 +147,8 @@ BASE_EXPORT bool EqualsCaseInsensitiveASCII(StringPiece16 a, StringPiece16 b);
 // strings.
 //
 // It is likely faster to construct a new empty string object (just a few
-// instructions to set the length to 0) than to get the empty string instance
-// returned by these functions (which requires threadsafe static access).
+// instructions to set the length to 0) than to get the empty string singleton
+// returned by these functions (which requires threadsafe singleton access).
 //
 // Therefore, DO NOT USE THESE AS A GENERAL-PURPOSE SUBSTITUTE FOR DEFAULT
 // CONSTRUCTORS. There is only one case where you should use these: functions

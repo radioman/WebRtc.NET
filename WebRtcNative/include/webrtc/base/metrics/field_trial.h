@@ -487,8 +487,6 @@ class BASE_EXPORT FieldTrialList {
   // the trial does not exist. The first call of this function on a given field
   // trial will mark it as active, so that its state will be reported with usage
   // metrics, crashes, etc.
-  // Note: Direct use of this function and related FieldTrial functions is
-  // generally discouraged - instead please use base::Feature when possible.
   static std::string FindFullName(const std::string& trial_name);
 
   // Returns true if the named trial has been registered.

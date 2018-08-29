@@ -38,7 +38,6 @@
 
 #include <stdint.h>
 
-#include <memory>
 #include <utility>
 
 #include "base/base_export.h"
@@ -83,7 +82,7 @@ class BASE_EXPORT CancelableTaskTracker {
                                     const Location& from_here,
                                     OnceCallback<TaskReturnType()> task,
                                     OnceCallback<void(ReplyArgType)> reply) {
-    auto* result = new std::unique_ptr<TaskReturnType>();
+    TaskReturnType* result = new TaskReturnType();
     return PostTaskAndReply(
         task_runner, from_here,
         BindOnce(&internal::ReturnAsParamAdapter<TaskReturnType>,

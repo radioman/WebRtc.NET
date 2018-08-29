@@ -48,13 +48,13 @@
 
 // ------------------------- IMPORTANT: Thread-safety -------------------------
 
-// Weak pointers may be passed safely between sequences, but must always be
+// Weak pointers may be passed safely between threads, but must always be
 // dereferenced and invalidated on the same SequencedTaskRunner otherwise
 // checking the pointer would be racey.
 //
 // To ensure correct use, the first time a WeakPtr issued by a WeakPtrFactory
 // is dereferenced, the factory and its WeakPtrs become bound to the calling
-// sequence or current SequencedWorkerPool token, and cannot be dereferenced or
+// thread or current SequencedWorkerPool token, and cannot be dereferenced or
 // invalidated on any other task runner. Bound WeakPtrs can still be handed
 // off to other task runners, e.g. to use to post tasks back to object on the
 // bound sequence.
@@ -64,8 +64,8 @@
 // destroyed, or new WeakPtr objects may be used, from a different sequence.
 //
 // Thus, at least one WeakPtr object must exist and have been dereferenced on
-// the correct sequence to enforce that other WeakPtr objects will enforce they
-// are used on the desired sequence.
+// the correct thread to enforce that other WeakPtr objects will enforce they
+// are used on the desired thread.
 
 #ifndef BASE_MEMORY_WEAK_PTR_H_
 #define BASE_MEMORY_WEAK_PTR_H_
@@ -78,7 +78,6 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/sequence_checker.h"
-#include "base/synchronization/atomic_flag.h"
 
 namespace base {
 
@@ -100,15 +99,13 @@ class BASE_EXPORT WeakReference {
     void Invalidate();
     bool IsValid() const;
 
-    bool MaybeValid() const;
-
    private:
     friend class base::RefCountedThreadSafe<Flag>;
 
     ~Flag();
 
-    SEQUENCE_CHECKER(sequence_checker_);
-    AtomicFlag invalidated_;
+    SequenceChecker sequence_checker_;
+    bool is_valid_;
   };
 
   WeakReference();
@@ -120,8 +117,7 @@ class BASE_EXPORT WeakReference {
   WeakReference& operator=(WeakReference&& other) = default;
   WeakReference& operator=(const WeakReference& other) = default;
 
-  bool IsValid() const;
-  bool MaybeValid() const;
+  bool is_valid() const;
 
  private:
   scoped_refptr<const Flag> flag_;
@@ -244,7 +240,7 @@ class WeakPtr : public internal::WeakPtrBase {
   }
 
   T* get() const {
-    return ref_.IsValid() ? reinterpret_cast<T*>(ptr_) : nullptr;
+    return ref_.is_valid() ? reinterpret_cast<T*>(ptr_) : nullptr;
   }
 
   T& operator*() const {
@@ -258,15 +254,6 @@ class WeakPtr : public internal::WeakPtrBase {
 
   // Allow conditionals to test validity, e.g. if (weak_ptr) {...};
   explicit operator bool() const { return get() != nullptr; }
-
-  // Returns false if the WeakPtr is confirmed to be invalid. This call is safe
-  // to make from any thread, e.g. to optimize away unnecessary work, but
-  // operator bool() must always be called, on the correct sequence, before
-  // actually using the pointer.
-  //
-  // Warning: as with any object, this call is only thread-safe if the WeakPtr
-  // instance isn't being re-assigned or reset() racily with this call.
-  bool MaybeValid() const { return ref_.MaybeValid(); }
 
  private:
   friend class internal::SupportsWeakPtrBase;

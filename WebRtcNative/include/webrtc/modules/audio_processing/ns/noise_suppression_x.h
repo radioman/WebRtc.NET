@@ -12,7 +12,8 @@
 #define MODULES_AUDIO_PROCESSING_NS_NOISE_SUPPRESSION_X_H_
 
 #include <stddef.h>
-#include <stdint.h>
+
+#include "typedefs.h"  // NOLINT(build/include)
 
 typedef struct NsxHandleT NsxHandle;
 

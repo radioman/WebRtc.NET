@@ -15,10 +15,13 @@
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_utility.h"
 #include "rtc_base/criticalsection.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 
 struct CodecInst;
+
+class TelephoneEventHandler;
 
 // This strategy deals with media-specific RTP packet processing.
 // This class is not thread-safe and must be protected by its caller.
@@ -39,6 +42,24 @@ class RTPReceiverStrategy {
                                  const uint8_t* payload,
                                  size_t payload_length,
                                  int64_t timestamp_ms) = 0;
+
+  virtual TelephoneEventHandler* GetTelephoneEventHandler() = 0;
+
+  // Computes the current dead-or-alive state.
+  virtual RTPAliveType ProcessDeadOrAlive(
+      uint16_t last_payload_length) const = 0;
+
+  // Notifies the strategy that we have created a new non-RED audio payload type
+  // in the payload registry.
+  virtual int32_t OnNewPayloadTypeCreated(
+      int payload_type,
+      const SdpAudioFormat& audio_format) = 0;
+
+  // Checks if the payload type has changed, and returns whether we should
+  // reset statistics and/or discard this packet.
+  virtual void CheckPayloadChanged(int8_t payload_type,
+                                   PayloadUnion* specific_payload,
+                                   bool* should_discard_changes);
 
  protected:
   // The data callback is where we should send received payload data.

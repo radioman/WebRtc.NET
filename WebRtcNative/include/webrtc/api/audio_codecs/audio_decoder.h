@@ -18,6 +18,7 @@
 #include "api/array_view.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/constructormagic.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

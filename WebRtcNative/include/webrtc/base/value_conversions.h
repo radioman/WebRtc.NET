@@ -18,13 +18,15 @@ class UnguessableToken;
 class Value;
 
 // The caller takes ownership of the returned value.
-BASE_EXPORT Value CreateFilePathValue(const FilePath& in_value);
+BASE_EXPORT std::unique_ptr<Value> CreateFilePathValue(
+    const FilePath& in_value);
 BASE_EXPORT bool GetValueAsFilePath(const Value& value, FilePath* file_path);
 
-BASE_EXPORT Value CreateTimeDeltaValue(const TimeDelta& time);
+BASE_EXPORT std::unique_ptr<Value> CreateTimeDeltaValue(const TimeDelta& time);
 BASE_EXPORT bool GetValueAsTimeDelta(const Value& value, TimeDelta* time);
 
-BASE_EXPORT Value CreateUnguessableTokenValue(const UnguessableToken& token);
+BASE_EXPORT std::unique_ptr<Value> CreateUnguessableTokenValue(
+    const UnguessableToken& token);
 BASE_EXPORT bool GetValueAsUnguessableToken(const Value& value,
                                             UnguessableToken* token);
 

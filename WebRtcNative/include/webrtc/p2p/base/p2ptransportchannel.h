@@ -27,7 +27,6 @@
 #include <string>
 #include <vector>
 
-#include "api/asyncresolverfactory.h"
 #include "api/candidate.h"
 #include "api/rtcerror.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
@@ -41,7 +40,7 @@
 #include "rtc_base/asyncinvoker.h"
 #include "rtc_base/asyncpacketsocket.h"
 #include "rtc_base/constructormagic.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
+#include "rtc_base/sigslot.h"
 
 namespace webrtc {
 class RtcEventLog;
@@ -76,15 +75,9 @@ class RemoteCandidate : public Candidate {
 // two P2P clients connected to each other.
 class P2PTransportChannel : public IceTransportInternal {
  public:
-  // For testing only.
-  // TODO(zstein): Remove once AsyncResolverFactory is required.
-  P2PTransportChannel(const std::string& transport_name,
-                      int component,
-                      PortAllocator* allocator);
   P2PTransportChannel(const std::string& transport_name,
                       int component,
                       PortAllocator* allocator,
-                      webrtc::AsyncResolverFactory* async_resolver_factory,
                       webrtc::RtcEventLog* event_log = nullptr);
   ~P2PTransportChannel() override;
 
@@ -115,6 +108,7 @@ class P2PTransportChannel : public IceTransportInternal {
   void SetIceConfig(const IceConfig& config) override;
   const IceConfig& config() const;
   static webrtc::RTCError ValidateIceConfig(const IceConfig& config);
+  void SetMetricsObserver(webrtc::MetricsObserverInterface* observer) override;
 
   // From TransportChannel:
   int SendPacket(const char* data,
@@ -366,7 +360,6 @@ class P2PTransportChannel : public IceTransportInternal {
   std::string transport_name_;
   int component_;
   PortAllocator* allocator_;
-  webrtc::AsyncResolverFactory* async_resolver_factory_;
   rtc::Thread* network_thread_;
   bool incoming_only_;
   int error_;
@@ -416,6 +409,7 @@ class P2PTransportChannel : public IceTransportInternal {
   bool writable_ = false;
 
   rtc::AsyncInvoker invoker_;
+  webrtc::MetricsObserverInterface* metrics_observer_ = nullptr;
   absl::optional<rtc::NetworkRoute> network_route_;
   webrtc::IceEventLog ice_event_log_;
 

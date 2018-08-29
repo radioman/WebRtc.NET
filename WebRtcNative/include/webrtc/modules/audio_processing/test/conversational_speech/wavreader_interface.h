@@ -14,6 +14,7 @@
 #include <stddef.h>
 
 #include "api/array_view.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 namespace test {

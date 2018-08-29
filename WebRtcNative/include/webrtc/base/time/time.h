@@ -106,14 +106,6 @@ BASE_EXPORT int64_t SaturatedSub(TimeDelta delta, int64_t value);
 
 // TimeDelta ------------------------------------------------------------------
 
-// Represents a duration of time. Both positive and negative durations are
-// allowed; the latter being a duration whose start time is after its end time.
-//
-// When dealing with a value outside the representable range, TimeDelta will
-// saturate to infinity (both positive and negative). Once saturated,
-// mathematical operations on the TimeDelta will follow standard infinity
-// mathematics (e.g. subtracting a finite value from TimeDelta::Max() will just
-// result in TimeDelta::Max()).
 class BASE_EXPORT TimeDelta {
  public:
   constexpr TimeDelta() : delta_(0) {}
@@ -148,17 +140,18 @@ class BASE_EXPORT TimeDelta {
   }
 
   // Returns the maximum time delta, which should be greater than any reasonable
-  // time delta we might compare it to.
+  // time delta we might compare it to. Adding or subtracting the maximum time
+  // delta to a time or another time delta has an undefined result.
   static constexpr TimeDelta Max();
 
   // Returns the minimum time delta, which should be less than than any
-  // reasonable time delta we might compare it to.
+  // reasonable time delta we might compare it to. Adding or subtracting the
+  // minimum time delta to a time or another time delta has an undefined result.
   static constexpr TimeDelta Min();
 
   // Returns the internal numeric value of the TimeDelta object. Please don't
   // use this and do arithmetic on it, as it is more error prone than using the
-  // provided operators. In particular, it does not preserve TimeDelta's
-  // saturation mathematics.
+  // provided operators.
   // For serializing, use FromInternalValue to reconstitute.
   //
   // DEPRECATED - Do not use in new code. http://crbug.com/634507
@@ -166,8 +159,6 @@ class BASE_EXPORT TimeDelta {
 
   // Returns the magnitude (absolute value) of this TimeDelta.
   constexpr TimeDelta magnitude() const {
-    if (is_min())
-      return Max();
     // Some toolchains provide an incomplete C++11 implementation and lack an
     // int64_t overload for std::abs().  The following is a simple branchless
     // implementation:
@@ -218,39 +209,9 @@ class BASE_EXPORT TimeDelta {
   // __builtin_(add|sub)_overflow in safe_math_clang_gcc_impl.h :
   // https://chromium-review.googlesource.com/c/chromium/src/+/873352#message-59594ab70827795a67e0780404adf37b4b6c2f14
   TimeDelta operator+(TimeDelta other) const {
-    // Cannot add positive/negative infinity together.
-    DCHECK(!(is_max() && other.is_min()) && !(is_min() && other.is_max()));
-
-    // Anything + positive-infinity == positive-infinity.
-    if (is_max() || other.is_max())
-      return Max();
-
-    // Anything + negative-infinity == negative-infinity.
-    if (is_min() || other.is_min())
-      return Min();
-
-    // In the finite case, SaturatedAdd gives the behavior we want (including
-    // overflow protection).
     return TimeDelta(time_internal::SaturatedAdd(*this, other.delta_));
   }
-
   TimeDelta operator-(TimeDelta other) const {
-    // Infinities can be subtracted from one another, but only if they have
-    // opposing signs (e.g. infinity - infinity doesn't make sense.)
-    DCHECK(!(is_max() && other.is_max()) && !(is_min() && other.is_min()));
-
-    // positive-infinity - anything == positive infinity, and
-    // anything - negative-infinity == positive infinity.
-    if (is_max() || other.is_min())
-      return Max();
-
-    // negative-infinity - anything == negative infinity, and
-    // anything - positive-infinity == negative infinity.
-    if (is_min() || other.is_max())
-      return Min();
-
-    // In the finite case, SaturatedSub gives the behavior we want (including
-    // overflow protection).
     return TimeDelta(time_internal::SaturatedSub(*this, other.delta_));
   }
 
@@ -260,55 +221,33 @@ class BASE_EXPORT TimeDelta {
   TimeDelta& operator-=(TimeDelta other) {
     return *this = (*this - other);
   }
-
-  constexpr TimeDelta operator-() const {
-    if (is_max())
-      return Min();
-    if (is_min())
-      return Max();
-    return TimeDelta(-delta_);
-  }
+  constexpr TimeDelta operator-() const { return TimeDelta(-delta_); }
 
   // Computations with numeric types. operator*() isn't constexpr because of a
   // limitation around __builtin_mul_overflow (but operator/(1.0/a) works for
   // |a|'s of "reasonable" size -- i.e. that don't risk overflow).
   template <typename T>
   TimeDelta operator*(T a) const {
-    // Multiplying infinity by 0 is undefined.
-    DCHECK(a != 0 || (!is_max() && !is_min()));
-
-    // For the infinity cases: if both operands are positive or both are
-    // negative then the result is positive, otherwise the result is negative.
-    // In math, that's XOR.
-    if (is_max() || is_min())
-      return (delta_ > 0) ^ (a > 0) ? Min() : Max();
-
-    // For the non-infinity cases, we need to take care to avoid overflow.
     CheckedNumeric<int64_t> rv(delta_);
     rv *= a;
     if (rv.IsValid())
       return TimeDelta(rv.ValueOrDie());
-    // We know this overflows to positive or negative infinity, so the logic is
-    // the same as above; both operands positive or both negative results in
-    // positive infinity, otherwise negative infinity.
-    return (delta_ > 0) ^ (a > 0) ? Min() : Max();
+    // Matched sign overflows. Mismatched sign underflows.
+    if ((delta_ < 0) ^ (a < 0))
+      return TimeDelta(std::numeric_limits<int64_t>::min());
+    return TimeDelta(std::numeric_limits<int64_t>::max());
   }
   template <typename T>
   constexpr TimeDelta operator/(T a) const {
-    // For the infinity cases: if both operands are positive or both are
-    // negative then the result is positive, otherwise the result is negative.
-    // In math, that's XOR.
-    if (is_max() || is_min())
-      return (delta_ > 0) ^ (a >= 0) ? Min() : Max();
-
     CheckedNumeric<int64_t> rv(delta_);
     rv /= a;
     if (rv.IsValid())
       return TimeDelta(rv.ValueOrDie());
-    // We know this overflows to positive or negative infinity, so the logic is
-    // the same as above; both operands positive or both negative results in
-    // positive infinity, otherwise negative infinity.
-    return (delta_ > 0) ^ (a >= 0) ? Min() : Max();
+    // Matched sign overflows. Mismatched sign underflows.
+    // Special case to catch divide by zero.
+    if ((delta_ < 0) ^ (a <= 0))
+      return TimeDelta(std::numeric_limits<int64_t>::min());
+    return TimeDelta(std::numeric_limits<int64_t>::max());
   }
   template <typename T>
   TimeDelta& operator*=(T a) {
@@ -319,33 +258,8 @@ class BASE_EXPORT TimeDelta {
     return *this = (*this / a);
   }
 
-  constexpr int64_t operator/(TimeDelta a) const {
-    // Dividing infinity by infinity (either positive or negative) is undefined.
-    DCHECK((!is_max() && !is_min()) || (!a.is_max() && !a.is_min()));
-
-    // For an infinity numerator: if both operands are positive or both are
-    // negative then the result is positive, otherwise the result is negative.
-    // In math, that's XOR.
-    if (is_max() || is_min()) {
-      return (delta_ > 0) ^ (a.delta_ >= 0)
-                 ? std::numeric_limits<int64_t>::min()
-                 : std::numeric_limits<int64_t>::max();
-    }
-
-    // For an infinity denominator: its 0.
-    if (a.is_max() || a.is_min())
-      return 0;
-
-    return delta_ / a.delta_;
-  }
-
+  constexpr int64_t operator/(TimeDelta a) const { return delta_ / a.delta_; }
   constexpr TimeDelta operator%(TimeDelta a) const {
-    // infinity modulo x is not defined.
-    DCHECK(!is_max() && !is_min());
-
-    // This works for the infinite cases because our values for 'infinity' are
-    // the largest/smallest values possible for an int64_t, and therefore (x %
-    // infinity == x) will hold.
     return TimeDelta(delta_ % a.delta_);
   }
 
@@ -482,8 +396,6 @@ class TimeBase {
   }
 
   // Return a new time modified by some delta.
-  //
-  // Warning: Adding or subtracting a saturated TimeDelta is undefined.
   TimeClass operator+(TimeDelta delta) const {
     return TimeClass(time_internal::SaturatedAdd(delta, us_));
   }
@@ -751,10 +663,9 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
     return Explode(true, exploded);
   }
 
-  // The following two functions round down the time to the nearest day in
-  // either UTC or local time. It will represent midnight on that day.
-  Time UTCMidnight() const { return Midnight(false); }
-  Time LocalMidnight() const { return Midnight(true); }
+  // Rounds this time down to the nearest day in local time. It will represent
+  // midnight on that day.
+  Time LocalMidnight() const;
 
   // Converts an integer value representing Time to a class. This may be used
   // when deserializing a |Time| structure, using a value known to be
@@ -781,10 +692,6 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   static bool FromExploded(bool is_local,
                            const Exploded& exploded,
                            Time* time) WARN_UNUSED_RESULT;
-
-  // Rounds down the time to the nearest day in either local time
-  // |is_local = true| or UTC |is_local = false|.
-  Time Midnight(bool is_local) const;
 
   // Converts a string representation of time to a Time object.
   // An example of a time string which is converted is as below:-

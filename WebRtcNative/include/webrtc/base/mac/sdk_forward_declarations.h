@@ -322,21 +322,6 @@ typedef NSString* VNImageOption NS_STRING_ENUM;
 @property(readonly, nonatomic, strong) VNFaceLandmarks2D* landmarks;
 @end
 
-// VNDetectBarcodesRequest forward declarations.
-typedef NSString* VNBarcodeSymbology NS_STRING_ENUM;
-
-@interface VNDetectBarcodesRequest : VNImageBasedRequest
-@property(readwrite, nonatomic, copy) NSArray<VNBarcodeSymbology>* symbologies;
-@end
-
-// VNBarcodeObservation forward declarations.
-@interface VNRectangleObservation : VNDetectedObjectObservation
-@end
-
-@interface VNBarcodeObservation : VNRectangleObservation
-@property(readonly, nonatomic, copy) NSString* payloadStringValue;
-@end
-
 #endif  // MAC_OS_X_VERSION_10_13
 // ----------------------------------------------------------------------------
 // The symbol for kCWSSIDDidChangeNotification is available in the

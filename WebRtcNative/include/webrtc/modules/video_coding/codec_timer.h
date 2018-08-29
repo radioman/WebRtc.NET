@@ -15,6 +15,7 @@
 
 #include "modules/include/module_common_types.h"
 #include "rtc_base/numerics/percentile_filter.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

@@ -13,7 +13,6 @@ namespace sequence_manager {
 class FakeTask : public TaskQueue::Task {
  public:
   FakeTask();
-  explicit FakeTask(int task_type);
 };
 
 class FakeTaskTiming : public TaskQueue::TaskTiming {

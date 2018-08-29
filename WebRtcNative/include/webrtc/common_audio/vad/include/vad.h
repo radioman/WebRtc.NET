@@ -15,6 +15,7 @@
 
 #include "common_audio/vad/include/webrtc_vad.h"
 #include "rtc_base/checks.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

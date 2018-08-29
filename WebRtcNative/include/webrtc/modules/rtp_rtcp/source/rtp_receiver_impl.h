@@ -21,6 +21,7 @@
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_receiver_strategy.h"
 #include "rtc_base/criticalsection.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 
@@ -51,6 +52,10 @@ class RtpReceiverImpl : public RtpReceiver {
 
   uint32_t SSRC() const override;
 
+  int32_t CSRCs(uint32_t array_of_csrc[kRtpCsrcSize]) const override;
+
+  TelephoneEventHandler* GetTelephoneEventHandler() override;
+
   std::vector<RtpSource> GetSources() const override;
 
   const std::vector<RtpSource>& ssrc_sources_for_testing() const {
@@ -64,6 +69,8 @@ class RtpReceiverImpl : public RtpReceiver {
  private:
   void CheckSSRCChanged(const RTPHeader& rtp_header);
   void CheckCSRC(const WebRtcRTPHeader& rtp_header);
+  int32_t CheckPayloadChanged(const RTPHeader& rtp_header,
+                              PayloadUnion* payload);
 
   void UpdateSources(const absl::optional<uint8_t>& ssrc_audio_level);
   void RemoveOutdatedSources(int64_t now_ms);

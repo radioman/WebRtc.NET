@@ -26,7 +26,7 @@
 #include "media/base/videocommon.h"
 #include "rtc_base/constructormagic.h"
 #include "rtc_base/criticalsection.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
+#include "rtc_base/sigslot.h"
 #include "rtc_base/thread_checker.h"
 #include "rtc_base/timestampaligner.h"
 
@@ -77,7 +77,7 @@ class VideoCapturer : public sigslot::has_slots<>,
  public:
   VideoCapturer();
 
-  ~VideoCapturer() override;
+  virtual ~VideoCapturer() {}
 
   // Gets the id of the underlying device, which is available after the capturer
   // is initialized. Can be used to determine if two capturers reference the
@@ -134,7 +134,7 @@ class VideoCapturer : public sigslot::has_slots<>,
   virtual bool IsRunning() = 0;
   CaptureState capture_state() const { return capture_state_; }
 
-  virtual bool apply_rotation();
+  virtual bool apply_rotation() { return apply_rotation_; }
 
   // Returns true if the capturer is screencasting. This can be used to
   // implement screencast specific behavior.

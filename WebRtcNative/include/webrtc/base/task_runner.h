@@ -136,6 +136,10 @@ class BASE_EXPORT TaskRunner
  protected:
   friend struct TaskRunnerTraits;
 
+  // Only the Windows debug build seems to need this: see
+  // http://crbug.com/112250.
+  friend class RefCountedThreadSafe<TaskRunner, TaskRunnerTraits>;
+
   TaskRunner();
   virtual ~TaskRunner();
 

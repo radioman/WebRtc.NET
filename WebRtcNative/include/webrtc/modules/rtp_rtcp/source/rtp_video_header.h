@@ -10,7 +10,6 @@
 #ifndef MODULES_RTP_RTCP_SOURCE_RTP_VIDEO_HEADER_H_
 #define MODULES_RTP_RTCP_SOURCE_RTP_VIDEO_HEADER_H_
 
-#include "absl/container/inlined_vector.h"
 #include "absl/types/variant.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_rotation.h"
@@ -28,8 +27,6 @@ struct RTPVideoHeader {
   RTPVideoHeader();
   RTPVideoHeader(const RTPVideoHeader& other);
 
-  ~RTPVideoHeader();
-
   // TODO(philipel): Remove when downstream projects have been updated.
   RTPVideoHeaderVP8& vp8() {
     if (!absl::holds_alternative<RTPVideoHeaderVP8>(video_type_header))
@@ -44,24 +41,44 @@ struct RTPVideoHeader {
 
     return absl::get<RTPVideoHeaderVP8>(video_type_header);
   }
+  // TODO(philipel): Remove when downstream projects have been updated.
+  RTPVideoHeaderVP9& vp9() {
+    if (!absl::holds_alternative<RTPVideoHeaderVP9>(video_type_header))
+      video_type_header.emplace<RTPVideoHeaderVP9>();
 
-  // Information for generic codec descriptor.
-  int64_t frame_id = kNoPictureId;
-  int spatial_index = 0;
-  int temporal_index = 0;
-  absl::InlinedVector<int64_t, 5> dependencies;
-  absl::InlinedVector<int, 5> higher_spatial_layers;
+    return absl::get<RTPVideoHeaderVP9>(video_type_header);
+  }
+  // TODO(philipel): Remove when downstream projects have been updated.
+  const RTPVideoHeaderVP9& vp9() const {
+    if (!absl::holds_alternative<RTPVideoHeaderVP9>(video_type_header))
+      video_type_header.emplace<RTPVideoHeaderVP9>();
 
-  uint16_t width = 0;
-  uint16_t height = 0;
-  VideoRotation rotation = VideoRotation::kVideoRotation_0;
-  VideoContentType content_type = VideoContentType::UNSPECIFIED;
-  bool is_first_packet_in_frame = false;
-  uint8_t simulcastIdx = 0;
-  VideoCodecType codec = VideoCodecType::kVideoCodecUnknown;
+    return absl::get<RTPVideoHeaderVP9>(video_type_header);
+  }
+  // TODO(philipel): Remove when downstream projects have been updated.
+  RTPVideoHeaderH264& h264() {
+    if (!absl::holds_alternative<RTPVideoHeaderH264>(video_type_header))
+      video_type_header.emplace<RTPVideoHeaderH264>();
 
+    return absl::get<RTPVideoHeaderH264>(video_type_header);
+  }
+  // TODO(philipel): Remove when downstream projects have been updated.
+  const RTPVideoHeaderH264& h264() const {
+    if (!absl::holds_alternative<RTPVideoHeaderH264>(video_type_header))
+      video_type_header.emplace<RTPVideoHeaderH264>();
+
+    return absl::get<RTPVideoHeaderH264>(video_type_header);
+  }
+
+  uint16_t width;
+  uint16_t height;
+  VideoRotation rotation;
   PlayoutDelay playout_delay;
+  VideoContentType content_type;
   VideoSendTiming video_timing;
+  bool is_first_packet_in_frame;
+  uint8_t simulcastIdx;
+  VideoCodecType codec;
   // TODO(philipel): remove mutable when downstream projects have been updated.
   mutable RTPVideoTypeHeader video_type_header;
 };

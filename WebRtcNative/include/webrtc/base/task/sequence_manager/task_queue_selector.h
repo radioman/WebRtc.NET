@@ -12,19 +12,17 @@
 #include "base/pending_task.h"
 #include "base/task/sequence_manager/task_queue_selector_logic.h"
 #include "base/task/sequence_manager/work_queue_sets.h"
+#include "base/threading/thread_checker.h"
 
 namespace base {
 namespace sequence_manager {
 namespace internal {
 
-struct AssociatedThreadId;
-
 // TaskQueueSelector is used by the SchedulerHelper to enable prioritization
 // of particular task queues.
 class BASE_EXPORT TaskQueueSelector {
  public:
-  explicit TaskQueueSelector(
-      scoped_refptr<AssociatedThreadId> associated_thread);
+  TaskQueueSelector();
   ~TaskQueueSelector();
 
   // Called to register a queue that can be selected. This function is called
@@ -208,7 +206,7 @@ class BASE_EXPORT TaskQueueSelector {
   // Returns true if there are pending tasks with priority |priority|.
   bool HasTasksWithPriority(TaskQueue::QueuePriority priority);
 
-  scoped_refptr<AssociatedThreadId> associated_thread_;
+  ThreadChecker main_thread_checker_;
 
   PrioritizingSelector prioritizing_selector_;
   size_t immediate_starvation_count_;

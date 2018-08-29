@@ -15,6 +15,7 @@
 
 #include "modules/audio_processing/vad/common.h"
 #include "modules/audio_processing/vad/gmm.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

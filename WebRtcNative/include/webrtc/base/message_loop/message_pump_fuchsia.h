@@ -50,7 +50,7 @@ class BASE_EXPORT MessagePumpFuchsia : public MessagePump,
 
     virtual bool WaitBegin();
 
-    static void HandleSignal(async_dispatcher_t* async,
+    static void HandleSignal(async_t* async,
                              async_wait_t* wait,
                              zx_status_t status,
                              const zx_packet_signal_t* signal);

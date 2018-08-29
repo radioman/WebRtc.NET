@@ -16,7 +16,6 @@
 #include "modules/audio_processing/agc/agc.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"
 #include "rtc_base/constructormagic.h"
-#include "rtc_base/gtest_prod_util.h"
 
 namespace webrtc {
 
@@ -51,7 +50,7 @@ class AgcManagerDirect final {
                    int startup_min_level,
                    int clipped_level_min,
                    bool use_agc2_level_estimation,
-                   bool disable_digital_adaptive);
+                   bool use_agc2_digital_adaptive);
 
   ~AgcManagerDirect();
 
@@ -72,9 +71,6 @@ class AgcManagerDirect final {
  private:
   friend class AgcManagerDirectTest;
 
-  FRIEND_TEST_ALL_PREFIXES(AgcManagerDirectStandaloneTest,
-                           DisableDigitalDisablesDigital);
-
   // Dependency injection for testing. Don't delete |agc| as the memory is owned
   // by the manager.
   AgcManagerDirect(Agc* agc,
@@ -90,7 +86,7 @@ class AgcManagerDirect final {
                    int startup_min_level,
                    int clipped_level_min,
                    bool use_agc2_level_estimation,
-                   bool disable_digital_adaptive);
+                   bool use_agc2_digital_adaptive);
 
   // Sets a new microphone level, after first checking that it hasn't been
   // updated by the user, in which case no action is taken.
@@ -123,7 +119,7 @@ class AgcManagerDirect final {
   bool check_volume_on_next_process_;
   bool startup_;
   const bool use_agc2_level_estimation_;
-  const bool disable_digital_adaptive_;
+  const bool use_agc2_digital_adaptive_;
   int startup_min_level_;
   const int clipped_level_min_;
 

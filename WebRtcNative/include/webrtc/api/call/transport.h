@@ -21,7 +21,6 @@ namespace webrtc {
 // asyncpacketsocket.h.
 struct PacketOptions {
   PacketOptions();
-  PacketOptions(const PacketOptions&);
   ~PacketOptions();
 
   // A 16 bits positive id. Negative ids are invalid and should be interpreted

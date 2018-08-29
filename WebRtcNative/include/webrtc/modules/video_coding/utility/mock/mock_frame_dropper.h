@@ -14,6 +14,7 @@
 
 #include "modules/video_coding/utility/frame_dropper.h"
 #include "test/gmock.h"
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

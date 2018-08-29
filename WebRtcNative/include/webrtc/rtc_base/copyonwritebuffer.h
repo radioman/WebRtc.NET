@@ -31,9 +31,6 @@ class CopyOnWriteBuffer {
   // Move contents from an existing buffer.
   CopyOnWriteBuffer(CopyOnWriteBuffer&& buf);
 
-  // Construct a buffer from a string, convenient for unittests.
-  CopyOnWriteBuffer(const std::string& s);
-
   // Construct a buffer with the specified number of uninitialized bytes.
   explicit CopyOnWriteBuffer(size_t size);
   CopyOnWriteBuffer(size_t size, size_t capacity);

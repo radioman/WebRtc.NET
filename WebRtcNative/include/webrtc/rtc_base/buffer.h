@@ -87,7 +87,7 @@ class BufferT {
   BufferT(size_t size, size_t capacity)
       : size_(size),
         capacity_(std::max(size, capacity)),
-        data_(capacity_ > 0 ? new T[capacity_] : nullptr) {
+        data_(new T[capacity_]) {
     RTC_DCHECK(IsConsistent());
   }
 

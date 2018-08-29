@@ -28,10 +28,6 @@ namespace base {
 class MessagePump;
 class RunLoop;
 
-namespace sequence_manager {
-class SequenceManager;
-}  // namespace sequence_manager
-
 // IMPORTANT: Instead of creating a base::Thread, consider using
 // base::Create(Sequenced|SingleThread)TaskRunnerWithTraits().
 //
@@ -64,8 +60,6 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
  public:
   struct BASE_EXPORT Options {
     typedef Callback<std::unique_ptr<MessagePump>()> MessagePumpFactory;
-    using SequenceManagerCreatedCallback =
-        RepeatingCallback<void(sequence_manager::SequenceManager*)>;
 
     Options();
     Options(MessageLoop::Type type, size_t size);
@@ -84,12 +78,6 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
     // appropriate for |message_loop_type| is created. Setting this forces the
     // MessageLoop::Type to TYPE_CUSTOM.
     MessagePumpFactory message_pump_factory;
-
-    // If set, the Thread will create a SequenceManager on the MessageLoop and
-    // execute the provided callback right after it was created. The callback
-    // will be executed on the creator thread before the new Thread is started.
-    // It is typically used to create TaskQueues for the SequenceManager.
-    SequenceManagerCreatedCallback on_sequence_manager_created;
 
     // Specifies the maximum stack size that the thread is allowed to use.
     // This does not necessarily correspond to the thread's initial stack size.
@@ -345,9 +333,6 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // Stop() was invoked so that subclasses can use this state to build their own
   // cleanup logic as required.
   bool using_external_message_loop_ = false;
-
-  // Optionally stores a SequenceManager that manages Tasks on the MessageLoop.
-  std::unique_ptr<sequence_manager::SequenceManager> sequence_manager_;
 
   // Stores Options::timer_slack_ until the message loop has been bound to
   // a thread.

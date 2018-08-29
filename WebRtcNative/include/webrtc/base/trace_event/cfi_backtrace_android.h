@@ -35,15 +35,6 @@ class BASE_EXPORT CFIBacktraceAndroid {
   // on first call.
   static CFIBacktraceAndroid* GetInitializedInstance();
 
-  // Returns true if the given program counter |pc| is mapped in chrome library.
-  static bool is_chrome_address(uintptr_t pc) {
-    return pc >= executable_start_addr() && pc < executable_end_addr();
-  }
-
-  // Returns the start and end address of the current library.
-  static uintptr_t executable_start_addr();
-  static uintptr_t executable_end_addr();
-
   // Returns true if stack unwinding is possible using CFI unwind tables in apk.
   // There is no need to check this before each unwind call. Will always return
   // the same value based on CFI tables being present in the binary.
@@ -52,28 +43,18 @@ class BASE_EXPORT CFIBacktraceAndroid {
   // Returns the program counters by unwinding stack in the current thread in
   // order of latest call frame first. Unwinding works only if
   // can_unwind_stack_frames() returns true. This function allocates memory from
-  // heap for cache on the first call of the calling thread, unless
-  // AllocateCacheForCurrentThread() is called from the thread. For each stack
-  // frame, this method searches through the unwind table mapped in memory to
-  // find the unwind information for function and walks the stack to find all
-  // the return address. This only works until the last function call from the
-  // chrome.so. We do not have unwind information to unwind beyond any frame
-  // outside of chrome.so. Calls to Unwind() are thread safe and lock free, once
-  // Initialize() returns success.
+  // heap for caches. For each stack frame, this method searches through the
+  // unwind table mapped in memory to find the unwind information for function
+  // and walks the stack to find all the return address. This only works until
+  // the last function call from the chrome.so. We do not have unwind
+  // information to unwind beyond any frame outside of chrome.so. Calls to
+  // Unwind() are thread safe and lock free, once Initialize() returns success.
   size_t Unwind(const void** out_trace, size_t max_depth);
 
-  // Same as above function, but starts from a given program counter |pc| and
-  // stack pointer |sp|. This can be from current thread or any other thread.
-  // But the caller must make sure that the thread's stack segment is not racy
-  // to read.
-  size_t Unwind(uintptr_t pc,
-                uintptr_t sp,
-                const void** out_trace,
-                size_t max_depth);
-
-  // Allocates memory for CFI cache for the current thread so that Unwind()
-  // calls are safe for signal handlers.
-  void AllocateCacheForCurrentThread();
+ private:
+  FRIEND_TEST_ALL_PREFIXES(CFIBacktraceAndroidTest, TestCFICache);
+  FRIEND_TEST_ALL_PREFIXES(CFIBacktraceAndroidTest, TestFindCFIRow);
+  FRIEND_TEST_ALL_PREFIXES(CFIBacktraceAndroidTest, TestUnwinding);
 
   // The CFI information that correspond to an instruction.
   struct CFIRow {
@@ -89,15 +70,6 @@ class BASE_EXPORT CFIBacktraceAndroid {
     // address. Rule for unwinding PC: PC_prev = * (SP_prev - ra_offset).
     uint16_t ra_offset = 0;
   };
-
-  // Finds the CFI row for the given |func_addr| in terms of offset from
-  // the start of the current binary. Concurrent calls are thread safe.
-  bool FindCFIRowForPC(uintptr_t func_addr, CFIRow* out);
-
- private:
-  FRIEND_TEST_ALL_PREFIXES(CFIBacktraceAndroidTest, TestCFICache);
-  FRIEND_TEST_ALL_PREFIXES(CFIBacktraceAndroidTest, TestFindCFIRow);
-  FRIEND_TEST_ALL_PREFIXES(CFIBacktraceAndroidTest, TestUnwinding);
 
   // A simple cache that stores entries in table using prime modulo hashing.
   // This cache with 500 entries already gives us 95% hit rate, and fits in a
@@ -146,7 +118,16 @@ class BASE_EXPORT CFIBacktraceAndroid {
   // Finds the UNW_INDEX and UNW_DATA tables in from the CFI file memory map.
   void ParseCFITables();
 
+  // Finds the CFI row for the given |func_addr| in terms of offset from
+  // the start of the current binary.
+  bool FindCFIRowForPC(uintptr_t func_addr, CFIRow* out);
+
   CFICache* GetThreadLocalCFICache();
+
+  // Details about the memory mapped region which contains the libchrome.so
+  // library file.
+  uintptr_t executable_start_addr_ = 0;
+  uintptr_t executable_end_addr_ = 0;
 
   // The start address of the memory mapped unwind table asset file. Unique ptr
   // because it is replaced in tests.

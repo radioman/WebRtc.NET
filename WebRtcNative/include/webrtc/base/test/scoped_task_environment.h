@@ -8,7 +8,7 @@
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/single_thread_task_runner.h"
-#include "base/task/lazy_task_runner.h"
+#include "base/task_scheduler/lazy_task_runner.h"
 #include "build/build_config.h"
 
 namespace base {
@@ -28,7 +28,7 @@ namespace test {
 
 // ScopedTaskEnvironment allows usage of these APIs within its scope:
 // - (Thread|Sequenced)TaskRunnerHandle, on the thread where it lives
-// - base/task/post_task.h, on any thread
+// - base/task_scheduler/post_task.h, on any thread
 //
 // Tests that need either of these APIs should instantiate a
 // ScopedTaskEnvironment.
@@ -37,10 +37,10 @@ namespace test {
 // RunLoop::Run(UntilIdle) or ScopedTaskEnvironment::RunUntilIdle is called on
 // the thread where the ScopedTaskEnvironment lives.
 //
-// Tasks posted through base/task/post_task.h run on dedicated threads. If
-// ExecutionMode is QUEUED, they run when RunUntilIdle() or
-// ~ScopedTaskEnvironment is called. If ExecutionMode is ASYNC, they run as they
-// are posted.
+// Tasks posted through base/task_scheduler/post_task.h run on dedicated
+// threads. If ExecutionMode is QUEUED, they run when RunUntilIdle() or
+// ~ScopedTaskEnvironment is called. If ExecutionMode is ASYNC, they run
+// as they are posted.
 //
 // All methods of ScopedTaskEnvironment must be called from the same thread.
 //

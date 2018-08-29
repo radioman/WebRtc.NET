@@ -11,7 +11,7 @@
 #ifndef MODULES_VIDEO_CODING_INTER_FRAME_DELAY_H_
 #define MODULES_VIDEO_CODING_INTER_FRAME_DELAY_H_
 
-#include <stdint.h>
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

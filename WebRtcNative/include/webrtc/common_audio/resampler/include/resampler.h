@@ -16,7 +16,8 @@
 #define COMMON_AUDIO_RESAMPLER_INCLUDE_RESAMPLER_H_
 
 #include <stddef.h>
-#include <stdint.h>
+
+#include "typedefs.h"  // NOLINT(build/include)
 
 namespace webrtc {
 

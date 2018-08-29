@@ -30,13 +30,12 @@ BASE_EXPORT std::string GenerateGUID();
 // are in lower case characters, as Version 4 RFC says onput they're
 // case insensitive. (Use IsValidGUIDOutputString for checking if the
 // given string is valid output string)
-BASE_EXPORT bool IsValidGUID(base::StringPiece guid);
-BASE_EXPORT bool IsValidGUID(base::StringPiece16 guid);
+BASE_EXPORT bool IsValidGUID(const base::StringPiece& guid);
 
 // Returns true if the input string is valid version 4 GUID output string.
 // This also checks if the hexadecimal values "a" through "f" are in lower
 // case characters.
-BASE_EXPORT bool IsValidGUIDOutputString(base::StringPiece guid);
+BASE_EXPORT bool IsValidGUIDOutputString(const base::StringPiece& guid);
 
 // For unit testing purposes only.  Do not use outside of tests.
 BASE_EXPORT std::string RandomDataToGUIDString(const uint64_t bytes[2]);

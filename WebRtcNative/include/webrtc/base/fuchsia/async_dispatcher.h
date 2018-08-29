@@ -19,7 +19,7 @@ namespace base {
 
 // Implementation of dispatcher for Fuchsia's async library. It's necessary to
 // run Fuchsia's library on chromium threads.
-class BASE_EXPORT AsyncDispatcher : public async_dispatcher_t {
+class BASE_EXPORT AsyncDispatcher : public async_t {
  public:
   AsyncDispatcher();
   ~AsyncDispatcher();
@@ -38,17 +38,15 @@ class BASE_EXPORT AsyncDispatcher : public async_dispatcher_t {
   class WaitState;
   class TaskState;
 
-  static zx_time_t NowOp(async_dispatcher_t* async);
-  static zx_status_t BeginWaitOp(async_dispatcher_t* async, async_wait_t* wait);
-  static zx_status_t CancelWaitOp(async_dispatcher_t* async,
-                                  async_wait_t* wait);
-  static zx_status_t PostTaskOp(async_dispatcher_t* async, async_task_t* task);
-  static zx_status_t CancelTaskOp(async_dispatcher_t* async,
-                                  async_task_t* task);
-  static zx_status_t QueuePacketOp(async_dispatcher_t* async,
+  static zx_time_t NowOp(async_t* async);
+  static zx_status_t BeginWaitOp(async_t* async, async_wait_t* wait);
+  static zx_status_t CancelWaitOp(async_t* async, async_wait_t* wait);
+  static zx_status_t PostTaskOp(async_t* async, async_task_t* task);
+  static zx_status_t CancelTaskOp(async_t* async, async_task_t* task);
+  static zx_status_t QueuePacketOp(async_t* async,
                                    async_receiver_t* receiver,
                                    const zx_packet_user_t* data);
-  static zx_status_t SetGuestBellTrapOp(async_dispatcher_t* async,
+  static zx_status_t SetGuestBellTrapOp(async_t* async,
                                         async_guest_bell_trap_t* trap,
                                         zx_handle_t guest,
                                         zx_vaddr_t addr,
